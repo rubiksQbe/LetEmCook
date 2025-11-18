@@ -1,10 +1,10 @@
-import React from "react";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
+import React from "react";
 
-import Colors from "@/constants/Colors";
-import { useColorScheme } from "@/components/useColorScheme";
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
+import { useColorScheme } from "@/components/useColorScheme";
+import Colors from "@/constants/Colors";
 
 // You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
 function TabBarIcon(props: {
@@ -22,10 +22,11 @@ export default function TabLayout() {
       initialRouteName="challenges"
       screenOptions={{
         headerTitleAlign: "center",
-        tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
+        tabBarActiveTintColor: Colors.palette.blue,
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
+        tabBarIconStyle: { marginTop: 7 },
       }}
     >
       <Tabs.Screen
@@ -40,13 +41,13 @@ export default function TabLayout() {
         options={{
           title: "Challenges",
           headerStyle: {
-            backgroundColor: Colors.palette.blue,
-            height: 120,
+            backgroundColor: "white",
+            height: 110,
           },
           headerTitleStyle: {
-            fontFamily: "Poppins_700Bold",
-            fontSize: 30,
-            color: "white",
+            fontFamily: "Poppins_500Bold",
+            fontSize: 25,
+            color: Colors.palette.darkest,
           },
           tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
         }}

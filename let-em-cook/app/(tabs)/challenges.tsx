@@ -1,25 +1,46 @@
-import { useState } from "react";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useNavigation } from "expo-router";
+import { useLayoutEffect, useState } from "react";
 import {
-  StyleSheet,
-  View,
-  Text,
   FlatList,
   Image,
-  TouchableOpacity,
   Modal,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Colors from "../../constants/Colors";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 export default function ChallengeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <MaterialCommunityIcons
+            name="plus"
+            size={32}
+            color={Colors.palette.blue}
+            style={{ marginRight: 18 }}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   const [challenges, setChallenges] = useState([
     {
       id: "1",
       title: "Chimichurri Steak",
       timeLimit: "10 min",
+      difficulty: "Medium",
+      rating: 5,
       ingredients: [
         "Steak",
         "red wine vinegar",
@@ -27,12 +48,15 @@ export default function ChallengeScreen() {
         "oregano",
         "garlic",
       ],
+      pinned: false,
       image: require("@/assets/images/steak.jpg"),
     },
     {
       id: "2",
       title: "30-Minute Mussels",
       timeLimit: "30 min",
+      difficulty: "Easy",
+      rating: 4,
       ingredients: [
         "Mussels",
         "garlic",
@@ -41,9 +65,32 @@ export default function ChallengeScreen() {
         "olive oil",
         "parsley",
       ],
+      pinned: false,
       image: require("@/assets/images/mussels.jpg"),
     },
   ]);
+
+  const togglePin = (id: string) => {
+    setChallenges((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c))
+    );
+  };
+
+  const StarRating = ({ rating }: { rating: number }) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <MaterialCommunityIcons
+          key={i}
+          name={i <= rating ? "star" : "star-outline"}
+          size={18}
+          color={Colors.palette.dark}
+          style={{ marginRight: 2 }}
+        />
+      );
+    }
+    return <View style={{ flexDirection: "row" }}>{stars}</View>;
+  };
 
   return (
     <View style={styles.container}>
@@ -57,33 +104,59 @@ export default function ChallengeScreen() {
             <Image source={item.image} style={styles.cardImage} />
 
             <View style={styles.cardContent}>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardTime}>⏱ {item.timeLimit}</Text>
-              <Text style={styles.cardIngredients}>
-                {"Ingredients: " + item.ingredients.join(", ")}
-              </Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+
+                <TouchableOpacity onPress={() => togglePin(item.id)}>
+                  <MaterialCommunityIcons
+                    name={item.pinned ? "pin" : "pin-outline"}
+                    size={25}
+                    color={
+                      item.pinned ? Colors.palette.blue : Colors.palette.darkest
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.infoRow}>
+                {/* Time */}
+                <View style={styles.infoItem}>
+                  <Ionicons
+                    name="timer"
+                    size={20}
+                    color={Colors.palette.dark}
+                    style={{ marginRight: 4 }}
+                  />
+                  <Text style={styles.cardTime}>{item.timeLimit}</Text>
+                </View>
+
+                {/* Difficulty */}
+                <View style={styles.infoItem}>
+                  <FontAwesome
+                    name="gear"
+                    size={20}
+                    color={Colors.palette.dark}
+                    style={{ marginRight: 5 }}
+                  />
+                  <Text style={styles.difficultyText}>
+                    {"Difficulty: " + item.difficulty}
+                  </Text>
+                </View>
+
+                {/* Star rating */}
+                <StarRating rating={item.rating} />
+              </View>
             </View>
           </View>
         )}
       />
-
-      {/* Floating Add Button */}
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => setModalVisible(true)}
-      >
-        <MaterialCommunityIcons
-          name="plus"
-          size={44}
-          color={Colors.palette.dark}
-        />
-      </TouchableOpacity>
 
       {/* Modal */}
       <Modal animationType="slide" visible={modalVisible} transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>Add New Challenge</Text>
+
             <TextInput
               placeholder="Challenge Title"
               style={styles.input}
@@ -103,76 +176,43 @@ export default function ChallengeScreen() {
   );
 }
 
+// styles unchanged...
+
 // ---------- STYLES ----------
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.dark,
-  },
-
-  // Header
-  header: {
-    width: "100%",
-    paddingTop: 60,
-    paddingBottom: 20,
-    backgroundColor: Colors.palette.blue,
-    alignItems: "center",
-  },
-  headerText: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 30,
-    color: "white",
+    backgroundColor: Colors.palette.light,
   },
 
   // Cards
   card: {
-    backgroundColor: "white",
-    borderRadius: 20,
-    marginBottom: 25,
+    backgroundColor: Colors.palette.lightest,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    marginBottom: 20,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
   },
   cardImage: {
     width: "100%",
     height: 200,
   },
   cardContent: {
-    padding: 15,
+    paddingHorizontal: 15,
+    paddingTop: 15,
+    paddingBottom: 10,
   },
   cardTitle: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 20,
-    color: Colors.palette.dark,
+    fontSize: 22,
+    color: Colors.palette.darkest,
   },
   cardTime: {
     fontFamily: "Poppins_400Regular",
-    fontSize: 14,
-    color: Colors.palette.blue,
-    marginVertical: 5,
-  },
-  cardIngredients: {
-    fontFamily: "Poppins_300Light",
+    fontSize: 16,
     color: Colors.palette.dark,
-  },
-
-  // Add Button
-  addButton: {
-    backgroundColor: Colors.palette.accent,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    position: "absolute",
-    bottom: 30,
-    right: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    marginVertical: 5,
   },
 
   // Modal
@@ -211,35 +251,26 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontFamily: "Poppins_600SemiBold",
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+  },
+
+  infoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 18,
+  },
+
+  difficultyText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: Colors.palette.dark,
+  },
 });
-
-// import { StyleSheet } from 'react-native';
-
-// import { Text, View } from '@/components/Themed';
-
-// export default function ChallengeScreen() {
-// 	return (
-// 		<View style={styles.container}>
-// 			<Text style={styles.title}>Challenges</Text>
-// 			<View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-// 			<Text>Browse and track challenges here.</Text>
-// 		</View>
-// 	);
-// }
-
-// const styles = StyleSheet.create({
-// 	container: {
-// 		flex: 1,
-// 		alignItems: 'center',
-// 		justifyContent: 'center',
-// 	},
-// 	title: {
-// 		fontSize: 20,
-// 		fontWeight: 'bold',
-// 	},
-// 	separator: {
-// 		marginVertical: 30,
-// 		height: 1,
-// 		width: '80%',
-// 	},
-// });
