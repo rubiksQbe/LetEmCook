@@ -19,7 +19,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      initialRouteName="(tabs)/challenges"
+      initialRouteName="challenges"
       screenOptions={{
         headerTitleAlign: "center",
         tabBarActiveTintColor: Colors.palette.blue,
@@ -37,7 +37,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tabs)/challenges"
+        name="challenges"
         options={{
           title: "Challenges",
           headerStyle: {
@@ -59,6 +59,18 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <TabBarIcon name="snowflake-o" color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="challenges/[id]"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="challenge/[id]"
+        options={{
+          href: null,
         }}
       />
     </Tabs>

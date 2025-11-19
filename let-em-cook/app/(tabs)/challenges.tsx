@@ -13,8 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "../../../constants/Colors";
-import { Challenge } from "../../../constants/types";
+import Colors from "../../constants/Colors";
+import { Challenge } from "../../constants/types";
 
 export default function ChallengeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -109,7 +109,7 @@ export default function ChallengeScreen() {
             activeOpacity={0.85}
             onPress={() =>
               router.push({
-                pathname: "/(tabs)/challenges/[id]",
+                pathname: "/challenges/[id]",
                 params: { id: item.id, challenge: JSON.stringify(item) },
               })
             }
