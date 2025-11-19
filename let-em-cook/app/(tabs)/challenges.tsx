@@ -93,20 +93,35 @@ export default function ChallengeScreen() {
     );
   };
 
-  const StarRating = ({ rating }: { rating: number }) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      stars.push(
-        <MaterialCommunityIcons
-          key={i}
-          name={i <= rating ? "star" : "star-outline"}
-          size={18}
-          color={Colors.palette.dark}
-          style={{ marginRight: 2 }}
-        />
+  const StarRating = ({ rating }: { rating: number | undefined }) => {
+    if (rating) {
+      const stars = [];
+      for (let i = 1; i <= 5; i++) {
+        stars.push(
+          <MaterialCommunityIcons
+            key={i}
+            name={i <= rating ? "star" : "star-outline"}
+            size={18}
+            color={Colors.palette.dark}
+            style={{ marginRight: 2 }}
+          />
+        );
+      }
+      return <View style={{ flexDirection: "row" }}>{stars}</View>;
+    } else {
+      return (
+        <Text
+          style={{
+            flexDirection: "row",
+            fontFamily: "Poppins_400Regular",
+            fontSize: 16,
+            color: Colors.palette.dark,
+          }}
+        >
+          No ratings yet
+        </Text>
       );
     }
-    return <View style={{ flexDirection: "row" }}>{stars}</View>;
   };
 
   return (
@@ -129,49 +144,51 @@ export default function ChallengeScreen() {
             <View style={styles.card}>
               <Image source={item.image} style={styles.cardImage} />
 
-              <View style={styles.cardContent}>
-                <View style={styles.titleRow}>
+              <View style={styles.cardContentWrapper}>
+                <View style={styles.cardContent}>
                   <Text style={styles.cardTitle}>{item.title}</Text>
 
-                  <TouchableOpacity onPress={() => togglePin(item.id)}>
-                    <MaterialCommunityIcons
-                      name={item.pinned ? "pin" : "pin-outline"}
-                      size={25}
-                      color={
-                        item.pinned
-                          ? Colors.palette.blue
-                          : Colors.palette.darkest
-                      }
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.infoRow}>
+                    {/* Time */}
+                    <View style={styles.infoItem}>
+                      <Ionicons
+                        name="timer"
+                        size={20}
+                        color={Colors.palette.dark}
+                        style={{ marginRight: 4 }}
+                      />
+                      <Text style={styles.cardTime}>{item.timeLimit}</Text>
+                    </View>
+
+                    {/* Difficulty */}
+                    <View style={styles.infoItem}>
+                      <FontAwesome
+                        name="gear"
+                        size={20}
+                        color={Colors.palette.dark}
+                        style={{ marginRight: 5 }}
+                      />
+                      <Text style={styles.difficultyText}>
+                        {item.difficulty}
+                      </Text>
+                    </View>
+
+                    {/* Star rating */}
+                    <StarRating rating={item.rating} />
+                  </View>
                 </View>
 
-                <View style={styles.infoRow}>
-                  {/* Time */}
-                  <View style={styles.infoItem}>
-                    <Ionicons
-                      name="timer"
-                      size={20}
-                      color={Colors.palette.dark}
-                      style={{ marginRight: 4 }}
-                    />
-                    <Text style={styles.cardTime}>{item.timeLimit}</Text>
-                  </View>
-
-                  {/* Difficulty */}
-                  <View style={styles.infoItem}>
-                    <FontAwesome
-                      name="gear"
-                      size={20}
-                      color={Colors.palette.dark}
-                      style={{ marginRight: 5 }}
-                    />
-                    <Text style={styles.difficultyText}>{item.difficulty}</Text>
-                  </View>
-
-                  {/* Star rating */}
-                  <StarRating rating={item.rating} />
-                </View>
+                {/* Pin button floated */}
+                <TouchableOpacity
+                  style={styles.pinButton}
+                  onPress={() => togglePin(item.id)}
+                >
+                  <MaterialCommunityIcons
+                    name={item.pinned ? "pin" : "pin-outline"}
+                    size={30}
+                    color={Colors.palette.blue}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
           </TouchableOpacity>
@@ -236,5 +253,16 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
     fontSize: 16,
     color: Colors.palette.dark,
+  },
+  cardContentWrapper: {
+    position: "relative",
+    alignContent: "center",
+  },
+
+  pinButton: {
+    position: "absolute",
+    top: 25,
+    right: 20,
+    zIndex: 10,
   },
 });

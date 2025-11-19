@@ -6,7 +6,7 @@ export interface Challenge {
   title: string;
   timeLimit: string;
   difficulty: "Easy" | "Medium" | "Hard";
-  rating: number; // 1 to 5
+  rating: number | undefined; // 0 to 5 or no rating
   ingredients: string[];
   description?: string;
   pinned: boolean;

@@ -1,17 +1,17 @@
+import { useColorScheme } from "@/components/useColorScheme";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DarkTheme,
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useCallback, useEffect } from "react";
-import { View } from "react-native";
+import { Alert, TouchableOpacity, View } from "react-native";
 import "react-native-reanimated";
-
-import { useColorScheme } from "@/components/useColorScheme";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -51,6 +51,30 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+
+  const discardChallenge = () => {
+    Alert.alert(
+      "Discard Challenge",
+      "Are you sure you want to discard this challenge? All changes will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            // Clear the saved draft from AsyncStorage
+            try {
+              await AsyncStorage.removeItem("challengeDraft");
+            } catch (e) {
+              console.error("Failed to clear challenge draft", e);
+            }
+            router.back(); // close modal
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
@@ -64,6 +88,11 @@ function RootLayoutNav() {
             headerTitleStyle: {
               fontSize: 20,
             },
+            headerLeft: () => (
+              <TouchableOpacity onPress={discardChallenge}>
+                <FontAwesome name="trash" size={24} color="red" />
+              </TouchableOpacity>
+            ),
           }}
         />
       </Stack>

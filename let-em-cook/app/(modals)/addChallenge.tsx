@@ -3,11 +3,13 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -18,20 +20,50 @@ import {
 } from "react-native";
 import Colors from "../../constants/Colors";
 
+const STORAGE_KEY = "challengeDraft";
+
 export default function AddChallengeScreen() {
   const router = useRouter();
 
   const [title, setTitle] = useState("");
   const [timeLimit, setTimeLimit] = useState("20 min");
-
   const [difficulty, setDifficulty] = useState("Easy");
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [newIngredient, setNewIngredient] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [description, setDescription] = useState("");
+
+  // Load draft from AsyncStorage on mount
+  useEffect(() => {
+    const loadDraft = async () => {
+      const json = await AsyncStorage.getItem(STORAGE_KEY);
+      if (!json) return;
+      const draft = JSON.parse(json);
+      setTitle(draft.title || "");
+      setTimeLimit(draft.timeLimit || "20 min");
+      setDifficulty(draft.difficulty || "Easy");
+      setIngredients(draft.ingredients || []);
+      setImageUri(draft.imageUri || null);
+      setDescription(draft.description || "");
+    };
+    loadDraft();
+  }, []);
+
+  // Save draft to AsyncStorage whenever inputs change
+  useEffect(() => {
+    const draft = {
+      title,
+      timeLimit,
+      difficulty,
+      ingredients,
+      imageUri,
+      description,
+    };
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+  }, [title, timeLimit, difficulty, ingredients, imageUri, description]);
 
   const removeImage = () => setImageUri(null);
 
-  // -------- IMAGE PICKER --------
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       allowsEditing: true,
@@ -51,7 +83,25 @@ export default function AddChallengeScreen() {
   };
 
   const saveChallenge = () => router.back();
-  const postChallenge = () => router.back();
+
+  const postChallenge = () => {
+    Alert.alert(
+      "Confirm Post",
+      "Post this challenge to the public challenges page?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Post",
+          onPress: async () => {
+            // TODO: Add your logic to save/post the challenge to the database
+            await AsyncStorage.removeItem(STORAGE_KEY); // Clear draft after posting
+            router.back();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const timeOptions = [
     "5 min",
@@ -63,10 +113,6 @@ export default function AddChallengeScreen() {
     "1 hr",
   ];
   const difficulties = ["Easy", "Medium", "Hard"];
-
-  const handleTimeChange = (value: string) => {
-    setTimeLimit(value);
-  };
 
   return (
     <View style={styles.modalContainer}>
@@ -89,18 +135,16 @@ export default function AddChallengeScreen() {
           <Ionicons name="timer" size={20} color={Colors.palette.dark} />
           <Text style={styles.sectionHeaderText}>Time Limit</Text>
         </View>
-
         <Picker
           selectedValue={timeLimit}
-          onValueChange={handleTimeChange}
+          onValueChange={setTimeLimit}
           style={styles.pickerContainer}
-          itemStyle={{ fontSize: 16, height: 125 }} // smaller row height for each option
+          itemStyle={{ fontSize: 16, height: 110 }}
         >
           {timeOptions.map((t) => (
             <Picker.Item key={t} label={t} value={t} />
           ))}
         </Picker>
-
         <Text
           style={{ marginTop: 6, marginBottom: 10, color: Colors.palette.dark }}
         >
@@ -112,7 +156,6 @@ export default function AddChallengeScreen() {
           <FontAwesome name="gear" size={20} color={Colors.palette.dark} />
           <Text style={styles.sectionHeaderText}>Difficulty</Text>
         </View>
-
         <View style={styles.wrapContainer}>
           {difficulties.map((d) => (
             <TouchableOpacity
@@ -134,11 +177,10 @@ export default function AddChallengeScreen() {
 
         {/* ---------------- IMAGE ---------------- */}
         <Text style={styles.label}>Image</Text>
-
         <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
           <Image
             source={
-              imageUri
+              imageUri && imageUri !== "null" // sometimes string "null" is saved
                 ? { uri: imageUri }
                 : require("../../assets/images/placeholder.jpg")
             }
@@ -157,13 +199,25 @@ export default function AddChallengeScreen() {
           </TouchableOpacity>
         )}
 
+        {/* ---------------- DESCRIPTION ---------------- */}
+        <Text style={styles.label}>Description</Text>
+        <TextInput
+          placeholder="Write a description for your challenge"
+          placeholderTextColor="#888"
+          value={description}
+          onChangeText={setDescription}
+          style={[styles.input, { height: 100 }]}
+          multiline
+          textAlignVertical="top"
+        />
+
         {/* ---------------- INGREDIENTS ---------------- */}
         <Text style={styles.label}>Ingredients</Text>
         <View style={{ marginBottom: 8 }}>
           <View style={styles.ingredientInputRow}>
             <TextInput
               placeholder="Add ingredient"
-              placeholderTextColor="#777"
+              placeholderTextColor="#888"
               value={newIngredient}
               onChangeText={setNewIngredient}
               style={styles.ingredientInput}
@@ -178,7 +232,6 @@ export default function AddChallengeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-
         {ingredients.map((ing, index) => (
           <View key={index} style={styles.ingredientRow}>
             <TouchableOpacity onPress={() => removeIngredient(index)}>
@@ -208,6 +261,250 @@ export default function AddChallengeScreen() {
     </View>
   );
 }
+
+// import {
+//   FontAwesome,
+//   Ionicons,
+//   MaterialCommunityIcons,
+// } from "@expo/vector-icons";
+// import { Picker } from "@react-native-picker/picker";
+// import * as ImagePicker from "expo-image-picker";
+// import { useRouter } from "expo-router";
+// import { useState } from "react";
+// import {
+//   Alert,
+//   Image,
+//   ScrollView,
+//   StyleSheet,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   View,
+// } from "react-native";
+// import Colors from "../../constants/Colors";
+
+// export default function AddChallengeScreen() {
+//   const router = useRouter();
+
+//   const [title, setTitle] = useState("");
+//   const [timeLimit, setTimeLimit] = useState("20 min");
+
+//   const [difficulty, setDifficulty] = useState("Easy");
+//   const [ingredients, setIngredients] = useState<string[]>([]);
+//   const [newIngredient, setNewIngredient] = useState("");
+//   const [imageUri, setImageUri] = useState<string | null>(null);
+//   const [description, setDescription] = useState("");
+
+//   const removeImage = () => setImageUri(null);
+
+//   // -------- IMAGE PICKER --------
+//   const pickImage = async () => {
+//     const result = await ImagePicker.launchImageLibraryAsync({
+//       allowsEditing: true,
+//       quality: 0.7,
+//     });
+//     if (!result.canceled) setImageUri(result.assets[0].uri);
+//   };
+
+//   const addIngredient = () => {
+//     if (!newIngredient.trim()) return;
+//     setIngredients((prev) => [...prev, newIngredient]);
+//     setNewIngredient("");
+//   };
+
+//   const removeIngredient = (idx: number) => {
+//     setIngredients((prev) => prev.filter((_, i) => i !== idx));
+//   };
+
+//   const saveChallenge = () => router.back();
+//   const postChallenge = () => {
+//     Alert.alert(
+//       "Confirm Post",
+//       "Post this challenge to the public challenges page?",
+//       [
+//         {
+//           text: "Cancel",
+//           style: "cancel",
+//         },
+//         {
+//           text: "Post",
+//           onPress: () => {
+//             // Add your logic to save/post the challenge to the database here
+//             router.back(); // or navigate to another screen if needed
+//           },
+//         },
+//       ],
+//       { cancelable: true }
+//     );
+//   };
+
+//   const timeOptions = [
+//     "5 min",
+//     "10 min",
+//     "15 min",
+//     "20 min",
+//     "30 min",
+//     "45 min",
+//     "1 hr",
+//   ];
+//   const difficulties = ["Easy", "Medium", "Hard"];
+
+//   const handleTimeChange = (value: string) => {
+//     setTimeLimit(value);
+//   };
+
+//   return (
+//     <View style={styles.modalContainer}>
+//       <ScrollView
+//         contentContainerStyle={{ paddingBottom: 350, paddingTop: 10 }}
+//         showsVerticalScrollIndicator={false}
+//       >
+//         {/* ---------------- TITLE ---------------- */}
+//         <Text style={styles.label}>Title</Text>
+//         <TextInput
+//           placeholder="Challenge Title"
+//           placeholderTextColor="#888"
+//           value={title}
+//           onChangeText={setTitle}
+//           style={styles.input}
+//         />
+
+//         {/* ---------------- TIME LIMIT ---------------- */}
+//         <View style={styles.sectionHeaderRow}>
+//           <Ionicons name="timer" size={20} color={Colors.palette.dark} />
+//           <Text style={styles.sectionHeaderText}>Time Limit</Text>
+//         </View>
+
+//         <Picker
+//           selectedValue={timeLimit}
+//           onValueChange={handleTimeChange}
+//           style={styles.pickerContainer}
+//           itemStyle={{ fontSize: 16, height: 110 }}
+//         >
+//           {timeOptions.map((t) => (
+//             <Picker.Item key={t} label={t} value={t} />
+//           ))}
+//         </Picker>
+
+//         <Text
+//           style={{ marginTop: 6, marginBottom: 10, color: Colors.palette.dark }}
+//         >
+//           Selected: {timeLimit}
+//         </Text>
+
+//         {/* ---------------- DIFFICULTY ---------------- */}
+//         <View style={styles.sectionHeaderRow}>
+//           <FontAwesome name="gear" size={20} color={Colors.palette.dark} />
+//           <Text style={styles.sectionHeaderText}>Difficulty</Text>
+//         </View>
+
+//         <View style={styles.wrapContainer}>
+//           {difficulties.map((d) => (
+//             <TouchableOpacity
+//               key={d}
+//               style={[styles.chip, difficulty === d && styles.chipSelected]}
+//               onPress={() => setDifficulty(d)}
+//             >
+//               <Text
+//                 style={[
+//                   styles.chipText,
+//                   difficulty === d && { color: "white" },
+//                 ]}
+//               >
+//                 {d}
+//               </Text>
+//             </TouchableOpacity>
+//           ))}
+//         </View>
+
+//         {/* ---------------- IMAGE ---------------- */}
+//         <Text style={styles.label}>Image</Text>
+
+//         <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+//           <Image
+//             source={
+//               imageUri
+//                 ? { uri: imageUri }
+//                 : require("../../assets/images/placeholder.jpg")
+//             }
+//             style={styles.image}
+//           />
+//         </TouchableOpacity>
+//         {imageUri ? (
+//           <TouchableOpacity onPress={removeImage}>
+//             <Text style={[styles.imageText, { color: "#d33" }]}>
+//               Remove Image
+//             </Text>
+//           </TouchableOpacity>
+//         ) : (
+//           <TouchableOpacity onPress={pickImage}>
+//             <Text style={styles.imageText}>Upload Image</Text>
+//           </TouchableOpacity>
+//         )}
+
+//         {/* ---------------- DESCRIPTION ---------------- */}
+//         <Text style={styles.label}>Description</Text>
+//         <TextInput
+//           placeholder="Write a description for your challenge"
+//           placeholderTextColor="#888"
+//           value={description}
+//           onChangeText={setDescription}
+//           style={[styles.input, { height: 100 }]}
+//           multiline
+//           textAlignVertical="top"
+//         />
+
+//         {/* ---------------- INGREDIENTS ---------------- */}
+//         <Text style={styles.label}>Ingredients</Text>
+//         <View style={{ marginBottom: 8 }}>
+//           <View style={styles.ingredientInputRow}>
+//             <TextInput
+//               placeholder="Add ingredient"
+//               placeholderTextColor="#888"
+//               value={newIngredient}
+//               onChangeText={setNewIngredient}
+//               style={styles.ingredientInput}
+//               onSubmitEditing={addIngredient}
+//             />
+//             <TouchableOpacity onPress={addIngredient}>
+//               <Ionicons
+//                 name="add-circle"
+//                 size={32}
+//                 color={Colors.palette.blue}
+//               />
+//             </TouchableOpacity>
+//           </View>
+//         </View>
+
+//         {ingredients.map((ing, index) => (
+//           <View key={index} style={styles.ingredientRow}>
+//             <TouchableOpacity onPress={() => removeIngredient(index)}>
+//               <MaterialCommunityIcons
+//                 name="close"
+//                 size={18}
+//                 color={Colors.palette.blue}
+//               />
+//             </TouchableOpacity>
+//             <Text style={styles.ingredientText}>{ing}</Text>
+//           </View>
+//         ))}
+//       </ScrollView>
+
+//       {/* ---------------- FOOTER BUTTONS ---------------- */}
+//       <View style={styles.footer}>
+//         <TouchableOpacity onPress={saveChallenge} style={styles.saveArea}>
+//           <Text style={styles.footerText}>Save</Text>
+//         </TouchableOpacity>
+
+//         <TouchableOpacity onPress={postChallenge} style={styles.postArea}>
+//           <Text style={[styles.footerText, { color: Colors.palette.darkest }]}>
+//             Post
+//           </Text>
+//         </TouchableOpacity>
+//       </View>
+//     </View>
+//   );
+// }
 
 const styles = StyleSheet.create({
   modalContainer: {
@@ -246,7 +543,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.palette.blue,
     alignSelf: "center",
-    marginBottom: 10,
   },
   sectionHeaderRow: {
     flexDirection: "row",
@@ -263,16 +559,14 @@ const styles = StyleSheet.create({
   pickerContainer: {
     borderWidth: 1,
     borderColor: Colors.palette.light,
-    padding: 10,
     borderRadius: 8,
     marginRight: 10,
     backgroundColor: "white",
-    height: 150,
+    height: 110,
   },
   wrapContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginBottom: 10,
   },
   chip: {
     paddingVertical: 8,
@@ -302,6 +596,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 10,
     backgroundColor: "white",
+    fontSize: 16,
   },
   ingredientRow: {
     flexDirection: "row",
