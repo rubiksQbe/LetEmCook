@@ -13,7 +13,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import Colors from "../../constants/Colors";
+import Colors from "../../../constants/Colors";
+import { Challenge } from "../../../constants/types";
 
 export default function ChallengeScreen() {
   const [modalVisible, setModalVisible] = useState(false);
@@ -34,7 +35,7 @@ export default function ChallengeScreen() {
     });
   }, [navigation]);
 
-  const [challenges, setChallenges] = useState([
+  const [challenges, setChallenges] = useState<Challenge[]>([
     {
       id: "1",
       title: "Chimichurri Steak",
@@ -48,6 +49,8 @@ export default function ChallengeScreen() {
         "oregano",
         "garlic",
       ],
+      description:
+        "A flavorful Argentinean steak recipe with a zesty chimichurri sauce.",
       pinned: false,
       image: require("@/assets/images/steak.jpg"),
     },
@@ -65,6 +68,8 @@ export default function ChallengeScreen() {
         "olive oil",
         "parsley",
       ],
+      description:
+        "A quick and delicious mussel recipe guaranteed to get you out of your shell!",
       pinned: false,
       image: require("@/assets/images/mussels.jpg"),
     },
@@ -100,55 +105,64 @@ export default function ChallengeScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 20 }}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Image source={item.image} style={styles.cardImage} />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() =>
+              router.push({
+                pathname: "/(tabs)/challenges/[id]",
+                params: { id: item.id, challenge: JSON.stringify(item) },
+              })
+            }
+          >
+            <View style={styles.card}>
+              <Image source={item.image} style={styles.cardImage} />
 
-            <View style={styles.cardContent}>
-              <View style={styles.titleRow}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
+              <View style={styles.cardContent}>
+                <View style={styles.titleRow}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
 
-                <TouchableOpacity onPress={() => togglePin(item.id)}>
-                  <MaterialCommunityIcons
-                    name={item.pinned ? "pin" : "pin-outline"}
-                    size={25}
-                    color={
-                      item.pinned ? Colors.palette.blue : Colors.palette.darkest
-                    }
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.infoRow}>
-                {/* Time */}
-                <View style={styles.infoItem}>
-                  <Ionicons
-                    name="timer"
-                    size={20}
-                    color={Colors.palette.dark}
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={styles.cardTime}>{item.timeLimit}</Text>
+                  <TouchableOpacity onPress={() => togglePin(item.id)}>
+                    <MaterialCommunityIcons
+                      name={item.pinned ? "pin" : "pin-outline"}
+                      size={25}
+                      color={
+                        item.pinned
+                          ? Colors.palette.blue
+                          : Colors.palette.darkest
+                      }
+                    />
+                  </TouchableOpacity>
                 </View>
 
-                {/* Difficulty */}
-                <View style={styles.infoItem}>
-                  <FontAwesome
-                    name="gear"
-                    size={20}
-                    color={Colors.palette.dark}
-                    style={{ marginRight: 5 }}
-                  />
-                  <Text style={styles.difficultyText}>
-                    {/* {"Difficulty: " + item.difficulty} */}
-                    {item.difficulty}
-                  </Text>
-                </View>
+                <View style={styles.infoRow}>
+                  {/* Time */}
+                  <View style={styles.infoItem}>
+                    <Ionicons
+                      name="timer"
+                      size={20}
+                      color={Colors.palette.dark}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text style={styles.cardTime}>{item.timeLimit}</Text>
+                  </View>
 
-                {/* Star rating */}
-                <StarRating rating={item.rating} />
+                  {/* Difficulty */}
+                  <View style={styles.infoItem}>
+                    <FontAwesome
+                      name="gear"
+                      size={20}
+                      color={Colors.palette.dark}
+                      style={{ marginRight: 5 }}
+                    />
+                    <Text style={styles.difficultyText}>{item.difficulty}</Text>
+                  </View>
+
+                  {/* Star rating */}
+                  <StarRating rating={item.rating} />
+                </View>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         )}
       />
 
