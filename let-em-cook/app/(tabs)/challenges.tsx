@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useNavigation } from "expo-router";
+import { router, useNavigation } from "expo-router";
 import { useLayoutEffect, useState } from "react";
 import {
   FlatList,
@@ -22,7 +22,7 @@ export default function ChallengeScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => setModalVisible(true)}>
+        <TouchableOpacity onPress={() => router.push("/addChallenge")}>
           <MaterialCommunityIcons
             name="plus"
             size={32}
@@ -139,7 +139,8 @@ export default function ChallengeScreen() {
                     style={{ marginRight: 5 }}
                   />
                   <Text style={styles.difficultyText}>
-                    {"Difficulty: " + item.difficulty}
+                    {/* {"Difficulty: " + item.difficulty} */}
+                    {item.difficulty}
                   </Text>
                 </View>
 
@@ -265,7 +266,7 @@ const styles = StyleSheet.create({
   infoItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 18,
+    marginRight: 20,
   },
 
   difficultyText: {

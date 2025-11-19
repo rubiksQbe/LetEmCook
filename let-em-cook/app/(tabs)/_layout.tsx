@@ -41,7 +41,7 @@ export default function TabLayout() {
         options={{
           title: "Challenges",
           headerStyle: {
-            backgroundColor: "white",
+            backgroundColor: Colors.palette.lightest,
             height: 110,
           },
           headerTitleStyle: {
