@@ -6,10 +6,8 @@ import { useLayoutEffect, useState } from "react";
 import {
   FlatList,
   Image,
-  Modal,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -17,13 +15,12 @@ import Colors from "../../constants/Colors";
 import { Challenge } from "../../constants/types";
 
 export default function ChallengeScreen() {
-  const [modalVisible, setModalVisible] = useState(false);
   const navigation = useNavigation();
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={() => router.push("/addChallenge")}>
+        <TouchableOpacity onPress={() => router.push("/(modals)/addChallenge")}>
           <MaterialCommunityIcons
             name="plus"
             size={32}
@@ -51,6 +48,13 @@ export default function ChallengeScreen() {
       ],
       description:
         "A flavorful Argentinean steak recipe with a zesty chimichurri sauce.",
+      // ingredients: [
+      //   "Steak",
+      //   "red wine vinegar",
+      //   "parsley",
+      //   "oregano",
+      //   "garlic",
+      // ],
       pinned: false,
       image: require("@/assets/images/steak.jpg"),
     },
@@ -70,6 +74,14 @@ export default function ChallengeScreen() {
       ],
       description:
         "A quick and delicious mussel recipe guaranteed to get you out of your shell!",
+      // ingredients: [
+      //   "Mussels",
+      //   "garlic",
+      //   "white wine",
+      //   "butter",
+      //   "olive oil",
+      //   "parsley",
+      // ],
       pinned: false,
       image: require("@/assets/images/mussels.jpg"),
     },
@@ -165,33 +177,9 @@ export default function ChallengeScreen() {
           </TouchableOpacity>
         )}
       />
-
-      {/* Modal */}
-      <Modal animationType="slide" visible={modalVisible} transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>Add New Challenge</Text>
-
-            <TextInput
-              placeholder="Challenge Title"
-              style={styles.input}
-              placeholderTextColor="#333"
-            />
-
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
-
-// styles unchanged...
 
 // ---------- STYLES ----------
 
@@ -229,43 +217,6 @@ const styles = StyleSheet.create({
     color: Colors.palette.dark,
     marginVertical: 5,
   },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContainer: {
-    backgroundColor: "white",
-    width: "85%",
-    padding: 20,
-    borderRadius: 20,
-  },
-  modalTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 22,
-    marginBottom: 15,
-  },
-  input: {
-    backgroundColor: "#eee",
-    padding: 12,
-    borderRadius: 10,
-    fontFamily: "Poppins_400Regular",
-    marginBottom: 15,
-  },
-  closeButton: {
-    backgroundColor: Colors.palette.blue,
-    padding: 12,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  closeButtonText: {
-    color: "white",
-    textAlign: "center",
-    fontFamily: "Poppins_600SemiBold",
-  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -276,13 +227,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 5,
   },
-
   infoItem: {
     flexDirection: "row",
     alignItems: "center",
     marginRight: 20,
   },
-
   difficultyText: {
     fontFamily: "Poppins_400Regular",
     fontSize: 16,

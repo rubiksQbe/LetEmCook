@@ -7,7 +7,8 @@ import {
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
+import { View } from "react-native";
 import "react-native-reanimated";
 
 import { useColorScheme } from "@/components/useColorScheme";
@@ -19,10 +20,8 @@ export {
 
 export const unstable_settings = {
   // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: "(tabs)",
 };
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -31,22 +30,23 @@ export default function RootLayout() {
     ...FontAwesome.font,
   });
 
-  // Expo Router uses Error Boundaries to catch errors in the navigation tree.
   useEffect(() => {
     if (error) throw error;
   }, [error]);
 
-  useEffect(() => {
+  const onLayoutRootView = useCallback(async () => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      await SplashScreen.hideAsync();
     }
   }, [loaded]);
 
-  if (!loaded) {
-    return null;
-  }
+  if (!loaded) return null;
 
-  return <RootLayoutNav />;
+  return (
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <RootLayoutNav />
+    </View>
+  );
 }
 
 function RootLayoutNav() {
@@ -56,6 +56,16 @@ function RootLayoutNav() {
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="(modals)"
+          options={{
+            presentation: "modal",
+            title: "Create a Challenge",
+            headerTitleStyle: {
+              fontSize: 20,
+            },
+          }}
+        />
       </Stack>
     </ThemeProvider>
   );
