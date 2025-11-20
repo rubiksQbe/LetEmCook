@@ -4,7 +4,6 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Picker } from "@react-native-picker/picker";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
@@ -24,17 +23,55 @@ import { createChallenge } from "../../lib/supabase";
 
 const STORAGE_KEY = "challengeDraft";
 
+const TIME_OPTIONS = [
+  "5 min",
+  "10 min",
+  "15 min",
+  "20 min",
+  "30 min",
+  "45 min",
+  "1 hr",
+];
+
+const TIME_UNITS = ["min", "hr"];
+
+const DIETARY_OPTIONS = [
+  "Vegan",
+  "Vegetarian",
+  "Kosher",
+  "Halal",
+  "Gluten-Free",
+];
+
+const DIFFICULTIES = ["Easy", "Medium", "Hard"];
+
 export default function AddChallengeScreen() {
   const router = useRouter();
 
+  // Basic fields
   const [title, setTitle] = useState("");
-  const [timeLimit, setTimeLimit] = useState("20 min");
   const [difficulty, setDifficulty] = useState("Easy");
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const [newIngredient, setNewIngredient] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [isPosting, setIsPosting] = useState(false);
+
+  // Filters - Time Limit
+  const [timeLimit, setTimeLimit] = useState("");
+  const [isCustomTime, setIsCustomTime] = useState(false);
+  const [customTimeValue, setCustomTimeValue] = useState("");
+  const [customTimeUnit, setCustomTimeUnit] = useState("min");
+
+  // Filters - Ingredients
+  const [ingredients, setIngredients] = useState<string[]>([]);
+  const [newIngredient, setNewIngredient] = useState("");
+
+  // Filters - Dietary Restrictions
+  const [dietaryRestrictions, setDietaryRestrictions] = useState<string[]>([]);
+  const [isCustomDietary, setIsCustomDietary] = useState(false);
+  const [customDietary, setCustomDietary] = useState("");
+
+  // Accordion state
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   // Load draft from AsyncStorage on mount
   useEffect(() => {
@@ -43,9 +80,10 @@ export default function AddChallengeScreen() {
       if (!json) return;
       const draft = JSON.parse(json);
       setTitle(draft.title || "");
-      setTimeLimit(draft.timeLimit || "20 min");
       setDifficulty(draft.difficulty || "Easy");
+      setTimeLimit(draft.timeLimit || "");
       setIngredients(draft.ingredients || []);
+      setDietaryRestrictions(draft.dietaryRestrictions || []);
       setImageUri(draft.imageUri || null);
       setDescription(draft.description || "");
     };
@@ -56,14 +94,19 @@ export default function AddChallengeScreen() {
   useEffect(() => {
     const draft = {
       title,
-      timeLimit,
       difficulty,
+      timeLimit,
       ingredients,
+      dietaryRestrictions,
       imageUri,
       description,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, [title, timeLimit, difficulty, ingredients, imageUri, description]);
+  }, [title, difficulty, timeLimit, ingredients, dietaryRestrictions, imageUri, description]);
+
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
+  };
 
   const removeImage = () => setImageUri(null);
 
@@ -85,6 +128,37 @@ export default function AddChallengeScreen() {
     setIngredients((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const toggleDietaryRestriction = (option: string) => {
+    setDietaryRestrictions((prev) =>
+      prev.includes(option)
+        ? prev.filter((item) => item !== option)
+        : [...prev, option]
+    );
+  };
+
+  const applyCustomTime = () => {
+    if (!customTimeValue.trim()) {
+      Alert.alert("Invalid Time", "Please enter a time value.");
+      return;
+    }
+    setTimeLimit(`${customTimeValue} ${customTimeUnit}`);
+    setIsCustomTime(false);
+    setCustomTimeValue("");
+  };
+
+  const applyCustomDietary = () => {
+    if (!customDietary.trim()) {
+      Alert.alert("Invalid Input", "Please enter a dietary restriction.");
+      return;
+    }
+    // Add custom dietary restriction if not already in the list
+    if (!dietaryRestrictions.includes(customDietary.trim())) {
+      setDietaryRestrictions((prev) => [...prev, customDietary.trim()]);
+    }
+    setIsCustomDietary(false);
+    setCustomDietary("");
+  };
+
   const saveChallenge = () => router.back();
 
   const postChallenge = () => {
@@ -94,10 +168,20 @@ export default function AddChallengeScreen() {
       return;
     }
 
-    if (ingredients.length === 0) {
+    if (!description.trim()) {
+      Alert.alert("Missing Description", "Please enter a description for your challenge.");
+      return;
+    }
+
+    // Check that at least one filter is selected
+    const hasTimeLimit = timeLimit !== "";
+    const hasIngredients = ingredients.length > 0;
+    const hasDietaryRestrictions = dietaryRestrictions.length > 0;
+
+    if (!hasTimeLimit && !hasIngredients && !hasDietaryRestrictions) {
       Alert.alert(
-        "Missing Ingredients",
-        "Please add at least one ingredient."
+        "Missing Filters",
+        "Please select at least one filter: Time Limit, Ingredients, or Dietary Restrictions."
       );
       return;
     }
@@ -119,6 +203,7 @@ export default function AddChallengeScreen() {
                 description,
                 ingredients,
                 imageUri,
+                dietaryRestrictions,
               });
 
               if (error) {
@@ -127,7 +212,7 @@ export default function AddChallengeScreen() {
 
               // Clear draft after successful posting
               await AsyncStorage.removeItem(STORAGE_KEY);
-              
+
               Alert.alert(
                 "Success!",
                 "Your challenge has been posted!",
@@ -149,17 +234,6 @@ export default function AddChallengeScreen() {
     );
   };
 
-  const timeOptions = [
-    "5 min",
-    "10 min",
-    "15 min",
-    "20 min",
-    "30 min",
-    "45 min",
-    "1 hr",
-  ];
-  const difficulties = ["Easy", "Medium", "Hard"];
-
   return (
     <View style={styles.modalContainer}>
       <ScrollView
@@ -167,7 +241,10 @@ export default function AddChallengeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ---------------- TITLE ---------------- */}
-        <Text style={styles.label}>Title</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Title</Text>
+          <Text style={styles.required}>*</Text>
+        </View>
         <TextInput
           placeholder="Challenge Title"
           placeholderTextColor="#888"
@@ -176,34 +253,13 @@ export default function AddChallengeScreen() {
           style={styles.input}
         />
 
-        {/* ---------------- TIME LIMIT ---------------- */}
-        <View style={styles.sectionHeaderRow}>
-          <Ionicons name="timer" size={20} color={Colors.palette.dark} />
-          <Text style={styles.sectionHeaderText}>Time Limit</Text>
-        </View>
-        <Picker
-          selectedValue={timeLimit}
-          onValueChange={setTimeLimit}
-          style={styles.pickerContainer}
-          itemStyle={{ fontSize: 16, height: 110 }}
-        >
-          {timeOptions.map((t) => (
-            <Picker.Item key={t} label={t} value={t} />
-          ))}
-        </Picker>
-        <Text
-          style={{ marginTop: 6, marginBottom: 10, color: Colors.palette.dark }}
-        >
-          Selected: {timeLimit}
-        </Text>
-
         {/* ---------------- DIFFICULTY ---------------- */}
-        <View style={styles.sectionHeaderRow}>
-          <FontAwesome name="gear" size={20} color={Colors.palette.dark} />
-          <Text style={styles.sectionHeaderText}>Difficulty</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Difficulty</Text>
+          <Text style={styles.required}>*</Text>
         </View>
         <View style={styles.wrapContainer}>
-          {difficulties.map((d) => (
+          {DIFFICULTIES.map((d) => (
             <TouchableOpacity
               key={d}
               style={[styles.chip, difficulty === d && styles.chipSelected]}
@@ -221,12 +277,294 @@ export default function AddChallengeScreen() {
           ))}
         </View>
 
+        {/* ---------------- FILTERS ---------------- */}
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Filters</Text>
+          <Text style={styles.optional}>(Select at least 1)</Text>
+        </View>
+
+        {/* Time Limit Accordion */}
+        <TouchableOpacity
+          style={styles.accordionHeader}
+          onPress={() => toggleSection("timeLimit")}
+        >
+          <View style={styles.accordionTitleRow}>
+            <Ionicons name="timer" size={20} color={Colors.palette.dark} />
+            <Text style={styles.accordionTitle}>Time Limit</Text>
+          </View>
+          <Ionicons
+            name={expandedSection === "timeLimit" ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={Colors.palette.dark}
+          />
+        </TouchableOpacity>
+        {expandedSection === "timeLimit" && (
+          <View style={styles.accordionContent}>
+            {!isCustomTime ? (
+              <>
+                <View style={styles.wrapContainer}>
+                  {TIME_OPTIONS.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.chip, timeLimit === t && styles.chipSelected]}
+                      onPress={() => setTimeLimit(t)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          timeLimit === t && { color: "white" },
+                        ]}
+                      >
+                        {t}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsCustomTime(true)}
+                  style={styles.customButton}
+                >
+                  <Text style={styles.customButtonText}>+ Custom Time</Text>
+                </TouchableOpacity>
+                {timeLimit && (
+                  <Text style={styles.selectedText}>Selected: {timeLimit}</Text>
+                )}
+                {!timeLimit && (
+                  <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+                    None selected
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View>
+                <Text style={styles.smallLabel}>Enter Custom Time</Text>
+                <View style={styles.customTimeRow}>
+                  <TextInput
+                    placeholder="Value"
+                    placeholderTextColor="#888"
+                    value={customTimeValue}
+                    onChangeText={setCustomTimeValue}
+                    keyboardType="numeric"
+                    style={[styles.input, { flex: 1, marginRight: 10 }]}
+                  />
+                  <View style={styles.unitPicker}>
+                    {TIME_UNITS.map((unit) => (
+                      <TouchableOpacity
+                        key={unit}
+                        style={[
+                          styles.unitOption,
+                          customTimeUnit === unit && styles.unitOptionSelected,
+                        ]}
+                        onPress={() => setCustomTimeUnit(unit)}
+                      >
+                        <Text
+                          style={[
+                            styles.unitText,
+                            customTimeUnit === unit && { color: "white" },
+                          ]}
+                        >
+                          {unit}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.customTimeButtons}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsCustomTime(false);
+                      setCustomTimeValue("");
+                    }}
+                    style={styles.cancelButton}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={applyCustomTime}
+                    style={styles.applyButton}
+                  >
+                    <Text style={styles.applyButtonText}>Apply</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Ingredients Accordion */}
+        <TouchableOpacity
+          style={styles.accordionHeader}
+          onPress={() => toggleSection("ingredients")}
+        >
+          <View style={styles.accordionTitleRow}>
+            <MaterialCommunityIcons
+              name="food-apple"
+              size={20}
+              color={Colors.palette.dark}
+            />
+            <Text style={styles.accordionTitle}>Ingredients</Text>
+          </View>
+          <Ionicons
+            name={expandedSection === "ingredients" ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={Colors.palette.dark}
+          />
+        </TouchableOpacity>
+        {expandedSection === "ingredients" && (
+          <View style={styles.accordionContent}>
+            <View style={styles.ingredientInputRow}>
+              <TextInput
+                placeholder="Add ingredient"
+                placeholderTextColor="#888"
+                value={newIngredient}
+                onChangeText={setNewIngredient}
+                style={styles.ingredientInput}
+                onSubmitEditing={addIngredient}
+              />
+              <TouchableOpacity onPress={addIngredient}>
+                <Ionicons
+                  name="add-circle"
+                  size={32}
+                  color={Colors.palette.blue}
+                />
+              </TouchableOpacity>
+            </View>
+            {ingredients.map((ing, index) => (
+              <View key={index} style={styles.ingredientRow}>
+                <TouchableOpacity onPress={() => removeIngredient(index)}>
+                  <MaterialCommunityIcons
+                    name="close"
+                    size={18}
+                    color={Colors.palette.blue}
+                  />
+                </TouchableOpacity>
+                <Text style={styles.ingredientText}>{ing}</Text>
+              </View>
+            ))}
+            {ingredients.length === 0 && (
+              <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+                None added
+              </Text>
+            )}
+          </View>
+        )}
+
+        {/* Dietary Restrictions Accordion */}
+        <TouchableOpacity
+          style={styles.accordionHeader}
+          onPress={() => toggleSection("dietary")}
+        >
+          <View style={styles.accordionTitleRow}>
+            <MaterialCommunityIcons
+              name="leaf"
+              size={20}
+              color={Colors.palette.dark}
+            />
+            <Text style={styles.accordionTitle}>Dietary Restrictions</Text>
+          </View>
+          <Ionicons
+            name={expandedSection === "dietary" ? "chevron-up" : "chevron-down"}
+            size={20}
+            color={Colors.palette.dark}
+          />
+        </TouchableOpacity>
+        {expandedSection === "dietary" && (
+          <View style={styles.accordionContent}>
+            {!isCustomDietary ? (
+              <>
+                <View style={styles.wrapContainer}>
+                  {DIETARY_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option}
+                      style={[
+                        styles.chip,
+                        dietaryRestrictions.includes(option) && styles.chipSelected,
+                      ]}
+                      onPress={() => toggleDietaryRestriction(option)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          dietaryRestrictions.includes(option) && { color: "white" },
+                        ]}
+                      >
+                        {option}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {/* Show custom dietary restrictions as chips too */}
+                  {dietaryRestrictions
+                    .filter((item) => !DIETARY_OPTIONS.includes(item))
+                    .map((customItem) => (
+                      <TouchableOpacity
+                        key={customItem}
+                        style={[styles.chip, styles.chipSelected]}
+                        onPress={() => toggleDietaryRestriction(customItem)}
+                      >
+                        <Text style={[styles.chipText, { color: "white" }]}>
+                          {customItem}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsCustomDietary(true)}
+                  style={styles.customButton}
+                >
+                  <Text style={styles.customButtonText}>+ Custom Restriction</Text>
+                </TouchableOpacity>
+                {dietaryRestrictions.length > 0 ? (
+                  <Text style={styles.selectedText}>
+                    Selected: {dietaryRestrictions.join(", ")}
+                  </Text>
+                ) : (
+                  <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+                    None selected
+                  </Text>
+                )}
+              </>
+            ) : (
+              <View>
+                <Text style={styles.smallLabel}>Enter Custom Dietary Restriction</Text>
+                <TextInput
+                  placeholder="e.g., Nut-Free, Dairy-Free, Low-Carb"
+                  placeholderTextColor="#888"
+                  value={customDietary}
+                  onChangeText={setCustomDietary}
+                  style={[styles.input, { marginBottom: 12 }]}
+                  autoCapitalize="words"
+                />
+                <View style={styles.customTimeButtons}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsCustomDietary(false);
+                      setCustomDietary("");
+                    }}
+                    style={styles.cancelButton}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={applyCustomDietary}
+                    style={styles.applyButton}
+                  >
+                    <Text style={styles.applyButtonText}>Add</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* ---------------- IMAGE ---------------- */}
-        <Text style={styles.label}>Image</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Image</Text>
+          <Text style={styles.optional}>(Optional)</Text>
+        </View>
         <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
           <Image
             source={
-              imageUri && imageUri !== "null" // sometimes string "null" is saved
+              imageUri && imageUri !== "null"
                 ? { uri: imageUri }
                 : require("../../assets/images/placeholder.jpg")
             }
@@ -246,7 +584,10 @@ export default function AddChallengeScreen() {
         )}
 
         {/* ---------------- DESCRIPTION ---------------- */}
-        <Text style={styles.label}>Description</Text>
+        <View style={styles.labelRow}>
+          <Text style={styles.label}>Description</Text>
+          <Text style={styles.required}>*</Text>
+        </View>
         <TextInput
           placeholder="Write a description for your challenge"
           placeholderTextColor="#888"
@@ -256,40 +597,6 @@ export default function AddChallengeScreen() {
           multiline
           textAlignVertical="top"
         />
-
-        {/* ---------------- INGREDIENTS ---------------- */}
-        <Text style={styles.label}>Ingredients</Text>
-        <View style={{ marginBottom: 8 }}>
-          <View style={styles.ingredientInputRow}>
-            <TextInput
-              placeholder="Add ingredient"
-              placeholderTextColor="#888"
-              value={newIngredient}
-              onChangeText={setNewIngredient}
-              style={styles.ingredientInput}
-              onSubmitEditing={addIngredient}
-            />
-            <TouchableOpacity onPress={addIngredient}>
-              <Ionicons
-                name="add-circle"
-                size={32}
-                color={Colors.palette.blue}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-        {ingredients.map((ing, index) => (
-          <View key={index} style={styles.ingredientRow}>
-            <TouchableOpacity onPress={() => removeIngredient(index)}>
-              <MaterialCommunityIcons
-                name="close"
-                size={18}
-                color={Colors.palette.blue}
-              />
-            </TouchableOpacity>
-            <Text style={styles.ingredientText}>{ing}</Text>
-          </View>
-        ))}
       </ScrollView>
 
       {/* ---------------- FOOTER BUTTONS ---------------- */}
@@ -322,263 +629,42 @@ export default function AddChallengeScreen() {
   );
 }
 
-// import {
-//   FontAwesome,
-//   Ionicons,
-//   MaterialCommunityIcons,
-// } from "@expo/vector-icons";
-// import { Picker } from "@react-native-picker/picker";
-// import * as ImagePicker from "expo-image-picker";
-// import { useRouter } from "expo-router";
-// import { useState } from "react";
-// import {
-//   Alert,
-//   Image,
-//   ScrollView,
-//   StyleSheet,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   View,
-// } from "react-native";
-// import Colors from "../../constants/Colors";
-
-// export default function AddChallengeScreen() {
-//   const router = useRouter();
-
-//   const [title, setTitle] = useState("");
-//   const [timeLimit, setTimeLimit] = useState("20 min");
-
-//   const [difficulty, setDifficulty] = useState("Easy");
-//   const [ingredients, setIngredients] = useState<string[]>([]);
-//   const [newIngredient, setNewIngredient] = useState("");
-//   const [imageUri, setImageUri] = useState<string | null>(null);
-//   const [description, setDescription] = useState("");
-
-//   const removeImage = () => setImageUri(null);
-
-//   // -------- IMAGE PICKER --------
-//   const pickImage = async () => {
-//     const result = await ImagePicker.launchImageLibraryAsync({
-//       allowsEditing: true,
-//       quality: 0.7,
-//     });
-//     if (!result.canceled) setImageUri(result.assets[0].uri);
-//   };
-
-//   const addIngredient = () => {
-//     if (!newIngredient.trim()) return;
-//     setIngredients((prev) => [...prev, newIngredient]);
-//     setNewIngredient("");
-//   };
-
-//   const removeIngredient = (idx: number) => {
-//     setIngredients((prev) => prev.filter((_, i) => i !== idx));
-//   };
-
-//   const saveChallenge = () => router.back();
-//   const postChallenge = () => {
-//     Alert.alert(
-//       "Confirm Post",
-//       "Post this challenge to the public challenges page?",
-//       [
-//         {
-//           text: "Cancel",
-//           style: "cancel",
-//         },
-//         {
-//           text: "Post",
-//           onPress: () => {
-//             // Add your logic to save/post the challenge to the database here
-//             router.back(); // or navigate to another screen if needed
-//           },
-//         },
-//       ],
-//       { cancelable: true }
-//     );
-//   };
-
-//   const timeOptions = [
-//     "5 min",
-//     "10 min",
-//     "15 min",
-//     "20 min",
-//     "30 min",
-//     "45 min",
-//     "1 hr",
-//   ];
-//   const difficulties = ["Easy", "Medium", "Hard"];
-
-//   const handleTimeChange = (value: string) => {
-//     setTimeLimit(value);
-//   };
-
-//   return (
-//     <View style={styles.modalContainer}>
-//       <ScrollView
-//         contentContainerStyle={{ paddingBottom: 350, paddingTop: 10 }}
-//         showsVerticalScrollIndicator={false}
-//       >
-//         {/* ---------------- TITLE ---------------- */}
-//         <Text style={styles.label}>Title</Text>
-//         <TextInput
-//           placeholder="Challenge Title"
-//           placeholderTextColor="#888"
-//           value={title}
-//           onChangeText={setTitle}
-//           style={styles.input}
-//         />
-
-//         {/* ---------------- TIME LIMIT ---------------- */}
-//         <View style={styles.sectionHeaderRow}>
-//           <Ionicons name="timer" size={20} color={Colors.palette.dark} />
-//           <Text style={styles.sectionHeaderText}>Time Limit</Text>
-//         </View>
-
-//         <Picker
-//           selectedValue={timeLimit}
-//           onValueChange={handleTimeChange}
-//           style={styles.pickerContainer}
-//           itemStyle={{ fontSize: 16, height: 110 }}
-//         >
-//           {timeOptions.map((t) => (
-//             <Picker.Item key={t} label={t} value={t} />
-//           ))}
-//         </Picker>
-
-//         <Text
-//           style={{ marginTop: 6, marginBottom: 10, color: Colors.palette.dark }}
-//         >
-//           Selected: {timeLimit}
-//         </Text>
-
-//         {/* ---------------- DIFFICULTY ---------------- */}
-//         <View style={styles.sectionHeaderRow}>
-//           <FontAwesome name="gear" size={20} color={Colors.palette.dark} />
-//           <Text style={styles.sectionHeaderText}>Difficulty</Text>
-//         </View>
-
-//         <View style={styles.wrapContainer}>
-//           {difficulties.map((d) => (
-//             <TouchableOpacity
-//               key={d}
-//               style={[styles.chip, difficulty === d && styles.chipSelected]}
-//               onPress={() => setDifficulty(d)}
-//             >
-//               <Text
-//                 style={[
-//                   styles.chipText,
-//                   difficulty === d && { color: "white" },
-//                 ]}
-//               >
-//                 {d}
-//               </Text>
-//             </TouchableOpacity>
-//           ))}
-//         </View>
-
-//         {/* ---------------- IMAGE ---------------- */}
-//         <Text style={styles.label}>Image</Text>
-
-//         <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-//           <Image
-//             source={
-//               imageUri
-//                 ? { uri: imageUri }
-//                 : require("../../assets/images/placeholder.jpg")
-//             }
-//             style={styles.image}
-//           />
-//         </TouchableOpacity>
-//         {imageUri ? (
-//           <TouchableOpacity onPress={removeImage}>
-//             <Text style={[styles.imageText, { color: "#d33" }]}>
-//               Remove Image
-//             </Text>
-//           </TouchableOpacity>
-//         ) : (
-//           <TouchableOpacity onPress={pickImage}>
-//             <Text style={styles.imageText}>Upload Image</Text>
-//           </TouchableOpacity>
-//         )}
-
-//         {/* ---------------- DESCRIPTION ---------------- */}
-//         <Text style={styles.label}>Description</Text>
-//         <TextInput
-//           placeholder="Write a description for your challenge"
-//           placeholderTextColor="#888"
-//           value={description}
-//           onChangeText={setDescription}
-//           style={[styles.input, { height: 100 }]}
-//           multiline
-//           textAlignVertical="top"
-//         />
-
-//         {/* ---------------- INGREDIENTS ---------------- */}
-//         <Text style={styles.label}>Ingredients</Text>
-//         <View style={{ marginBottom: 8 }}>
-//           <View style={styles.ingredientInputRow}>
-//             <TextInput
-//               placeholder="Add ingredient"
-//               placeholderTextColor="#888"
-//               value={newIngredient}
-//               onChangeText={setNewIngredient}
-//               style={styles.ingredientInput}
-//               onSubmitEditing={addIngredient}
-//             />
-//             <TouchableOpacity onPress={addIngredient}>
-//               <Ionicons
-//                 name="add-circle"
-//                 size={32}
-//                 color={Colors.palette.blue}
-//               />
-//             </TouchableOpacity>
-//           </View>
-//         </View>
-
-//         {ingredients.map((ing, index) => (
-//           <View key={index} style={styles.ingredientRow}>
-//             <TouchableOpacity onPress={() => removeIngredient(index)}>
-//               <MaterialCommunityIcons
-//                 name="close"
-//                 size={18}
-//                 color={Colors.palette.blue}
-//               />
-//             </TouchableOpacity>
-//             <Text style={styles.ingredientText}>{ing}</Text>
-//           </View>
-//         ))}
-//       </ScrollView>
-
-//       {/* ---------------- FOOTER BUTTONS ---------------- */}
-//       <View style={styles.footer}>
-//         <TouchableOpacity onPress={saveChallenge} style={styles.saveArea}>
-//           <Text style={styles.footerText}>Save</Text>
-//         </TouchableOpacity>
-
-//         <TouchableOpacity onPress={postChallenge} style={styles.postArea}>
-//           <Text style={[styles.footerText, { color: Colors.palette.darkest }]}>
-//             Post
-//           </Text>
-//         </TouchableOpacity>
-//       </View>
-//     </View>
-//   );
-// }
-
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: Colors.palette.lightest,
     paddingHorizontal: 20,
   },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 16,
+    marginBottom: 8,
+  },
   label: {
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 4,
     color: Colors.palette.dark,
-    marginTop: 10,
-    marginBottom: 6,
+  },
+  required: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#d33",
+    marginLeft: 4,
+  },
+  optional: {
+    fontSize: 13,
+    fontWeight: "400",
+    color: Colors.palette.dark,
+    marginLeft: 6,
+    fontStyle: "italic",
+  },
+  smallLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Colors.palette.dark,
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
@@ -589,44 +675,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     backgroundColor: "white",
   },
-  imagePicker: {
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  image: {
-    width: "100%",
-    height: 200,
-    borderRadius: 12,
-    backgroundColor: Colors.palette.light,
-  },
-  imageText: {
-    fontSize: 16,
-    color: Colors.palette.blue,
-    alignSelf: "center",
-  },
-  sectionHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 6,
-  },
-  sectionHeaderText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 6,
-    color: Colors.palette.dark,
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: Colors.palette.light,
-    borderRadius: 8,
-    marginRight: 10,
-    backgroundColor: "white",
-    height: 110,
-  },
   wrapContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
+    marginBottom: 10,
   },
   chip: {
     paddingVertical: 8,
@@ -644,9 +696,110 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
+  // Accordion styles
+  accordionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "white",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.palette.light,
+  },
+  accordionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  accordionTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginLeft: 10,
+    color: Colors.palette.darkest,
+  },
+  accordionContent: {
+    backgroundColor: "white",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: Colors.palette.light,
+  },
+  selectedText: {
+    fontSize: 14,
+    color: Colors.palette.dark,
+    marginTop: 8,
+  },
+  customButton: {
+    marginTop: 8,
+    padding: 10,
+    alignItems: "center",
+  },
+  customButtonText: {
+    color: Colors.palette.blue,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  customTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  unitPicker: {
+    flexDirection: "row",
+    borderWidth: 1,
+    borderColor: Colors.palette.light,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  unitOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    backgroundColor: "white",
+  },
+  unitOptionSelected: {
+    backgroundColor: Colors.palette.blue,
+  },
+  unitText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: Colors.palette.darkest,
+  },
+  customTimeButtons: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.palette.dark,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: Colors.palette.dark,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  applyButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.palette.blue,
+    alignItems: "center",
+  },
+  applyButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  // Ingredients
   ingredientInputRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 12,
   },
   ingredientInput: {
     flex: 1,
@@ -662,11 +815,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignContent: "flex-start",
     padding: 1,
+    marginBottom: 4,
   },
   ingredientText: {
     fontSize: 16,
     marginHorizontal: 12,
   },
+  // Image
+  imagePicker: {
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  image: {
+    width: "100%",
+    height: 200,
+    borderRadius: 12,
+    backgroundColor: Colors.palette.light,
+  },
+  imageText: {
+    fontSize: 16,
+    color: Colors.palette.blue,
+    alignSelf: "center",
+  },
+  // Footer
   footer: {
     position: "absolute",
     bottom: 0,

@@ -128,6 +128,7 @@ export async function createChallenge({
   description,
   ingredients,
   imageUri,
+  dietaryRestrictions,
 }: {
   title: string;
   timeLimit: string;
@@ -135,6 +136,7 @@ export async function createChallenge({
   description: string;
   ingredients: string[];
   imageUri: string | null;
+  dietaryRestrictions?: string[];
 }) {
   try {
     // Get current user
@@ -166,6 +168,7 @@ export async function createChallenge({
         created_by: user.id,
         created_by_username: username,
         rating: null,
+        dietary_restrictions: dietaryRestrictions || null,
       })
       .select()
       .single();
@@ -191,5 +194,32 @@ export async function fetchChallenges() {
   } catch (error) {
     console.error("Error fetching challenges:", error);
     return { data: null, error };
+  }
+}
+
+/**
+ * Delete a challenge from the database
+ */
+export async function deleteChallenge(challengeId: string) {
+  try {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: new Error("No authenticated user") };
+    }
+
+    // Delete the challenge (RLS policy ensures only creator can delete)
+    const { error } = await supabase
+      .from("challenges")
+      .delete()
+      .eq("id", challengeId)
+      .eq("created_by", user.id);
+
+    return { error };
+  } catch (error) {
+    console.error("Error deleting challenge:", error);
+    return { error };
   }
 }

@@ -1,19 +1,26 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  Alert,
   Image,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge } from "../../../constants/types";
+import { deleteChallenge, supabase } from "../../../lib/supabase";
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
+  const router = useRouter();
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [isDeleting, setIsDeleting] = useState(false);
+
   let challenge: Challenge | null = null;
   try {
     challenge = params.challenge
@@ -23,6 +30,16 @@ export default function ChallengeDetailScreen() {
     challenge = null;
   }
 
+  useEffect(() => {
+    async function getCurrentUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id);
+    }
+    getCurrentUser();
+  }, []);
+
   if (!challenge) {
     return (
       <View style={styles.container}>
@@ -30,6 +47,8 @@ export default function ChallengeDetailScreen() {
       </View>
     );
   }
+
+  const isOwner = currentUserId === challenge.created_by;
 
   const handlePin = () => {
     // TODO: Implement pin functionality
@@ -41,6 +60,33 @@ export default function ChallengeDetailScreen() {
     console.log("Share challenge");
   };
 
+  const handleDelete = () => {
+    Alert.alert(
+      "Delete Challenge",
+      "Are you sure you want to delete this challenge? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            setIsDeleting(true);
+            const { error } = await deleteChallenge(challenge!.id);
+            setIsDeleting(false);
+
+            if (error) {
+              Alert.alert("Error", "Failed to delete challenge. Please try again.");
+            } else {
+              Alert.alert("Success", "Challenge deleted successfully.", [
+                { text: "OK", onPress: () => router.replace("/(tabs)/challenges") },
+              ]);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -49,10 +95,27 @@ export default function ChallengeDetailScreen() {
 
         {/* Title and Creator */}
         <View style={styles.titleSection}>
-          <Text style={styles.title}>{challenge.title}</Text>
-          <Text style={styles.creator}>
-            {challenge.created_by_username || "Anonymous"}
-          </Text>
+          <View style={styles.titleRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{challenge.title}</Text>
+              <Text style={styles.creator}>
+                {challenge.created_by_username || "Anonymous"}
+              </Text>
+            </View>
+            {isOwner && (
+              <TouchableOpacity
+                onPress={handleDelete}
+                disabled={isDeleting}
+                style={styles.deleteButton}
+              >
+                <MaterialCommunityIcons
+                  name="delete"
+                  size={28}
+                  color="#d33"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Action Buttons */}
@@ -101,6 +164,17 @@ export default function ChallengeDetailScreen() {
             INGREDIENTS:{" "}
             <Text style={styles.value}>{challenge.ingredients.join(", ")}</Text>
           </Text>
+
+          {/* Dietary Restrictions */}
+          {challenge.dietary_restrictions &&
+            challenge.dietary_restrictions.length > 0 && (
+              <Text style={styles.label}>
+                DIETARY RESTRICTIONS:{" "}
+                <Text style={styles.value}>
+                  {challenge.dietary_restrictions.join(", ")}
+                </Text>
+              </Text>
+            )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -147,6 +221,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   title: {
     fontFamily: "Poppins_700Bold",
     fontSize: 28,
@@ -159,6 +238,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.palette.blue,
     fontStyle: "italic",
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 12,
   },
   buttonRow: {
     flexDirection: "row",

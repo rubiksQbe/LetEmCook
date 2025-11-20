@@ -17,6 +17,7 @@ export interface Challenge {
   created_by?: string; // User ID who created the challenge
   created_by_username?: string; // Username of creator
   image_url?: string; // URL from Supabase Storage
+  dietary_restrictions?: string[]; // Array of dietary restrictions
 }
 
 // Database row type (matches Supabase table structure)
@@ -32,4 +33,5 @@ export interface ChallengeRow {
   created_by: string;
   created_by_username: string;
   rating: number | null;
+  dietary_restrictions: string[] | null;
 }

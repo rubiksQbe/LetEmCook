@@ -35,6 +35,7 @@ function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challeng
     created_by: row.created_by,
     created_by_username: displayUsername,
     image_url: row.image_url ?? undefined,
+    dietary_restrictions: row.dietary_restrictions ?? undefined,
   };
 }
 
