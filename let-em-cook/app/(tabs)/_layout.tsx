@@ -65,12 +65,7 @@ export default function TabLayout() {
         name="challenges/[id]"
         options={{
           href: null,
-        }}
-      />
-      <Tabs.Screen
-        name="challenge/[id]"
-        options={{
-          href: null,
+          headerShown: false,
         }}
       />
     </Tabs>

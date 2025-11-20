@@ -1,0 +1,219 @@
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Colors from "@/constants/Colors";
+import { signUpWithUsername } from "@/lib/supabase";
+
+export default function SignUpScreen() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignUp() {
+    if (!username || !password || !confirmPassword) {
+      Alert.alert("Missing fields", "Please fill in all fields.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Passwords don't match", "Please make sure your passwords match.");
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signUpWithUsername(username.trim(), password);
+    setLoading(false);
+    if (error) {
+      Alert.alert("Sign up failed", error.message);
+    } else {
+      router.replace("/(tabs)/challenges");
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={28} color={Colors.palette.blue} />
+        </TouchableOpacity>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Sign Up</Text>
+
+        {/* Username Field */}
+        <View style={styles.inputContainer}>
+          <View style={styles.labelRow}>
+            <FontAwesome
+              name="user"
+              size={20}
+              color={Colors.palette.darkest}
+            />
+            <Text style={styles.label}>Username</Text>
+          </View>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Enter your username"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Password Field */}
+        <View style={styles.inputContainer}>
+          <View style={styles.labelRow}>
+            <MaterialCommunityIcons
+              name="lock"
+              size={20}
+              color={Colors.palette.darkest}
+            />
+            <Text style={styles.label}>Password</Text>
+          </View>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Enter your password"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Confirm Password Field */}
+        <View style={styles.inputContainer}>
+          <Text style={styles.confirmLabel}>Confirm password</Text>
+          <TextInput
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            placeholder="Re-enter your password"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Sign Up Button */}
+        <TouchableOpacity
+          style={[styles.signupButton, loading && styles.buttonDisabled]}
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.signupButtonText}>
+            {loading ? "SIGNING UP..." : "SIGN UP"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+  },
+  backButton: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 40,
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  title: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 36,
+    color: Colors.palette.blue,
+    marginBottom: 40,
+    textAlign: "center",
+  },
+  inputContainer: {
+    marginBottom: 24,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  label: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+    marginLeft: 8,
+  },
+  confirmLabel: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: Colors.palette.dark,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  input: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: Colors.palette.light,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.palette.darkest,
+  },
+  signupButton: {
+    backgroundColor: Colors.palette.accent,
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  signupButtonText: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+    letterSpacing: 1,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+});
+

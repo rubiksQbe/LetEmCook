@@ -9,6 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
@@ -19,6 +20,7 @@ import {
   View,
 } from "react-native";
 import Colors from "../../constants/Colors";
+import { createChallenge } from "../../lib/supabase";
 
 const STORAGE_KEY = "challengeDraft";
 
@@ -32,6 +34,7 @@ export default function AddChallengeScreen() {
   const [newIngredient, setNewIngredient] = useState("");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
 
   // Load draft from AsyncStorage on mount
   useEffect(() => {
@@ -85,6 +88,20 @@ export default function AddChallengeScreen() {
   const saveChallenge = () => router.back();
 
   const postChallenge = () => {
+    // Validate required fields
+    if (!title.trim()) {
+      Alert.alert("Missing Title", "Please enter a title for your challenge.");
+      return;
+    }
+
+    if (ingredients.length === 0) {
+      Alert.alert(
+        "Missing Ingredients",
+        "Please add at least one ingredient."
+      );
+      return;
+    }
+
     Alert.alert(
       "Confirm Post",
       "Post this challenge to the public challenges page?",
@@ -93,9 +110,38 @@ export default function AddChallengeScreen() {
         {
           text: "Post",
           onPress: async () => {
-            // TODO: Add your logic to save/post the challenge to the database
-            await AsyncStorage.removeItem(STORAGE_KEY); // Clear draft after posting
-            router.back();
+            setIsPosting(true);
+            try {
+              const { data, error } = await createChallenge({
+                title,
+                timeLimit,
+                difficulty,
+                description,
+                ingredients,
+                imageUri,
+              });
+
+              if (error) {
+                throw error;
+              }
+
+              // Clear draft after successful posting
+              await AsyncStorage.removeItem(STORAGE_KEY);
+              
+              Alert.alert(
+                "Success!",
+                "Your challenge has been posted!",
+                [{ text: "OK", onPress: () => router.back() }]
+              );
+            } catch (error) {
+              console.error("Error posting challenge:", error);
+              Alert.alert(
+                "Error",
+                "Failed to post challenge. Please try again."
+              );
+            } finally {
+              setIsPosting(false);
+            }
           },
         },
       ],
@@ -248,14 +294,28 @@ export default function AddChallengeScreen() {
 
       {/* ---------------- FOOTER BUTTONS ---------------- */}
       <View style={styles.footer}>
-        <TouchableOpacity onPress={saveChallenge} style={styles.saveArea}>
+        <TouchableOpacity
+          onPress={saveChallenge}
+          style={styles.saveArea}
+          disabled={isPosting}
+        >
           <Text style={styles.footerText}>Save</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={postChallenge} style={styles.postArea}>
-          <Text style={[styles.footerText, { color: Colors.palette.darkest }]}>
-            Post
-          </Text>
+        <TouchableOpacity
+          onPress={postChallenge}
+          style={[styles.postArea, isPosting && { opacity: 0.6 }]}
+          disabled={isPosting}
+        >
+          {isPosting ? (
+            <ActivityIndicator color={Colors.palette.darkest} size="small" />
+          ) : (
+            <Text
+              style={[styles.footerText, { color: Colors.palette.darkest }]}
+            >
+              Post
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>

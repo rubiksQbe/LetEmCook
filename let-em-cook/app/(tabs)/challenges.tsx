@@ -1,9 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useNavigation } from "expo-router";
-import { useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   StyleSheet,
@@ -12,7 +11,32 @@ import {
   View,
 } from "react-native";
 import Colors from "../../constants/Colors";
-import { Challenge } from "../../constants/types";
+import { Challenge, ChallengeRow } from "../../constants/types";
+import { fetchChallenges, supabase } from "../../lib/supabase";
+
+// Helper function to convert database row to Challenge interface
+function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challenge {
+  // Format username as "Chef [Username]" or "Your Challenge" if current user
+  const displayUsername = row.created_by === currentUserId 
+    ? "Your Challenge" 
+    : `Chef ${row.created_by_username}`;
+
+  return {
+    id: row.id,
+    title: row.title,
+    timeLimit: row.time_limit,
+    difficulty: row.difficulty,
+    rating: row.rating ?? undefined,
+    ingredients: row.ingredients,
+    description: row.description ?? undefined,
+    pinned: false, // Pinned state is per-user, stored locally
+    image: row.image_url ? { uri: row.image_url } : require("@/assets/images/placeholder.jpg"),
+    created_at: row.created_at,
+    created_by: row.created_by,
+    created_by_username: displayUsername,
+    image_url: row.image_url ?? undefined,
+  };
+}
 
 export default function ChallengeScreen() {
   const navigation = useNavigation();
@@ -32,97 +56,94 @@ export default function ChallengeScreen() {
     });
   }, [navigation]);
 
-  const [challenges, setChallenges] = useState<Challenge[]>([
-    {
-      id: "1",
-      title: "Chimichurri Steak",
-      timeLimit: "10 min",
-      difficulty: "Medium",
-      rating: 5,
-      ingredients: [
-        "Steak",
-        "red wine vinegar",
-        "parsley",
-        "oregano",
-        "garlic",
-      ],
-      description:
-        "A flavorful Argentinean steak recipe with a zesty chimichurri sauce.",
-      // ingredients: [
-      //   "Steak",
-      //   "red wine vinegar",
-      //   "parsley",
-      //   "oregano",
-      //   "garlic",
-      // ],
-      pinned: false,
-      image: require("@/assets/images/steak.jpg"),
-    },
-    {
-      id: "2",
-      title: "30-Minute Mussels",
-      timeLimit: "30 min",
-      difficulty: "Easy",
-      rating: 4,
-      ingredients: [
-        "Mussels",
-        "garlic",
-        "white wine",
-        "butter",
-        "olive oil",
-        "parsley",
-      ],
-      description:
-        "A quick and delicious mussel recipe guaranteed to get you out of your shell!",
-      // ingredients: [
-      //   "Mussels",
-      //   "garlic",
-      //   "white wine",
-      //   "butter",
-      //   "olive oil",
-      //   "parsley",
-      // ],
-      pinned: false,
-      image: require("@/assets/images/mussels.jpg"),
-    },
-  ]);
+  const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
-  const togglePin = (id: string) => {
-    setChallenges((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, pinned: !c.pinned } : c))
-    );
-  };
+  // Fetch challenges on mount
+  useEffect(() => {
+    async function loadChallenges() {
+      try {
+        // Get current user ID
+        const { data: { user } } = await supabase.auth.getUser();
+        setCurrentUserId(user?.id);
 
-  const StarRating = ({ rating }: { rating: number | undefined }) => {
-    if (rating) {
-      const stars = [];
-      for (let i = 1; i <= 5; i++) {
-        stars.push(
-          <MaterialCommunityIcons
-            key={i}
-            name={i <= rating ? "star" : "star-outline"}
-            size={18}
-            color={Colors.palette.dark}
-            style={{ marginRight: 2 }}
-          />
-        );
+        // Fetch challenges
+        const { data, error } = await fetchChallenges();
+        if (error) {
+          console.error("Error fetching challenges:", error);
+          return;
+        }
+
+        if (data) {
+          const convertedChallenges = data.map((row: ChallengeRow) => 
+            convertToChallenge(row, user?.id)
+          );
+          setChallenges(convertedChallenges);
+        }
+      } catch (error) {
+        console.error("Error loading challenges:", error);
+      } finally {
+        setIsLoading(false);
       }
-      return <View style={{ flexDirection: "row" }}>{stars}</View>;
-    } else {
-      return (
-        <Text
-          style={{
-            flexDirection: "row",
-            fontFamily: "Poppins_400Regular",
-            fontSize: 16,
-            color: Colors.palette.dark,
-          }}
-        >
-          No ratings yet
-        </Text>
-      );
     }
-  };
+
+    loadChallenges();
+  }, []);
+
+  // Subscribe to real-time updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("challenges-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "challenges",
+        },
+        async (payload) => {
+          console.log("Real-time update:", payload);
+
+          if (payload.eventType === "INSERT") {
+            // New challenge added
+            const newChallenge = convertToChallenge(
+              payload.new as ChallengeRow,
+              currentUserId
+            );
+            setChallenges((prev) => [newChallenge, ...prev]);
+          } else if (payload.eventType === "UPDATE") {
+            // Challenge updated
+            const updatedChallenge = convertToChallenge(
+              payload.new as ChallengeRow,
+              currentUserId
+            );
+            setChallenges((prev) =>
+              prev.map((c) => (c.id === updatedChallenge.id ? updatedChallenge : c))
+            );
+          } else if (payload.eventType === "DELETE") {
+            // Challenge deleted
+            setChallenges((prev) => prev.filter((c) => c.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color={Colors.palette.blue} />
+        <Text style={styles.loadingText}>Loading challenges...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -131,6 +152,14 @@ export default function ChallengeScreen() {
         data={challenges}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 20 }}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No challenges yet!</Text>
+            <Text style={styles.emptySubText}>
+              Tap the + icon to create your first challenge
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             activeOpacity={0.85}
@@ -142,53 +171,29 @@ export default function ChallengeScreen() {
             }
           >
             <View style={styles.card}>
-              <Image source={item.image} style={styles.cardImage} />
-
-              <View style={styles.cardContentWrapper}>
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-
-                  <View style={styles.infoRow}>
-                    {/* Time */}
-                    <View style={styles.infoItem}>
-                      <Ionicons
-                        name="timer"
-                        size={20}
-                        color={Colors.palette.dark}
-                        style={{ marginRight: 4 }}
-                      />
-                      <Text style={styles.cardTime}>{item.timeLimit}</Text>
-                    </View>
-
-                    {/* Difficulty */}
-                    <View style={styles.infoItem}>
-                      <FontAwesome
-                        name="gear"
-                        size={20}
-                        color={Colors.palette.dark}
-                        style={{ marginRight: 5 }}
-                      />
-                      <Text style={styles.difficultyText}>
-                        {item.difficulty}
-                      </Text>
-                    </View>
-
-                    {/* Star rating */}
-                    <StarRating rating={item.rating} />
-                  </View>
+              <View style={styles.cardImageContainer}>
+                <Image source={item.image} style={styles.cardImage} />
+                <View style={styles.difficultyBadge}>
+                  <Text style={styles.difficultyText}>
+                    {item.difficulty.toUpperCase()}
+                  </Text>
                 </View>
-
-                {/* Pin button floated */}
-                <TouchableOpacity
-                  style={styles.pinButton}
-                  onPress={() => togglePin(item.id)}
-                >
+              </View>
+              <View style={styles.cardTextContainer}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={styles.cardCreator}>
+                  {item.created_by_username || "Anonymous"}
+                </Text>
+                <View style={styles.timeContainer}>
                   <MaterialCommunityIcons
-                    name={item.pinned ? "pin" : "pin-outline"}
-                    size={30}
+                    name="clock-outline"
+                    size={16}
                     color={Colors.palette.blue}
                   />
-                </TouchableOpacity>
+                  <Text style={styles.timeText}>{item.timeLimit}</Text>
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -205,64 +210,103 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.light,
   },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: Colors.palette.dark,
+    fontFamily: "Poppins_400Regular",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: 20,
+    fontFamily: "Poppins_600SemiBold",
+    color: Colors.palette.dark,
+    marginBottom: 10,
+  },
+  emptySubText: {
+    fontSize: 16,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.palette.dark,
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
 
   // Cards
   card: {
-    backgroundColor: Colors.palette.lightest,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    marginBottom: 20,
+    backgroundColor: "white",
+    borderRadius: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    flexDirection: "row",
     overflow: "hidden",
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.palette.blue,
+  },
+  cardImageContainer: {
+    position: "relative",
+    width: 120,
+    height: 120,
   },
   cardImage: {
     width: "100%",
-    height: 200,
+    height: "100%",
+    resizeMode: "cover",
   },
-  cardContent: {
-    paddingHorizontal: 15,
-    paddingTop: 15,
-    paddingBottom: 10,
-  },
-  cardTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 22,
-    color: Colors.palette.darkest,
-  },
-  cardTime: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 16,
-    color: Colors.palette.dark,
-    marginVertical: 5,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 5,
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 20,
+  difficultyBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
   difficultyText: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 16,
+    fontFamily: "Poppins_700Bold",
+    fontSize: 10,
+    color: Colors.palette.darkest,
+    letterSpacing: 0.5,
+  },
+  cardTextContainer: {
+    flex: 1,
+    padding: 16,
+    justifyContent: "center",
+  },
+  cardTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 19,
+    color: Colors.palette.darkest,
+    marginBottom: 6,
+    lineHeight: 24,
+  },
+  cardCreator: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 13,
+    color: Colors.palette.blue,
+    marginBottom: 8,
+    fontStyle: "italic",
+  },
+  timeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  timeText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
     color: Colors.palette.dark,
-  },
-  cardContentWrapper: {
-    position: "relative",
-    alignContent: "center",
-  },
-
-  pinButton: {
-    position: "absolute",
-    top: 25,
-    right: 20,
-    zIndex: 10,
+    marginLeft: 6,
   },
 });

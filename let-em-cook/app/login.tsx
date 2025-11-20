@@ -1,0 +1,192 @@
+import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Colors from "@/constants/Colors";
+import { signInWithUsername } from "@/lib/supabase";
+
+export default function LoginScreen() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSignIn() {
+    if (!username || !password) {
+      Alert.alert("Missing fields", "Enter a username and password.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await signInWithUsername(username.trim(), password);
+    setLoading(false);
+    if (error) {
+      Alert.alert("Sign in failed", error.message);
+    } else {
+      router.replace("/(tabs)/challenges");
+    }
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={28} color={Colors.palette.blue} />
+        </TouchableOpacity>
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.title}>Login</Text>
+
+        {/* Username Field */}
+        <View style={styles.inputContainer}>
+          <View style={styles.labelRow}>
+            <FontAwesome
+              name="user"
+              size={20}
+              color={Colors.palette.darkest}
+            />
+            <Text style={styles.label}>Username</Text>
+          </View>
+          <TextInput
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Enter your username"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Password Field */}
+        <View style={styles.inputContainer}>
+          <View style={styles.labelRow}>
+            <MaterialCommunityIcons
+              name="lock"
+              size={20}
+              color={Colors.palette.darkest}
+            />
+            <Text style={styles.label}>Password</Text>
+          </View>
+          <TextInput
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Enter your password"
+            placeholderTextColor="#999"
+            style={styles.input}
+          />
+        </View>
+
+        {/* Login Button */}
+        <TouchableOpacity
+          style={[styles.loginButton, loading && styles.buttonDisabled]}
+          onPress={handleSignIn}
+          disabled={loading}
+        >
+          <Text style={styles.loginButtonText}>
+            {loading ? "LOGGING IN..." : "LOGIN"}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+  },
+  backButton: {
+    position: "absolute",
+    top: 20,
+    left: 20,
+    zIndex: 10,
+    padding: 8,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 40,
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  title: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 36,
+    color: Colors.palette.blue,
+    marginBottom: 40,
+    textAlign: "center",
+  },
+  inputContainer: {
+    marginBottom: 24,
+  },
+  labelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  label: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+    marginLeft: 8,
+  },
+  input: {
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: Colors.palette.light,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontFamily: "Poppins_400Regular",
+    color: Colors.palette.darkest,
+  },
+  loginButton: {
+    backgroundColor: Colors.palette.accent,
+    paddingVertical: 16,
+    borderRadius: 30,
+    alignItems: "center",
+    marginTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  loginButtonText: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+    letterSpacing: 1,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
+  },
+});
+

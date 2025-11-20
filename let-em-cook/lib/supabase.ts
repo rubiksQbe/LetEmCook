@@ -63,3 +63,133 @@ export async function signInWithUsername(username: string, password: string) {
   });
   return { data, error };
 }
+
+// ============= CHALLENGE FUNCTIONS =============
+
+/**
+ * Upload an image to Supabase Storage
+ * @param imageUri - Local file URI from ImagePicker
+ * @param userId - User ID for organizing files
+ * @returns URL of the uploaded image or null if failed
+ */
+export async function uploadChallengeImage(
+  imageUri: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    // Generate a unique filename
+    const fileExt = imageUri.split(".").pop();
+    const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+    // Fetch the image as a blob
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+
+    // Convert blob to ArrayBuffer
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("challenge-images")
+      .upload(fileName, arrayBuffer, {
+        contentType: blob.type,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error uploading image:", error);
+      return null;
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("challenge-images").getPublicUrl(data.path);
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error in uploadChallengeImage:", error);
+    return null;
+  }
+}
+
+/**
+ * Create a new challenge in the database
+ */
+export async function createChallenge({
+  title,
+  timeLimit,
+  difficulty,
+  description,
+  ingredients,
+  imageUri,
+}: {
+  title: string;
+  timeLimit: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  description: string;
+  ingredients: string[];
+  imageUri: string | null;
+}) {
+  try {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { data: null, error: new Error("No authenticated user") };
+    }
+
+    const username = user.user_metadata?.username || "Anonymous";
+
+    // Upload image if provided
+    let imageUrl: string | null = null;
+    if (imageUri && imageUri !== "null") {
+      imageUrl = await uploadChallengeImage(imageUri, user.id);
+    }
+
+    // Insert challenge into database
+    const { data, error } = await supabase
+      .from("challenges")
+      .insert({
+        title,
+        time_limit: timeLimit,
+        difficulty,
+        description: description || null,
+        ingredients,
+        image_url: imageUrl,
+        created_by: user.id,
+        created_by_username: username,
+        rating: null,
+      })
+      .select()
+      .single();
+
+    return { data, error };
+  } catch (error) {
+    console.error("Error creating challenge:", error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Fetch all challenges ordered by recency
+ */
+export async function fetchChallenges() {
+  try {
+    const { data, error } = await supabase
+      .from("challenges")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  } catch (error) {
+    console.error("Error fetching challenges:", error);
+    return { data: null, error };
+  }
+}
