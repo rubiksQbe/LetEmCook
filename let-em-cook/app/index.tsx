@@ -11,7 +11,6 @@ export default function Index() {
     supabase.auth
       .getSession()
       .then(({ data }) => {
-        console.log("session:", data);
         if (!isMounted) return;
         setHasSession(!!data.session);
         setChecking(false);

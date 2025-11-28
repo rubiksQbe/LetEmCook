@@ -1,17 +1,43 @@
-import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { Tabs } from "expo-router";
 import React from "react";
+import { Image, StyleSheet } from "react-native";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>["name"];
-  color: string;
+// Custom TabBarIcon component that uses images
+function TabBarIcon({
+  focused,
+  iconName,
+}: {
+  focused: boolean;
+  iconName: "challenges" | "friends" | "fridge";
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  const iconMap = {
+    challenges: {
+      default: require("@/assets/images/spoon-and-fork.png"),
+      selected: require("@/assets/images/spoon-and-fork (1).png"),
+    },
+    friends: {
+      default: require("@/assets/images/friends.png"),
+      selected: require("@/assets/images/friends (1).png"),
+    },
+    fridge: {
+      default: require("@/assets/images/fridge.png"),
+      selected: require("@/assets/images/fridge (1).png"),
+    },
+  };
+
+  const iconSource = focused ? iconMap[iconName].selected : iconMap[iconName].default;
+
+  return (
+    <Image
+      source={iconSource}
+      style={styles.tabIcon}
+      resizeMode="contain"
+    />
+  );
 }
 
 export default function TabLayout() {
@@ -22,52 +48,54 @@ export default function TabLayout() {
       initialRouteName="challenges"
       screenOptions={{
         headerTitleAlign: "center",
-        tabBarActiveTintColor: Colors.palette.blue,
+        tabBarActiveTintColor: Colors.palette.darkest,
+        tabBarInactiveTintColor: "#999",
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
         tabBarIconStyle: { marginTop: 7 },
+        tabBarLabelStyle: {
+          fontSize: 14,
+          fontFamily: "Poppins_600SemiBold",
+        },
+        tabBarStyle: {
+          borderTopWidth: 0,
+        },
       }}
     >
       <Tabs.Screen
         name="friends"
         options={{
           title: "Friends",
-          tabBarIcon: ({ color }) => <TabBarIcon name="users" color={color} />,
+          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="friends" />,
         }}
       />
       <Tabs.Screen
         name="challenges"
         options={{
           title: "Challenges",
-          headerStyle: {
-            backgroundColor: Colors.palette.lightest,
-            height: 110,
+          headerShown: false,
+          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="challenges" />,
+          href: {
+            pathname: "/challenges",
           },
-          headerTitleStyle: {
-            fontFamily: "Poppins_500Bold",
-            fontSize: 25,
-            color: Colors.palette.darkest,
-          },
-          tabBarIcon: ({ color }) => <TabBarIcon name="trophy" color={color} />,
         }}
       />
       <Tabs.Screen
         name="fridge"
         options={{
           title: "Fridge",
-          tabBarIcon: ({ color }) => (
-            <TabBarIcon name="snowflake-o" color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="challenges/[id]"
-        options={{
-          href: null,
-          headerShown: false,
+          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="fridge" />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIcon: {
+    width: 28,
+    height: 28,
+    marginBottom: -3,
+  },
+});

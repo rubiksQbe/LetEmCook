@@ -237,7 +237,7 @@ export default function AddChallengeScreen() {
   return (
     <View style={styles.modalContainer}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 350, paddingTop: 10 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 10 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ---------------- TITLE ---------------- */}
@@ -251,6 +251,7 @@ export default function AddChallengeScreen() {
           value={title}
           onChangeText={setTitle}
           style={styles.input}
+          autoCorrect={false}
         />
 
         {/* ---------------- DIFFICULTY ---------------- */}
@@ -346,6 +347,7 @@ export default function AddChallengeScreen() {
                     onChangeText={setCustomTimeValue}
                     keyboardType="numeric"
                     style={[styles.input, { flex: 1, marginRight: 10 }]}
+                    autoCorrect={false}
                   />
                   <View style={styles.unitPicker}>
                     {TIME_UNITS.map((unit) => (
@@ -420,6 +422,7 @@ export default function AddChallengeScreen() {
                 onChangeText={setNewIngredient}
                 style={styles.ingredientInput}
                 onSubmitEditing={addIngredient}
+                autoCorrect={false}
               />
               <TouchableOpacity onPress={addIngredient}>
                 <Ionicons
@@ -533,6 +536,7 @@ export default function AddChallengeScreen() {
                   onChangeText={setCustomDietary}
                   style={[styles.input, { marginBottom: 12 }]}
                   autoCapitalize="words"
+                  autoCorrect={false}
                 />
                 <View style={styles.customTimeButtons}>
                   <TouchableOpacity
@@ -596,35 +600,32 @@ export default function AddChallengeScreen() {
           style={[styles.input, { height: 100 }]}
           multiline
           textAlignVertical="top"
+          autoCorrect={false}
         />
       </ScrollView>
 
-      {/* ---------------- FOOTER BUTTONS ---------------- */}
-      <View style={styles.footer}>
-        <TouchableOpacity
-          onPress={saveChallenge}
-          style={styles.saveArea}
-          disabled={isPosting}
-        >
-          <Text style={styles.footerText}>Save</Text>
-        </TouchableOpacity>
+        {/* ---------------- FOOTER BUTTONS ---------------- */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            onPress={saveChallenge}
+            style={styles.saveButton}
+            disabled={isPosting}
+          >
+            <Text style={styles.saveButtonText}>Save</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={postChallenge}
-          style={[styles.postArea, isPosting && { opacity: 0.6 }]}
-          disabled={isPosting}
-        >
-          {isPosting ? (
-            <ActivityIndicator color={Colors.palette.darkest} size="small" />
-          ) : (
-            <Text
-              style={[styles.footerText, { color: Colors.palette.darkest }]}
-            >
-              Post
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={postChallenge}
+            style={[styles.postButton, isPosting && { opacity: 0.6 }]}
+            disabled={isPosting}
+          >
+            {isPosting ? (
+              <ActivityIndicator color={Colors.palette.darkest} size="small" />
+            ) : (
+              <Text style={styles.postButtonText}>Post</Text>
+            )}
+          </TouchableOpacity>
+        </View>
     </View>
   );
 }
@@ -837,30 +838,47 @@ const styles = StyleSheet.create({
     color: Colors.palette.blue,
     alignSelf: "center",
   },
-  // Footer
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+  // Footer Buttons
+  buttonContainer: {
     flexDirection: "row",
-    height: 60,
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 20,
   },
-  saveArea: {
+  saveButton: {
     flex: 1,
     backgroundColor: Colors.palette.blue,
-    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 30,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  postArea: {
+  saveButtonText: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: "white",
+    letterSpacing: 1,
+  },
+  postButton: {
     flex: 1,
     backgroundColor: Colors.palette.accent,
-    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 30,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  footerText: {
-    color: "white",
-    fontSize: 22,
-    fontWeight: "600",
+  postButtonText: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+    letterSpacing: 1,
   },
 });

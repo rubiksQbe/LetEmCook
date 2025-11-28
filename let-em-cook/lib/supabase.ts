@@ -50,8 +50,6 @@ export async function signUpWithUsername(username: string, password: string) {
       emailRedirectTo: undefined,
     },
   });
-  //   console.log("SUPABASE_URL:", SUPABASE_URL);
-  //   console.log("supabase client created");
   return { data, error };
 }
 
@@ -167,7 +165,6 @@ export async function createChallenge({
         image_url: imageUrl,
         created_by: user.id,
         created_by_username: username,
-        rating: null,
         dietary_restrictions: dietaryRestrictions || null,
       })
       .select()
@@ -222,4 +219,405 @@ export async function deleteChallenge(challengeId: string) {
     console.error("Error deleting challenge:", error);
     return { error };
   }
+}
+
+// ============= SUBMISSION FUNCTIONS =============
+
+/**
+ * Upload a submission image to Supabase Storage
+ */
+export async function uploadSubmissionImage(
+  imageUri: string,
+  userId: string
+): Promise<string | null> {
+  try {
+    // Generate a unique filename
+    const fileExt = imageUri.split(".").pop();
+    const fileName = `${userId}/submissions/${Date.now()}.${fileExt}`;
+
+    // Fetch the image as a blob
+    const response = await fetch(imageUri);
+    const blob = await response.blob();
+
+    // Convert blob to ArrayBuffer
+    const arrayBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(blob);
+    });
+
+    // Upload to Supabase Storage
+    const { data, error } = await supabase.storage
+      .from("challenge-images")
+      .upload(fileName, arrayBuffer, {
+        contentType: blob.type,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error uploading submission image:", error);
+      return null;
+    }
+
+    // Get public URL
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("challenge-images").getPublicUrl(data.path);
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error in uploadSubmissionImage:", error);
+    return null;
+  }
+}
+
+/**
+ * Create or update a user's submission to a challenge
+ * If the user is the challenge creator, update the challenge image instead
+ */
+export async function submitToChallenge(
+  challengeId: string,
+  imageUri: string,
+  isCreator: boolean
+) {
+  try {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { data: null, error: new Error("No authenticated user") };
+    }
+
+    const username = user.user_metadata?.username || "Anonymous";
+
+    // Upload image
+    const imageUrl = await uploadSubmissionImage(imageUri, user.id);
+    if (!imageUrl) {
+      return { data: null, error: new Error("Failed to upload image") };
+    }
+
+    // If user is creator, update the challenge image
+    if (isCreator) {
+      const { data, error } = await supabase
+        .from("challenges")
+        .update({ image_url: imageUrl })
+        .eq("id", challengeId)
+        .eq("created_by", user.id)
+        .select()
+        .single();
+
+      return { data, error };
+    }
+
+    // Otherwise, create or update submission
+    // Check if submission already exists
+    const { data: existingSubmission } = await supabase
+      .from("submissions")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (existingSubmission) {
+      // Update existing submission
+      const { data, error } = await supabase
+        .from("submissions")
+        .update({ image_url: imageUrl })
+        .eq("id", existingSubmission.id)
+        .select()
+        .single();
+
+      return { data, error };
+    } else {
+      // Create new submission
+      const { data, error } = await supabase
+        .from("submissions")
+        .insert({
+          challenge_id: challengeId,
+          user_id: user.id,
+          username,
+          image_url: imageUrl,
+          upvotes: 0,
+          downvotes: 0,
+        })
+        .select()
+        .single();
+
+      return { data, error };
+    }
+  } catch (error) {
+    console.error("Error submitting to challenge:", error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Fetch all submissions for a challenge with vote counts
+ */
+export async function fetchSubmissions(challengeId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("challenge_id", challengeId)
+      .order("created_at", { ascending: false });
+
+    return { data, error };
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Check if user has submitted to a challenge
+ */
+export async function hasUserSubmitted(challengeId: string) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return false;
+
+    const { data } = await supabase
+      .from("submissions")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .single();
+
+    return !!data;
+  } catch (error) {
+    return false;
+  }
+}
+
+// ============= VOTING FUNCTIONS =============
+
+/**
+ * Vote on a challenge (after completing it)
+ */
+export async function voteOnChallenge(
+  challengeId: string,
+  voteType: "up" | "down"
+) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: new Error("No authenticated user") };
+    }
+
+    // Check if user already voted
+    const { data: existingVote } = await supabase
+      .from("challenge_votes")
+      .select("*")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (existingVote) {
+      // Update existing vote if different, or remove if same
+      if (existingVote.vote_type === voteType) {
+        // Remove vote (toggle off)
+        const { error: deleteError } = await supabase
+          .from("challenge_votes")
+          .delete()
+          .eq("id", existingVote.id);
+
+        if (deleteError) return { error: deleteError };
+
+        // Update challenge vote counts
+        await updateChallengeVoteCounts(challengeId);
+        return { error: null };
+      } else {
+        // Change vote
+        const { error: updateError } = await supabase
+          .from("challenge_votes")
+          .update({ vote_type: voteType })
+          .eq("id", existingVote.id);
+
+        if (updateError) return { error: updateError };
+
+        // Update challenge vote counts
+        await updateChallengeVoteCounts(challengeId);
+        return { error: null };
+      }
+    }
+
+    // Create new vote
+    const { error } = await supabase.from("challenge_votes").insert({
+      challenge_id: challengeId,
+      user_id: user.id,
+      vote_type: voteType,
+    });
+
+    if (error) return { error };
+
+    // Update challenge vote counts
+    await updateChallengeVoteCounts(challengeId);
+    return { error: null };
+  } catch (error) {
+    console.error("Error voting on challenge:", error);
+    return { error };
+  }
+}
+
+/**
+ * Vote on a submission
+ */
+export async function voteOnSubmission(
+  submissionId: string,
+  voteType: "up" | "down"
+) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: new Error("No authenticated user") };
+    }
+
+    // Check if user already voted
+    const { data: existingVote } = await supabase
+      .from("submission_votes")
+      .select("*")
+      .eq("submission_id", submissionId)
+      .eq("user_id", user.id)
+      .single();
+
+    if (existingVote) {
+      // Update existing vote if different, or remove if same
+      if (existingVote.vote_type === voteType) {
+        // Remove vote (toggle off)
+        const { error: deleteError } = await supabase
+          .from("submission_votes")
+          .delete()
+          .eq("id", existingVote.id);
+
+        if (deleteError) return { error: deleteError };
+
+        // Update submission vote counts
+        await updateSubmissionVoteCounts(submissionId);
+        return { error: null };
+      } else {
+        // Change vote
+        const { error: updateError } = await supabase
+          .from("submission_votes")
+          .update({ vote_type: voteType })
+          .eq("id", existingVote.id);
+
+        if (updateError) return { error: updateError };
+
+        // Update submission vote counts
+        await updateSubmissionVoteCounts(submissionId);
+        return { error: null };
+      }
+    }
+
+    // Create new vote
+    const { error } = await supabase.from("submission_votes").insert({
+      submission_id: submissionId,
+      user_id: user.id,
+      vote_type: voteType,
+    });
+
+    if (error) return { error };
+
+    // Update submission vote counts
+    await updateSubmissionVoteCounts(submissionId);
+    return { error: null };
+  } catch (error) {
+    console.error("Error voting on submission:", error);
+    return { error };
+  }
+}
+
+/**
+ * Get user's vote on a challenge
+ */
+export async function getUserChallengeVote(
+  challengeId: string
+): Promise<"up" | "down" | null> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data } = await supabase
+      .from("challenge_votes")
+      .select("vote_type")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", user.id)
+      .single();
+
+    return data?.vote_type || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Get user's vote on a submission
+ */
+export async function getUserSubmissionVote(
+  submissionId: string
+): Promise<"up" | "down" | null> {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    const { data } = await supabase
+      .from("submission_votes")
+      .select("vote_type")
+      .eq("submission_id", submissionId)
+      .eq("user_id", user.id)
+      .single();
+
+    return data?.vote_type || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Helper function to update challenge vote counts
+ */
+async function updateChallengeVoteCounts(challengeId: string) {
+  const { data: votes } = await supabase
+    .from("challenge_votes")
+    .select("vote_type")
+    .eq("challenge_id", challengeId);
+
+  const upvotes = votes?.filter((v) => v.vote_type === "up").length || 0;
+  const downvotes = votes?.filter((v) => v.vote_type === "down").length || 0;
+
+  await supabase
+    .from("challenges")
+    .update({ upvotes, downvotes })
+    .eq("id", challengeId);
+}
+
+/**
+ * Helper function to update submission vote counts
+ */
+async function updateSubmissionVoteCounts(submissionId: string) {
+  const { data: votes } = await supabase
+    .from("submission_votes")
+    .select("vote_type")
+    .eq("submission_id", submissionId);
+
+  const upvotes = votes?.filter((v) => v.vote_type === "up").length || 0;
+  const downvotes = votes?.filter((v) => v.vote_type === "down").length || 0;
+
+  await supabase
+    .from("submissions")
+    .update({ upvotes, downvotes })
+    .eq("id", submissionId);
 }

@@ -1,20 +1,19 @@
+import Colors from "@/constants/Colors";
+import { signInWithUsername } from "@/lib/supabase";
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Colors from "@/constants/Colors";
-import { signInWithUsername } from "@/lib/supabase";
 
 export default function LoginScreen() {
   const [username, setUsername] = useState("");
@@ -50,10 +49,7 @@ export default function LoginScreen() {
           <Ionicons name="arrow-back" size={28} color={Colors.palette.blue} />
         </TouchableOpacity>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.content}>
           <Text style={styles.title}>Login</Text>
 
         {/* Username Field */}
@@ -94,6 +90,7 @@ export default function LoginScreen() {
             placeholder="Enter your password"
             placeholderTextColor="#999"
             style={styles.input}
+            autoCorrect={false}
           />
         </View>
 
@@ -107,7 +104,7 @@ export default function LoginScreen() {
             {loading ? "LOGGING IN..." : "LOGIN"}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -129,21 +126,22 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     paddingHorizontal: 40,
     paddingTop: 80,
     paddingBottom: 40,
+    justifyContent: "center",
   },
   title: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 36,
+    fontSize: 32,
     color: Colors.palette.blue,
-    marginBottom: 40,
+    marginBottom: 30,
     textAlign: "center",
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   labelRow: {
     flexDirection: "row",
@@ -172,7 +170,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,

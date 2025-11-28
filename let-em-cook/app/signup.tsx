@@ -5,7 +5,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -57,10 +56,7 @@ export default function SignUpScreen() {
           <Ionicons name="arrow-back" size={28} color={Colors.palette.blue} />
         </TouchableOpacity>
 
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-        >
+        <View style={styles.content}>
           <Text style={styles.title}>Sign Up</Text>
 
         {/* Username Field */}
@@ -101,6 +97,7 @@ export default function SignUpScreen() {
             placeholder="Enter your password"
             placeholderTextColor="#999"
             style={styles.input}
+            autoCorrect={false}
           />
         </View>
 
@@ -114,6 +111,7 @@ export default function SignUpScreen() {
             placeholder="Re-enter your password"
             placeholderTextColor="#999"
             style={styles.input}
+            autoCorrect={false}
           />
         </View>
 
@@ -127,7 +125,7 @@ export default function SignUpScreen() {
             {loading ? "SIGNING UP..." : "SIGN UP"}
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -149,21 +147,22 @@ const styles = StyleSheet.create({
     zIndex: 10,
     padding: 8,
   },
-  scrollContent: {
-    flexGrow: 1,
+  content: {
+    flex: 1,
     paddingHorizontal: 40,
     paddingTop: 80,
     paddingBottom: 40,
+    justifyContent: "center",
   },
   title: {
     fontFamily: "Poppins_600SemiBold",
-    fontSize: 36,
+    fontSize: 32,
     color: Colors.palette.blue,
-    marginBottom: 40,
+    marginBottom: 30,
     textAlign: "center",
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
   labelRow: {
     flexDirection: "row",
@@ -199,7 +198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
