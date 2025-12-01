@@ -39,6 +39,7 @@ function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challeng
     dietary_restrictions: row.dietary_restrictions ?? undefined,
     upvotes: row.upvotes || 0,
     downvotes: row.downvotes || 0,
+    submission_count: row.submission_count || 0,
   };
 }
 
@@ -101,9 +102,14 @@ export default function ChallengeScreen() {
         async (payload) => {
 
           if (payload.eventType === "INSERT") {
-            // New challenge added
+            // New challenge added - fetch submission count
+            const { count } = await supabase
+              .from("submissions")
+              .select("*", { count: "exact", head: true })
+              .eq("challenge_id", payload.new.id);
+            
             const newChallenge = convertToChallenge(
-              payload.new as ChallengeRow,
+              { ...payload.new, submission_count: count || 0 } as ChallengeRow,
               currentUserId
             );
             setChallenges((prev) => [newChallenge, ...prev]);
@@ -119,6 +125,36 @@ export default function ChallengeScreen() {
           } else if (payload.eventType === "DELETE") {
             // Challenge deleted
             setChallenges((prev) => prev.filter((c) => c.id !== payload.old.id));
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "submissions",
+        },
+        async (payload) => {
+          // Update submission count for the affected challenge
+          const challengeId = 
+            payload.eventType === "DELETE" 
+              ? payload.old.challenge_id 
+              : payload.new.challenge_id;
+          
+          if (challengeId) {
+            const { count } = await supabase
+              .from("submissions")
+              .select("*", { count: "exact", head: true })
+              .eq("challenge_id", challengeId);
+            
+            setChallenges((prev) =>
+              prev.map((c) =>
+                c.id === challengeId
+                  ? { ...c, submission_count: count || 0 }
+                  : c
+              )
+            );
           }
         }
       )
@@ -239,236 +275,226 @@ export default function ChallengeScreen() {
     selectedDietaryRestrictions.length > 0;
 
 
-  if (isLoading) {
-    return (
-      <SafeAreaView style={[styles.loadingContainerBackground, styles.centerContent]} edges={["top"]}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.palette.darkest} />
-          <Text style={styles.loadingText}>Loading challenges...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Page Title */}
       <View style={styles.titleRow}>
         <Text style={styles.pageTitle}>Challenges</Text>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => router.push("/(modals)/addChallenge")}
-        >
-          <MaterialCommunityIcons
-            name="plus"
-            size={26}
-            color="white"
-          />
-        </TouchableOpacity>
       </View>
-
-      {/* Filter Toggle Button */}
-      <View style={styles.filterToggleContainer}>
-        <TouchableOpacity
-          style={styles.filterToggleButton}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Ionicons 
-            name={showFilters ? "chevron-up" : "chevron-down"} 
-            size={20} 
-            color={Colors.palette.darkest} 
-          />
-          <Text style={styles.filterToggleText}>
-            {showFilters ? "Hide Filters" : "Show Filters"}
-          </Text>
-          {hasActiveFilters && <View style={styles.activeFilterDot} />}
-        </TouchableOpacity>
-        {hasActiveFilters && (
-          <TouchableOpacity onPress={clearAllFilters}>
-            <Text style={styles.clearFiltersText}>Clear All</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter Panel */}
-      {showFilters && (
-        <View style={[styles.filterPanel, styles.filterPanelContent]}>
-          {/* Search by Title */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Search Title</Text>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color={Colors.palette.dark} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by challenge title..."
-                placeholderTextColor={Colors.palette.dark}
-                value={titleSearch}
-                onChangeText={setTitleSearch}
-                autoCorrect={false}
-              />
-              {titleSearch ? (
-                <TouchableOpacity onPress={() => setTitleSearch("")}>
-                  <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Search by Creator */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Search Creator</Text>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="person" size={20} color={Colors.palette.dark} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Try 'my' or a chef's name..."
-                placeholderTextColor={Colors.palette.dark}
-                value={creatorSearch}
-                onChangeText={setCreatorSearch}
-                autoCorrect={false}
-              />
-              {creatorSearch ? (
-                <TouchableOpacity onPress={() => setCreatorSearch("")}>
-                  <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Difficulty Filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Difficulty</Text>
-            <View style={styles.buttonGroup}>
-              {(["Easy", "Medium", "Hard"] as const).map((difficulty) => (
-                <TouchableOpacity
-                  key={difficulty}
-                  style={[
-                    styles.filterButton,
-                    selectedDifficulty === difficulty && styles.filterButtonActive,
-                  ]}
-                  onPress={() =>
-                    setSelectedDifficulty(
-                      selectedDifficulty === difficulty ? null : difficulty
-                    )
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      selectedDifficulty === difficulty && styles.filterButtonTextActive,
-                    ]}
-                  >
-                    {difficulty}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Time Limit Filter */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Max Time</Text>
-            <View style={styles.buttonGroup}>
-              {timeLimitOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.filterButton,
-                    maxTimeMinutes === option.value && styles.filterButtonActive,
-                  ]}
-                  onPress={() =>
-                    setMaxTimeMinutes(
-                      maxTimeMinutes === option.value ? null : option.value
-                    )
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.filterButtonText,
-                      maxTimeMinutes === option.value && styles.filterButtonTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Ingredient Search */}
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Search Ingredients</Text>
-            <View style={styles.searchInputContainer}>
-              <MaterialCommunityIcons
-                name="food-apple"
-                size={20}
-                color={Colors.palette.dark}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="e.g., chicken, tomato..."
-                placeholderTextColor={Colors.palette.dark}
-                value={ingredientSearch}
-                onChangeText={setIngredientSearch}
-                autoCorrect={false}
-              />
-              {ingredientSearch ? (
-                <TouchableOpacity onPress={() => setIngredientSearch("")}>
-                  <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Dietary Restrictions */}
-          <View style={[styles.filterSection, { marginBottom: 10 }]}>
-            <Text style={styles.filterLabel}>Dietary Restrictions</Text>
-            <View style={styles.chipGroup}>
-              {commonDietaryRestrictions.map((restriction) => (
-                <TouchableOpacity
-                  key={restriction}
-                  style={[
-                    styles.chip,
-                    selectedDietaryRestrictions.includes(restriction) && styles.chipActive,
-                  ]}
-                  onPress={() => toggleDietaryRestriction(restriction)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      selectedDietaryRestrictions.includes(restriction) &&
-                        styles.chipTextActive,
-                    ]}
-                  >
-                    {restriction}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* Challenge List */}
       <FlatList
         data={filteredChallenges}
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: Colors.palette.light }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 100 }}
+        ListHeaderComponent={
+          <>
+            {/* Filter Toggle Button */}
+            <View style={styles.filterToggleContainer}>
+              <TouchableOpacity
+                style={styles.filterToggleButton}
+                onPress={() => setShowFilters(!showFilters)}
+              >
+                <Ionicons 
+                  name={showFilters ? "chevron-up" : "chevron-down"} 
+                  size={20} 
+                  color={Colors.palette.darkest} 
+                />
+                <Text style={styles.filterToggleText}>
+                  {showFilters ? "Hide Filters" : "Show Filters"}
+                </Text>
+                {hasActiveFilters && <View style={styles.activeFilterDot} />}
+              </TouchableOpacity>
+              {hasActiveFilters && (
+                <TouchableOpacity onPress={clearAllFilters}>
+                  <Text style={styles.clearFiltersText}>Clear All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Filter Panel */}
+            {showFilters && (
+              <View style={[styles.filterPanel, styles.filterPanelContent]}>
+                {/* Search by Title */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Search Title</Text>
+                  <View style={styles.searchInputContainer}>
+                    <Ionicons name="search" size={20} color={Colors.palette.dark} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search by challenge title..."
+                      placeholderTextColor={Colors.palette.dark}
+                      value={titleSearch}
+                      onChangeText={setTitleSearch}
+                      autoCorrect={false}
+                    />
+                    {titleSearch ? (
+                      <TouchableOpacity onPress={() => setTitleSearch("")}>
+                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Search by Creator */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Search Creator</Text>
+                  <View style={styles.searchInputContainer}>
+                    <Ionicons name="person" size={20} color={Colors.palette.dark} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Try 'my' or a chef's name..."
+                      placeholderTextColor={Colors.palette.dark}
+                      value={creatorSearch}
+                      onChangeText={setCreatorSearch}
+                      autoCorrect={false}
+                    />
+                    {creatorSearch ? (
+                      <TouchableOpacity onPress={() => setCreatorSearch("")}>
+                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Difficulty Filter */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Difficulty</Text>
+                  <View style={styles.buttonGroup}>
+                    {(["Easy", "Medium", "Hard"] as const).map((difficulty) => (
+                      <TouchableOpacity
+                        key={difficulty}
+                        style={[
+                          styles.filterButton,
+                          selectedDifficulty === difficulty && styles.filterButtonActive,
+                        ]}
+                        onPress={() =>
+                          setSelectedDifficulty(
+                            selectedDifficulty === difficulty ? null : difficulty
+                          )
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.filterButtonText,
+                            selectedDifficulty === difficulty && styles.filterButtonTextActive,
+                          ]}
+                        >
+                          {difficulty}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Time Limit Filter */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Max Time</Text>
+                  <View style={styles.buttonGroup}>
+                    {timeLimitOptions.map((option) => (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.filterButton,
+                          maxTimeMinutes === option.value && styles.filterButtonActive,
+                        ]}
+                        onPress={() =>
+                          setMaxTimeMinutes(
+                            maxTimeMinutes === option.value ? null : option.value
+                          )
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.filterButtonText,
+                            maxTimeMinutes === option.value && styles.filterButtonTextActive,
+                          ]}
+                        >
+                          {option.label}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* Ingredient Search */}
+                <View style={styles.filterSection}>
+                  <Text style={styles.filterLabel}>Search Ingredients</Text>
+                  <View style={styles.searchInputContainer}>
+                    <MaterialCommunityIcons
+                      name="food-apple"
+                      size={20}
+                      color={Colors.palette.dark}
+                    />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="e.g., chicken, tomato..."
+                      placeholderTextColor={Colors.palette.dark}
+                      value={ingredientSearch}
+                      onChangeText={setIngredientSearch}
+                      autoCorrect={false}
+                    />
+                    {ingredientSearch ? (
+                      <TouchableOpacity onPress={() => setIngredientSearch("")}>
+                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                </View>
+
+                {/* Dietary Restrictions */}
+                <View style={[styles.filterSection, { marginBottom: 10 }]}>
+                  <Text style={styles.filterLabel}>Dietary Restrictions</Text>
+                  <View style={styles.chipGroup}>
+                    {commonDietaryRestrictions.map((restriction) => (
+                      <TouchableOpacity
+                        key={restriction}
+                        style={[
+                          styles.chip,
+                          selectedDietaryRestrictions.includes(restriction) && styles.chipActive,
+                        ]}
+                        onPress={() => toggleDietaryRestriction(restriction)}
+                      >
+                        <Text
+                          style={[
+                            styles.chipText,
+                            selectedDietaryRestrictions.includes(restriction) &&
+                              styles.chipTextActive,
+                          ]}
+                        >
+                          {restriction}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            )}
+          </>
+        }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {hasActiveFilters ? "No challenges match your filters" : "No challenges yet!"}
-            </Text>
-            <Text style={styles.emptySubText}>
-              {hasActiveFilters
-                ? "Try adjusting your filters"
-                : "Tap the + icon to create a challenge"}
-            </Text>
-          </View>
+          isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.palette.darkest} />
+              <Text style={styles.loadingText}>Loading challenges...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>
+                {hasActiveFilters ? "No challenges match your filters" : "No challenges yet!"}
+              </Text>
+              <Text style={styles.emptySubText}>
+                {hasActiveFilters
+                  ? "Try adjusting your filters"
+                  : "Tap the + icon to create a challenge"}
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => {
           const netVotes = (item.upvotes || 0) - (item.downvotes || 0);
+          const submissionCount = item.submission_count || 0;
           return (
             <TouchableOpacity
               activeOpacity={0.85}
@@ -485,22 +511,26 @@ export default function ChallengeScreen() {
                 
                 {/* Card Content */}
                 <View style={styles.cardContent}>
+                  {/* Left: Title and Chef Name */}
                   <View style={styles.cardTextContent}>
-                    {/* Title */}
                     <Text style={styles.cardTitle} numberOfLines={2}>
                       {item.title}
                     </Text>
-                    
-                    {/* Creator */}
                     <Text style={styles.cardCreator}>
                       {item.created_by_username || "Anonymous"}
                     </Text>
                   </View>
 
-                  {/* Net Vote Count */}
-                  <View style={styles.voteSection}>
-                    <Text style={styles.netVoteCount}>{netVotes}</Text>
-                    <Text style={styles.voteLabel}>likes</Text>
+                  {/* Right: Likes and Submissions */}
+                  <View style={styles.statsContainer}>
+                    <View style={styles.statSectionLikes}>
+                      <Text style={styles.statCount}>{netVotes}</Text>
+                      <Text style={styles.statLabel}>Likes</Text>
+                    </View>
+                    <View style={styles.statSection}>
+                      <Text style={styles.statCount}>{submissionCount}</Text>
+                      <Text style={styles.statLabel}>Submissions</Text>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -508,6 +538,18 @@ export default function ChallengeScreen() {
           );
         }}
       />
+      
+      {/* Floating Add Button */}
+      <TouchableOpacity 
+        style={styles.floatingAddButton}
+        onPress={() => router.push("/(modals)/addChallenge")}
+      >
+        <MaterialCommunityIcons
+          name="plus"
+          size={28}
+          color="white"
+        />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -518,6 +560,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.palette.accent,
+    position: "relative",
   },
   loadingContainerBackground: {
     flex: 1,
@@ -528,13 +571,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   loadingContainer: {
-    backgroundColor: Colors.palette.light,
-    padding: 40,
-    borderRadius: 20,
+    padding: 60,
     alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
-    marginTop: 10,
+    marginTop: 16,
     fontSize: 16,
     color: Colors.palette.darkest,
     fontFamily: "Poppins_400Regular",
@@ -543,10 +585,10 @@ const styles = StyleSheet.create({
   // Page Title
   titleRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 2,
+    paddingTop: 1,
     paddingBottom: 14,
     backgroundColor: Colors.palette.accent,
   },
@@ -556,18 +598,21 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     letterSpacing: -0.5,
   },
-  addButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  floatingAddButton: {
+    position: "absolute",
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.palette.blue,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 8,
   },
   emptyContainer: {
     alignItems: "center",
@@ -593,15 +638,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 10,
     paddingTop: 4,
-    paddingBottom: 10,
-    backgroundColor: Colors.palette.light,
+    paddingBottom: 8,
+    marginBottom: 0,
   },
   filterToggleButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    backgroundColor: "white",
   },
   filterToggleText: {
     fontFamily: "Poppins_600SemiBold",
@@ -743,14 +793,15 @@ const styles = StyleSheet.create({
   },
   cardTextContent: {
     flex: 1,
+    flexDirection: "column",
+    gap: 4,
     marginRight: 12,
   },
   cardTitle: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 20,
+    fontSize: 24,
     color: Colors.palette.darkest,
-    marginBottom: 4,
-    lineHeight: 24,
+    lineHeight: 28,
   },
   cardCreator: {
     fontFamily: "Poppins_500Medium",
@@ -758,28 +809,39 @@ const styles = StyleSheet.create({
     color: Colors.palette.blue,
     fontStyle: "italic",
   },
-  voteSection: {
+  statsContainer: {
+    flexDirection: "column",
+    gap: 6,
+  },
+  statSection: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: Colors.palette.accent,
+    paddingVertical: 6,
+    backgroundColor: "#E5E5E5",
     borderRadius: 8,
-    minWidth: 55,
-    gap: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    minWidth: 90,
+    gap: 6,
   },
-  netVoteCount: {
+  statSectionLikes: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    alignSelf: "flex-end",
+    gap: 6,
+  },
+  statCount: {
     fontFamily: "Poppins_700Bold",
     fontSize: 18,
     color: Colors.palette.darkest,
     lineHeight: 20,
   },
-  voteLabel: {
+  statLabel: {
     fontFamily: "Poppins_500Medium",
     fontSize: 10,
     color: Colors.palette.darkest,

@@ -20,7 +20,7 @@ export default {
     darkest: "#1F1F1E",
     dark: "#343432",
     accent: "#F5CB5C",
-    lightest: "#F0F5FA",
+    lightest: "#FFFFFF",
     light: "#B2CCE6",
     blue: "#336699",
   },

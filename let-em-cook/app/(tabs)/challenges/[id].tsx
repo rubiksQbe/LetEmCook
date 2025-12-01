@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
@@ -13,7 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, Submission } from "../../../constants/types";
 import {
@@ -29,6 +30,7 @@ import {
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
 
   let challenge: Challenge | null = null;
   try {
@@ -196,6 +198,12 @@ export default function ChallengeDetailScreen() {
     );
   }
 
+  const netVotes = (displayChallenge.upvotes || 0) - (displayChallenge.downvotes || 0);
+  const submissionCount = displayChallenge.submission_count || 0;
+  
+  // Find user's own submission
+  const userSubmission = submissions.find((sub) => sub.user_id === currentUserId);
+
   const handlePin = () => {
     // TODO: Implement pin functionality
     console.log("Pin to fridge");
@@ -231,15 +239,6 @@ export default function ChallengeDetailScreen() {
       return;
     }
 
-    // Only require vote if user is not the creator and hasn't submitted yet
-    if (!isCreator && !hasSubmitted && !userChallengeVote) {
-      Alert.alert(
-        "Vote Required",
-        "Please vote on the challenge (did you like making it?) before submitting."
-      );
-      return;
-    }
-
     setIsSubmitting(true);
     const { data, error } = await submitToChallenge(
       displayChallenge.id,
@@ -263,66 +262,159 @@ export default function ChallengeDetailScreen() {
       setSelectedImage(null);
       setShowSubmissionModal(false);
       
-      // Reload submissions if not creator
-      if (!isCreator) {
-        loadSubmissions();
-      }
+      // Reload submissions
+      loadSubmissions();
     }
     setIsSubmitting(false);
   };
 
   const handleChallengeVote = async (voteType: "up" | "down") => {
+    // Optimistic update
+    const previousVote = userChallengeVote;
+    const newVote = previousVote === voteType ? null : voteType;
+    setUserChallengeVote(newVote);
+    
+    // Update challenge data optimistically
+    setChallengeData((prev) => {
+      if (!prev) return prev;
+      let upvotes = prev.upvotes || 0;
+      let downvotes = prev.downvotes || 0;
+      
+      // Remove previous vote
+      if (previousVote === "up") upvotes--;
+      if (previousVote === "down") downvotes--;
+      
+      // Add new vote
+      if (newVote === "up") upvotes++;
+      if (newVote === "down") downvotes++;
+      
+      return { ...prev, upvotes, downvotes };
+    });
+    
+    // Make API call
     const { error } = await voteOnChallenge(displayChallenge.id, voteType);
-    if (!error) {
-      // Toggle vote
-      setUserChallengeVote(userChallengeVote === voteType ? null : voteType);
+    if (error) {
+      // Revert on error
+      setUserChallengeVote(previousVote);
+      setChallengeData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          upvotes: displayChallenge.upvotes || 0,
+          downvotes: displayChallenge.downvotes || 0,
+        };
+      });
     }
   };
 
   const handleSubmissionVote = async (submissionId: string, voteType: "up" | "down") => {
+    // Optimistic update - update UI immediately
+    setSubmissions((prev) =>
+      prev.map((sub) => {
+        if (sub.id === submissionId) {
+          const currentVote = sub.user_vote;
+          const newVote = currentVote === voteType ? null : voteType;
+          
+          // Calculate new vote counts
+          let upvotes = sub.upvotes;
+          let downvotes = sub.downvotes;
+          
+          if (currentVote === "up") upvotes--;
+          if (currentVote === "down") downvotes--;
+          if (newVote === "up") upvotes++;
+          if (newVote === "down") downvotes++;
+          
+          return { ...sub, user_vote: newVote, upvotes, downvotes };
+        }
+        return sub;
+      })
+    );
+    
+    // Make API call in background
     const { error } = await voteOnSubmission(submissionId, voteType);
-    if (!error) {
-      // Update local state
-      setSubmissions((prev) =>
-        prev.map((sub) => {
-          if (sub.id === submissionId) {
-            const currentVote = sub.user_vote;
-            const newVote = currentVote === voteType ? null : voteType;
-            
-            // Calculate new vote counts
-            let upvotes = sub.upvotes;
-            let downvotes = sub.downvotes;
-            
-            if (currentVote === "up") upvotes--;
-            if (currentVote === "down") downvotes--;
-            if (newVote === "up") upvotes++;
-            if (newVote === "down") downvotes++;
-            
-            return { ...sub, user_vote: newVote, upvotes, downvotes };
-          }
-          return sub;
-        })
-      );
+    if (error) {
+      // Revert on error - reload submissions to get correct state
+      loadSubmissions();
     }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+      {/* Sticky Blurred Status Bar Overlay */}
+      <BlurView intensity={80} tint="light" style={[styles.statusBarOverlay, { height: insets.top }]} />
+      
+      {/* Sticky Back Button */}
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color="white" />
+      </TouchableOpacity>
+      
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Image with Back Button */}
+        {/* Hero Image with Creator Submission Vote Buttons */}
         <View style={styles.heroContainer}>
           <Image source={displayChallenge.image} style={styles.heroImage} />
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
+          {/* Creator's Submission Vote Buttons (only show if not creator) */}
+          {!isCreator && displayChallenge.image_url && (
+            <View style={styles.creatorSubmissionVoteOverlay}>
+              <TouchableOpacity
+                style={[
+                  styles.creatorSubmissionVoteButton,
+                  userChallengeVote === "up" && styles.creatorSubmissionVoteButtonActive,
+                ]}
+                onPress={() => handleChallengeVote("up")}
+              >
+                <Ionicons
+                  name="arrow-up"
+                  size={20}
+                  color={
+                    userChallengeVote === "up"
+                      ? "white"
+                      : Colors.palette.darkest
+                  }
+                />
+                <Text
+                  style={[
+                    styles.creatorSubmissionVoteCount,
+                    userChallengeVote === "up" && styles.creatorSubmissionVoteCountActive,
+                  ]}
+                >
+                  {displayChallenge.upvotes || 0}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.creatorSubmissionVoteButton,
+                  userChallengeVote === "down" && styles.creatorSubmissionVoteButtonActive,
+                ]}
+                onPress={() => handleChallengeVote("down")}
+              >
+                <Ionicons
+                  name="arrow-down"
+                  size={20}
+                  color={
+                    userChallengeVote === "down"
+                      ? "white"
+                      : Colors.palette.darkest
+                  }
+                />
+                <Text
+                  style={[
+                    styles.creatorSubmissionVoteCount,
+                    userChallengeVote === "down" && styles.creatorSubmissionVoteCountActive,
+                  ]}
+                >
+                  {displayChallenge.downvotes || 0}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Title and Creator */}
@@ -331,6 +423,18 @@ export default function ChallengeDetailScreen() {
           <Text style={styles.creator}>
             {displayChallenge.created_by_username || "Anonymous"}
           </Text>
+        </View>
+
+        {/* Likes and Submissions Counter */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statSection}>
+            <Text style={styles.statCount}>{netVotes}</Text>
+            <Text style={styles.statLabel}>Likes</Text>
+          </View>
+          <View style={styles.statSection}>
+            <Text style={styles.statCount}>{submissionCount}</Text>
+            <Text style={styles.statLabel}>Submissions</Text>
+          </View>
         </View>
 
         {/* Action Buttons */}
@@ -392,6 +496,72 @@ export default function ChallengeDetailScreen() {
             )}
         </View>
 
+        {/* User's Submission with Vote Buttons */}
+        {userSubmission && (
+          <View style={styles.userSubmissionContainer}>
+            <Text style={styles.userSubmissionTitle}>Your Submission</Text>
+            <View style={styles.userSubmissionImageContainer}>
+              <Image
+                source={{ uri: userSubmission.image_url }}
+                style={styles.userSubmissionImage}
+              />
+              {/* Like/Dislike Buttons Overlay */}
+              <View style={styles.userSubmissionVoteOverlay}>
+                <TouchableOpacity
+                  style={[
+                    styles.userSubmissionVoteButton,
+                    userSubmission.user_vote === "up" && styles.userSubmissionVoteButtonActive,
+                  ]}
+                  onPress={() => handleSubmissionVote(userSubmission.id, "up")}
+                >
+                  <Ionicons
+                    name="arrow-up"
+                    size={20}
+                    color={
+                      userSubmission.user_vote === "up"
+                        ? "white"
+                        : Colors.palette.darkest
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.userSubmissionVoteCount,
+                      userSubmission.user_vote === "up" && styles.userSubmissionVoteCountActive,
+                    ]}
+                  >
+                    {userSubmission.upvotes}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.userSubmissionVoteButton,
+                    userSubmission.user_vote === "down" && styles.userSubmissionVoteButtonActive,
+                  ]}
+                  onPress={() => handleSubmissionVote(userSubmission.id, "down")}
+                >
+                  <Ionicons
+                    name="arrow-down"
+                    size={20}
+                    color={
+                      userSubmission.user_vote === "down"
+                        ? "white"
+                        : Colors.palette.darkest
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.userSubmissionVoteCount,
+                      userSubmission.user_vote === "down" && styles.userSubmissionVoteCountActive,
+                    ]}
+                  >
+                    {userSubmission.downvotes}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Submission Button */}
         <TouchableOpacity
           style={styles.submissionButton}
@@ -404,13 +574,12 @@ export default function ChallengeDetailScreen() {
             style={{ marginRight: 8 }}
           />
           <Text style={styles.submissionButtonText}>
-            {isCreator ? "UPDATE CHALLENGE IMAGE" : "SUBMIT AN ENTRY"}
+            {isCreator ? "UPDATE CHALLENGE IMAGE" : hasSubmitted ? "RESUBMIT ENTRY" : "SUBMIT ENTRY"}
           </Text>
         </TouchableOpacity>
 
-        {/* Submissions Section (only if not creator) */}
-        {!isCreator && (
-          <View style={styles.submissionsSection}>
+        {/* Submissions Section */}
+        <View style={styles.submissionsSection}>
             <TouchableOpacity
               style={styles.submissionsHeader}
               onPress={() => setShowSubmissions(!showSubmissions)}
@@ -509,7 +678,6 @@ export default function ChallengeDetailScreen() {
               </View>
             )}
           </View>
-        )}
       </ScrollView>
 
       {/* Submission Modal */}
@@ -524,7 +692,7 @@ export default function ChallengeDetailScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {isCreator ? "Update Challenge Image" : "Submit An Entry"}
+                {isCreator ? "Update Challenge Image" : hasSubmitted ? "Resubmit Entry" : "Submit Entry"}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -541,51 +709,6 @@ export default function ChallengeDetailScreen() {
               contentContainerStyle={styles.modalScrollContent}
               showsVerticalScrollIndicator={false}
             >
-              {/* Challenge Vote (only if not creator) */}
-              {!isCreator && (
-                <View style={styles.challengeVoteSection}>
-                  <Text style={styles.challengeVoteLabel}>
-                    Did you like making this challenge?
-                  </Text>
-                  <View style={styles.voteButtons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.voteButton,
-                        userChallengeVote === "up" && styles.voteButtonActive,
-                      ]}
-                      onPress={() => handleChallengeVote("up")}
-                    >
-                      <Ionicons
-                        name="arrow-up"
-                        size={24}
-                        color={
-                          userChallengeVote === "up"
-                            ? Colors.palette.darkest
-                            : Colors.palette.dark
-                        }
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.voteButton,
-                        userChallengeVote === "down" && styles.voteButtonActive,
-                      ]}
-                      onPress={() => handleChallengeVote("down")}
-                    >
-                      <Ionicons
-                        name="arrow-down"
-                        size={24}
-                        color={
-                          userChallengeVote === "down"
-                            ? Colors.palette.darkest
-                            : Colors.palette.dark
-                        }
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
               {/* Image Picker */}
               <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
                 {selectedImage ? (
@@ -653,9 +776,46 @@ const styles = StyleSheet.create({
     height: 400,
     resizeMode: "cover",
   },
+  creatorSubmissionVoteOverlay: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  creatorSubmissionVoteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#E5E5E5",
+    minWidth: 60,
+  },
+  creatorSubmissionVoteButtonActive: {
+    backgroundColor: Colors.palette.blue,
+  },
+  creatorSubmissionVoteCount: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.dark,
+  },
+  creatorSubmissionVoteCountActive: {
+    color: "white",
+  },
+  statusBarOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    width: "100%",
+    zIndex: 1000,
+  },
   backButton: {
     position: "absolute",
-    top: 60,
+    top: 70,
     left: 20,
     width: 44,
     height: 44,
@@ -668,6 +828,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
+    zIndex: 1001,
   },
   titleSection: {
     marginHorizontal: 20,
@@ -697,6 +858,105 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.palette.blue,
     fontStyle: "italic",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 8,
+    gap: 12,
+  },
+  statSection: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "white",
+    borderRadius: 16,
+    borderLeftWidth: 6,
+    borderLeftColor: Colors.palette.accent,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    gap: 8,
+  },
+  statCount: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 18,
+    color: Colors.palette.darkest,
+    lineHeight: 20,
+  },
+  statLabel: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 10,
+    color: Colors.palette.darkest,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  userSubmissionContainer: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  userSubmissionTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 18,
+    color: Colors.palette.darkest,
+    marginBottom: 12,
+  },
+  userSubmissionImageContainer: {
+    position: "relative",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  userSubmissionImage: {
+    width: "100%",
+    aspectRatio: 4 / 3,
+    resizeMode: "cover",
+  },
+  userSubmissionVoteOverlay: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    flexDirection: "row",
+    gap: 8,
+  },
+  userSubmissionVoteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    minWidth: 60,
+  },
+  userSubmissionVoteButtonActive: {
+    backgroundColor: Colors.palette.blue,
+  },
+  userSubmissionVoteCount: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+  },
+  userSubmissionVoteCountActive: {
+    color: "white",
   },
   buttonRow: {
     flexDirection: "row",
@@ -816,12 +1076,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: Colors.palette.light,
+    backgroundColor: "#E5E5E5",
     alignItems: "center",
     justifyContent: "center",
   },
   voteButtonActive: {
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.blue,
   },
   imagePickerButton: {
     width: "100%",
@@ -940,14 +1200,16 @@ const styles = StyleSheet.create({
   submissionVoteButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 4,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: Colors.palette.light,
+    backgroundColor: "#E5E5E5",
+    minWidth: 60,
   },
   submissionVoteButtonActive: {
-    backgroundColor: Colors.palette.darkest,
+    backgroundColor: Colors.palette.blue,
   },
   voteCount: {
     fontFamily: "Poppins_600SemiBold",

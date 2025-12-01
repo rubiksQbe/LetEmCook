@@ -67,6 +67,7 @@ export default function TabLayout() {
         name="friends"
         options={{
           title: "Friends",
+          headerShown: false,
           tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="friends" />,
         }}
       />
@@ -85,6 +86,7 @@ export default function TabLayout() {
         name="fridge"
         options={{
           title: "Fridge",
+          headerShown: false,
           tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="fridge" />,
         }}
       />

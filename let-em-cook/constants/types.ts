@@ -19,6 +19,7 @@ export interface Challenge {
   dietary_restrictions?: string[]; // Array of dietary restrictions
   upvotes?: number; // Total upvotes for the challenge
   downvotes?: number; // Total downvotes for the challenge
+  submission_count?: number; // Number of submissions for the challenge
 }
 
 // Database row type (matches Supabase table structure)
@@ -36,6 +37,7 @@ export interface ChallengeRow {
   dietary_restrictions: string[] | null;
   upvotes: number;
   downvotes: number;
+  submission_count?: number; // Number of submissions (added via query)
 }
 
 // Submission interface - represents a user's submission to a challenge

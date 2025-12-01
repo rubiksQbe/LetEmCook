@@ -184,8 +184,21 @@ export async function fetchChallenges() {
   try {
     const { data, error } = await supabase
       .from("challenges")
-      .select("*")
+      .select(`
+        *,
+        submissions(id)
+      `)
       .order("created_at", { ascending: false });
+
+    if (data) {
+      // Transform the data to include submission_count
+      const transformedData = data.map((challenge: any) => ({
+        ...challenge,
+        submission_count: challenge.submissions?.length || 0,
+        submissions: undefined, // Remove the nested submissions array
+      }));
+      return { data: transformedData, error };
+    }
 
     return { data, error };
   } catch (error) {
