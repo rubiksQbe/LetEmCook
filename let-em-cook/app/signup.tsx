@@ -134,11 +134,11 @@ export default function SignUpScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: "#f0f4fb",
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: "#f0f4fb",
   },
   backButton: {
     position: "absolute",

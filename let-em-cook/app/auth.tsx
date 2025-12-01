@@ -43,7 +43,7 @@ export default function AuthLandingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: "#f0f4fb",
     justifyContent: "center",
     alignItems: "center",
   },

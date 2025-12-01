@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -57,36 +58,44 @@ export default function ChallengeScreen() {
   const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Function to load challenges
+  const loadChallenges = useCallback(async () => {
+    try {
+      // Get current user ID
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id);
+
+      // Fetch challenges
+      const { data, error } = await fetchChallenges();
+      if (error) {
+        console.error("Error fetching challenges:", error);
+        return;
+      }
+
+      if (data) {
+        const convertedChallenges = data.map((row: ChallengeRow) => 
+          convertToChallenge(row, user?.id)
+        );
+        setChallenges(convertedChallenges);
+      }
+    } catch (error) {
+      console.error("Error loading challenges:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Fetch challenges on mount
   useEffect(() => {
-    async function loadChallenges() {
-      try {
-        // Get current user ID
-        const { data: { user } } = await supabase.auth.getUser();
-        setCurrentUserId(user?.id);
-
-        // Fetch challenges
-        const { data, error } = await fetchChallenges();
-        if (error) {
-          console.error("Error fetching challenges:", error);
-          return;
-        }
-
-        if (data) {
-          const convertedChallenges = data.map((row: ChallengeRow) => 
-            convertToChallenge(row, user?.id)
-          );
-          setChallenges(convertedChallenges);
-        }
-      } catch (error) {
-        console.error("Error loading challenges:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
     loadChallenges();
-  }, []);
+  }, [loadChallenges]);
+
+  // Refetch challenges when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadChallenges();
+    }, [loadChallenges])
+  );
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -102,17 +111,33 @@ export default function ChallengeScreen() {
         async (payload) => {
 
           if (payload.eventType === "INSERT") {
-            // New challenge added - fetch submission count
-            const { count } = await supabase
-              .from("submissions")
-              .select("*", { count: "exact", head: true })
-              .eq("challenge_id", payload.new.id);
+            // New challenge added - fetch the full challenge data to ensure all fields are present
+            const { data: fullChallenge, error } = await supabase
+              .from("challenges")
+              .select(`
+                *,
+                submissions(id)
+              `)
+              .eq("id", payload.new.id)
+              .single();
             
-            const newChallenge = convertToChallenge(
-              { ...payload.new, submission_count: count || 0 } as ChallengeRow,
-              currentUserId
-            );
-            setChallenges((prev) => [newChallenge, ...prev]);
+            if (fullChallenge && !error) {
+              const challengeWithCount = {
+                ...fullChallenge,
+                submission_count: fullChallenge.submissions?.length || 0,
+                submissions: undefined,
+              };
+              const newChallenge = convertToChallenge(
+                challengeWithCount as ChallengeRow,
+                currentUserId
+              );
+              setChallenges((prev) => {
+                // Check if challenge already exists to avoid duplicates
+                const exists = prev.some(c => c.id === newChallenge.id);
+                if (exists) return prev;
+                return [newChallenge, ...prev];
+              });
+            }
           } else if (payload.eventType === "UPDATE") {
             // Challenge updated
             const updatedChallenge = convertToChallenge(

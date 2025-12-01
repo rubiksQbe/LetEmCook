@@ -60,6 +60,7 @@ export default function TabLayout() {
         },
         tabBarStyle: {
           borderTopWidth: 0,
+          backgroundColor: colorScheme === "dark" ? Colors.palette.lightest : undefined,
         },
       }}
     >
