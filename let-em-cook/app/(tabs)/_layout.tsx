@@ -81,9 +81,6 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabBarIcon focused={focused} iconName="challenges" />
           ),
-          href: {
-            pathname: "/challenges",
-          },
         }}
       />
       <Tabs.Screen

@@ -210,6 +210,37 @@ export async function fetchChallenges() {
 }
 
 /**
+ * Fetch a single challenge by ID
+ */
+export async function fetchChallenge(challengeId: string) {
+  try {
+    const { data, error } = await supabase
+      .from("challenges")
+      .select(`
+        *,
+        submissions(id)
+      `)
+      .eq("id", challengeId)
+      .single();
+
+    if (data) {
+      // Transform the data to include submission_count
+      const transformedData = {
+        ...data,
+        submission_count: data.submissions?.length || 0,
+        submissions: undefined, // Remove the nested submissions array
+      };
+      return { data: transformedData, error };
+    }
+
+    return { data, error };
+  } catch (error) {
+    console.error("Error fetching challenge:", error);
+    return { data: null, error };
+  }
+}
+
+/**
  * Delete a challenge from the database
  */
 export async function deleteChallenge(challengeId: string) {
@@ -464,15 +495,18 @@ export async function voteOnChallenge(
     }
 
     // Create new vote
-    const { error } = await supabase.from("challenge_votes").insert({
+    const { error: insertError } = await supabase.from("challenge_votes").insert({
       challenge_id: challengeId,
       user_id: user.id,
       vote_type: voteType,
     });
 
-    if (error) return { error };
+    if (insertError) {
+      console.error("Error inserting vote:", insertError);
+      return { error: insertError };
+    }
 
-    // Update challenge vote counts
+    // Update challenge vote counts - wait for it to complete
     await updateChallengeVoteCounts(challengeId);
     return { error: null };
   } catch (error) {
@@ -605,18 +639,31 @@ export async function getUserSubmissionVote(
  * Helper function to update challenge vote counts
  */
 async function updateChallengeVoteCounts(challengeId: string) {
-  const { data: votes } = await supabase
-    .from("challenge_votes")
-    .select("vote_type")
-    .eq("challenge_id", challengeId);
+  try {
+    const { data: votes, error: votesError } = await supabase
+      .from("challenge_votes")
+      .select("vote_type")
+      .eq("challenge_id", challengeId);
 
-  const upvotes = votes?.filter((v) => v.vote_type === "up").length || 0;
-  const downvotes = votes?.filter((v) => v.vote_type === "down").length || 0;
+    if (votesError) {
+      console.error("Error fetching votes:", votesError);
+      return;
+    }
 
-  await supabase
-    .from("challenges")
-    .update({ upvotes, downvotes })
-    .eq("id", challengeId);
+    const upvotes = votes?.filter((v) => v.vote_type === "up").length || 0;
+    const downvotes = votes?.filter((v) => v.vote_type === "down").length || 0;
+
+    const { error: updateError } = await supabase
+      .from("challenges")
+      .update({ upvotes, downvotes })
+      .eq("id", challengeId);
+
+    if (updateError) {
+      console.error("Error updating challenge vote counts:", updateError);
+    }
+  } catch (error) {
+    console.error("Error in updateChallengeVoteCounts:", error);
+  }
 }
 
 /**
