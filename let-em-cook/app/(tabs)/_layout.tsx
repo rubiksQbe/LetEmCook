@@ -29,14 +29,12 @@ function TabBarIcon({
     },
   };
 
-  const iconSource = focused ? iconMap[iconName].selected : iconMap[iconName].default;
+  const iconSource = focused
+    ? iconMap[iconName].selected
+    : iconMap[iconName].default;
 
   return (
-    <Image
-      source={iconSource}
-      style={styles.tabIcon}
-      resizeMode="contain"
-    />
+    <Image source={iconSource} style={styles.tabIcon} resizeMode="contain" />
   );
 }
 
@@ -49,7 +47,7 @@ export default function TabLayout() {
       screenOptions={{
         headerTitleAlign: "center",
         tabBarActiveTintColor: Colors.palette.darkest,
-        tabBarInactiveTintColor: "#999",
+        tabBarInactiveTintColor: "#676767ff",
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
@@ -58,10 +56,11 @@ export default function TabLayout() {
           fontSize: 14,
           fontFamily: "Poppins_600SemiBold",
         },
-        tabBarStyle: {
-          borderTopWidth: 0,
-          backgroundColor: colorScheme === "dark" ? Colors.palette.lightest : undefined,
-        },
+        // tabBarStyle: {
+        //   borderTopWidth: 0,
+        //   backgroundColor:
+        //     colorScheme === "dark" ? Colors.palette.lightest : undefined,
+        // },
       }}
     >
       <Tabs.Screen
@@ -69,7 +68,9 @@ export default function TabLayout() {
         options={{
           title: "Friends",
           headerShown: false,
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="friends" />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} iconName="friends" />
+          ),
         }}
       />
       <Tabs.Screen
@@ -77,7 +78,9 @@ export default function TabLayout() {
         options={{
           title: "Challenges",
           headerShown: false,
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="challenges" />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} iconName="challenges" />
+          ),
           href: {
             pathname: "/challenges",
           },
@@ -88,7 +91,9 @@ export default function TabLayout() {
         options={{
           title: "Fridge",
           headerShown: false,
-          tabBarIcon: ({ focused }) => <TabBarIcon focused={focused} iconName="fridge" />,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} iconName="fridge" />
+          ),
         }}
       />
     </Tabs>

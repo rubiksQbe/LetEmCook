@@ -1,7 +1,4 @@
-import {
-  Ionicons,
-  MaterialCommunityIcons
-} from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -101,7 +98,15 @@ export default function AddChallengeScreen() {
       description,
     };
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  }, [title, difficulty, timeLimit, ingredients, dietaryRestrictions, imageUri, description]);
+  }, [
+    title,
+    difficulty,
+    timeLimit,
+    ingredients,
+    dietaryRestrictions,
+    imageUri,
+    description,
+  ]);
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -168,7 +173,10 @@ export default function AddChallengeScreen() {
     }
 
     if (!description.trim()) {
-      Alert.alert("Missing Description", "Please enter a description for your challenge.");
+      Alert.alert(
+        "Missing Description",
+        "Please enter a description for your challenge."
+      );
       return;
     }
 
@@ -212,11 +220,9 @@ export default function AddChallengeScreen() {
               // Clear draft after successful posting
               await AsyncStorage.removeItem(STORAGE_KEY);
 
-              Alert.alert(
-                "Success!",
-                "Your challenge has been posted!",
-                [{ text: "OK", onPress: () => router.back() }]
-              );
+              Alert.alert("Success!", "Your challenge has been posted!", [
+                { text: "OK", onPress: () => router.back() },
+              ]);
             } catch (error) {
               console.error("Error posting challenge:", error);
               Alert.alert(
@@ -293,7 +299,9 @@ export default function AddChallengeScreen() {
             <Text style={styles.accordionTitle}>Time Limit</Text>
           </View>
           <Ionicons
-            name={expandedSection === "timeLimit" ? "chevron-up" : "chevron-down"}
+            name={
+              expandedSection === "timeLimit" ? "chevron-up" : "chevron-down"
+            }
             size={20}
             color={Colors.palette.dark}
           />
@@ -306,7 +314,10 @@ export default function AddChallengeScreen() {
                   {TIME_OPTIONS.map((t) => (
                     <TouchableOpacity
                       key={t}
-                      style={[styles.chip, timeLimit === t && styles.chipSelected]}
+                      style={[
+                        styles.chip,
+                        timeLimit === t && styles.chipSelected,
+                      ]}
                       onPress={() => setTimeLimit(t)}
                     >
                       <Text
@@ -330,7 +341,12 @@ export default function AddChallengeScreen() {
                   <Text style={styles.selectedText}>Selected: {timeLimit}</Text>
                 )}
                 {!timeLimit && (
-                  <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+                  <Text
+                    style={[
+                      styles.selectedText,
+                      { color: Colors.palette.dark, fontStyle: "italic" },
+                    ]}
+                  >
                     None selected
                   </Text>
                 )}
@@ -361,7 +377,9 @@ export default function AddChallengeScreen() {
                         <Text
                           style={[
                             styles.unitText,
-                            customTimeUnit === unit && { color: Colors.palette.darkest },
+                            customTimeUnit === unit && {
+                              color: Colors.palette.darkest,
+                            },
                           ]}
                         >
                           {unit}
@@ -406,7 +424,9 @@ export default function AddChallengeScreen() {
             <Text style={styles.accordionTitle}>Ingredients</Text>
           </View>
           <Ionicons
-            name={expandedSection === "ingredients" ? "chevron-up" : "chevron-down"}
+            name={
+              expandedSection === "ingredients" ? "chevron-up" : "chevron-down"
+            }
             size={20}
             color={Colors.palette.dark}
           />
@@ -444,7 +464,12 @@ export default function AddChallengeScreen() {
               </View>
             ))}
             {ingredients.length === 0 && (
-              <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+              <Text
+                style={[
+                  styles.selectedText,
+                  { color: Colors.palette.dark, fontStyle: "italic" },
+                ]}
+              >
                 None added
               </Text>
             )}
@@ -480,14 +505,17 @@ export default function AddChallengeScreen() {
                       key={option}
                       style={[
                         styles.chip,
-                        dietaryRestrictions.includes(option) && styles.chipSelected,
+                        dietaryRestrictions.includes(option) &&
+                          styles.chipSelected,
                       ]}
                       onPress={() => toggleDietaryRestriction(option)}
                     >
                       <Text
                         style={[
                           styles.chipText,
-                          dietaryRestrictions.includes(option) && { color: Colors.palette.darkest },
+                          dietaryRestrictions.includes(option) && {
+                            color: Colors.palette.darkest,
+                          },
                         ]}
                       >
                         {option}
@@ -503,7 +531,12 @@ export default function AddChallengeScreen() {
                         style={[styles.chip, styles.chipSelected]}
                         onPress={() => toggleDietaryRestriction(customItem)}
                       >
-                        <Text style={[styles.chipText, { color: Colors.palette.darkest }]}>
+                        <Text
+                          style={[
+                            styles.chipText,
+                            { color: Colors.palette.darkest },
+                          ]}
+                        >
                           {customItem}
                         </Text>
                       </TouchableOpacity>
@@ -513,21 +546,30 @@ export default function AddChallengeScreen() {
                   onPress={() => setIsCustomDietary(true)}
                   style={styles.customButton}
                 >
-                  <Text style={styles.customButtonText}>+ Custom Restriction</Text>
+                  <Text style={styles.customButtonText}>
+                    + Custom Restriction
+                  </Text>
                 </TouchableOpacity>
                 {dietaryRestrictions.length > 0 ? (
                   <Text style={styles.selectedText}>
                     Selected: {dietaryRestrictions.join(", ")}
                   </Text>
                 ) : (
-                  <Text style={[styles.selectedText, { color: Colors.palette.dark, fontStyle: "italic" }]}>
+                  <Text
+                    style={[
+                      styles.selectedText,
+                      { color: Colors.palette.dark, fontStyle: "italic" },
+                    ]}
+                  >
                     None selected
                   </Text>
                 )}
               </>
             ) : (
               <View>
-                <Text style={styles.smallLabel}>Enter Custom Dietary Restriction</Text>
+                <Text style={styles.smallLabel}>
+                  Enter Custom Dietary Restriction
+                </Text>
                 <TextInput
                   placeholder="e.g., Nut-Free, Dairy-Free, Low-Carb"
                   placeholderTextColor="#888"
@@ -603,28 +645,28 @@ export default function AddChallengeScreen() {
         />
       </ScrollView>
 
-        {/* ---------------- FOOTER BUTTONS ---------------- */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            onPress={saveChallenge}
-            style={styles.saveButton}
-            disabled={isPosting}
-          >
-            <Text style={styles.saveButtonText}>Save</Text>
-          </TouchableOpacity>
+      {/* ---------------- FOOTER BUTTONS ---------------- */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          onPress={saveChallenge}
+          style={styles.saveButton}
+          disabled={isPosting}
+        >
+          <Text style={styles.saveButtonText}>Save</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={postChallenge}
-            style={[styles.postButton, isPosting && { opacity: 0.6 }]}
-            disabled={isPosting}
-          >
-            {isPosting ? (
-              <ActivityIndicator color={Colors.palette.darkest} size="small" />
-            ) : (
-              <Text style={styles.postButtonText}>Post</Text>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={postChallenge}
+          style={[styles.postButton, isPosting && { opacity: 0.6 }]}
+          disabled={isPosting}
+        >
+          {isPosting ? (
+            <ActivityIndicator color={Colors.palette.darkest} size="small" />
+          ) : (
+            <Text style={styles.postButtonText}>Post</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -668,7 +710,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
     padding: 12,
     borderRadius: 10,
     fontSize: 16,
@@ -814,7 +856,7 @@ const styles = StyleSheet.create({
   ingredientInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
     padding: 10,
     borderRadius: 8,
     marginRight: 10,
@@ -876,7 +918,7 @@ const styles = StyleSheet.create({
   },
   postButton: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.blue,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -891,7 +933,7 @@ const styles = StyleSheet.create({
   postButtonText: {
     fontFamily: "Poppins_700Bold",
     fontSize: 16,
-    color: Colors.palette.darkest,
+    color: Colors.palette.lightest,
     letterSpacing: 1,
   },
 });

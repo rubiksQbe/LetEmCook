@@ -60,17 +60,9 @@ export default function FriendScreen() {
     let mounted = true;
     async function loadData() {
       try {
-        setLoading(true);
-        // 1. Get the current user's ID and username
-        const { data: userData, error: userError } =
-          await supabase.auth.getUser();
-        if (userError) throw userError;
-        const myUserId = userData?.user?.id;
-
-        const username =
-          userData?.user?.user_metadata?.username ??
-          userData?.user?.email ??
-          null;
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
+        const username = user?.user_metadata?.username ?? user?.email ?? null;
         if (mounted && username) setUserName(username);
 
         // 2. TEMPORARILY Fetch ALL profiles, excluding the current user
@@ -240,10 +232,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
