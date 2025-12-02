@@ -61,6 +61,7 @@ export default function ChallengeScreen() {
   // Modal states
   const [modalVisible, setModalVisible] = useState<"difficulty" | "time" | "ingredients" | "dietary" | null>(null);
   const [ingredientInput, setIngredientInput] = useState("");
+  const [dietaryInput, setDietaryInput] = useState("");
 
   // Function to load challenges
   const loadChallenges = useCallback(async () => {
@@ -287,6 +288,18 @@ export default function ChallengeScreen() {
     );
   };
 
+  const addDietaryRestriction = () => {
+    const trimmed = dietaryInput.trim();
+    if (trimmed && !selectedDietaryRestrictions.includes(trimmed)) {
+      setSelectedDietaryRestrictions([...selectedDietaryRestrictions, trimmed]);
+      setDietaryInput("");
+    }
+  };
+
+  const removeDietaryRestriction = (restriction: string) => {
+    setSelectedDietaryRestrictions(selectedDietaryRestrictions.filter((r) => r !== restriction));
+  };
+
   const clearAllFilters = () => {
     setUnifiedSearch("");
     setSelectedDifficulty([]);
@@ -416,7 +429,10 @@ export default function ChallengeScreen() {
             styles.filterChip,
             selectedDietaryRestrictions.length > 0 && styles.filterChipActive,
           ]}
-          onPress={() => setModalVisible("dietary")}
+          onPress={() => {
+            setModalVisible("dietary");
+            setDietaryInput("");
+          }}
         >
           <Text style={styles.filterChipText} numberOfLines={1}>
             Dietary{selectedDietaryRestrictions.length > 0 ? ` (${selectedDietaryRestrictions.length})` : ""}
@@ -660,6 +676,30 @@ export default function ChallengeScreen() {
                 <Ionicons name="close" size={24} color={Colors.palette.darkest} />
               </TouchableOpacity>
             </View>
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Type dietary restriction..."
+                placeholderTextColor={Colors.palette.dark}
+                value={dietaryInput}
+                onChangeText={setDietaryInput}
+                autoCorrect={false}
+                autoFocus={true}
+                onSubmitEditing={addDietaryRestriction}
+                returnKeyType="done"
+              />
+              <TouchableOpacity 
+                onPress={addDietaryRestriction}
+                style={styles.plusButton}
+                disabled={!dietaryInput.trim()}
+              >
+                <Ionicons 
+                  name="add" 
+                  size={24} 
+                  color={dietaryInput.trim() ? Colors.palette.blue : Colors.palette.dark} 
+                />
+              </TouchableOpacity>
+            </View>
             <ScrollView style={styles.modalScrollView}>
               <View style={styles.modalChipContainer}>
                 {commonDietaryRestrictions.map((restriction) => (
@@ -687,9 +727,37 @@ export default function ChallengeScreen() {
                 ))}
               </View>
             </ScrollView>
+            {selectedDietaryRestrictions.length > 0 && (
+              <View style={styles.modalIngredientsList}>
+                <Text style={styles.modalIngredientsLabel}>Selected Dietary Restrictions:</Text>
+                <View style={styles.modalChipContainer}>
+                  {selectedDietaryRestrictions.map((restriction) => (
+                    <TouchableOpacity
+                      key={restriction}
+                      style={styles.modalIngredientChip}
+                      onPress={() => removeDietaryRestriction(restriction)}
+                    >
+                      <Text style={styles.modalIngredientChipText}>{restriction}</Text>
+                      <Ionicons name="close-circle" size={18} color={Colors.palette.darkest} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClearButton}
+                  onPress={() => {
+                    setSelectedDietaryRestrictions([]);
+                  }}
+                >
+                  <Text style={styles.modalClearText}>Clear All</Text>
+                </TouchableOpacity>
+              </View>
+            )}
             <TouchableOpacity
               style={styles.modalDoneButton}
-              onPress={() => setModalVisible(null)}
+              onPress={() => {
+                setModalVisible(null);
+                setDietaryInput("");
+              }}
             >
               <Text style={styles.modalDoneText}>Done</Text>
             </TouchableOpacity>

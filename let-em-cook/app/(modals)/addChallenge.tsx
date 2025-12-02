@@ -1,7 +1,6 @@
 import {
-  FontAwesome,
   Ionicons,
-  MaterialCommunityIcons,
+  MaterialCommunityIcons
 } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
@@ -269,7 +268,7 @@ export default function AddChallengeScreen() {
               <Text
                 style={[
                   styles.chipText,
-                  difficulty === d && { color: "white" },
+                  difficulty === d && { color: Colors.palette.darkest },
                 ]}
               >
                 {d}
@@ -279,7 +278,7 @@ export default function AddChallengeScreen() {
         </View>
 
         {/* ---------------- FILTERS ---------------- */}
-        <View style={styles.labelRow}>
+        <View style={[styles.labelRow, { marginTop: 6 }]}>
           <Text style={styles.label}>Filters</Text>
           <Text style={styles.optional}>(Select at least 1)</Text>
         </View>
@@ -313,7 +312,7 @@ export default function AddChallengeScreen() {
                       <Text
                         style={[
                           styles.chipText,
-                          timeLimit === t && { color: "white" },
+                          timeLimit === t && { color: Colors.palette.darkest },
                         ]}
                       >
                         {t}
@@ -362,7 +361,7 @@ export default function AddChallengeScreen() {
                         <Text
                           style={[
                             styles.unitText,
-                            customTimeUnit === unit && { color: "white" },
+                            customTimeUnit === unit && { color: Colors.palette.darkest },
                           ]}
                         >
                           {unit}
@@ -488,7 +487,7 @@ export default function AddChallengeScreen() {
                       <Text
                         style={[
                           styles.chipText,
-                          dietaryRestrictions.includes(option) && { color: "white" },
+                          dietaryRestrictions.includes(option) && { color: Colors.palette.darkest },
                         ]}
                       >
                         {option}
@@ -504,7 +503,7 @@ export default function AddChallengeScreen() {
                         style={[styles.chip, styles.chipSelected]}
                         onPress={() => toggleDietaryRestriction(customItem)}
                       >
-                        <Text style={[styles.chipText, { color: "white" }]}>
+                        <Text style={[styles.chipText, { color: Colors.palette.darkest }]}>
                           {customItem}
                         </Text>
                       </TouchableOpacity>
@@ -633,7 +632,7 @@ export default function AddChallengeScreen() {
 const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: Colors.palette.light,
     paddingHorizontal: 20,
   },
   labelRow: {
@@ -685,12 +684,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: Colors.palette.light,
+    backgroundColor: Colors.palette.lightest,
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
     marginRight: 10,
     marginBottom: 10,
   },
   chipSelected: {
-    backgroundColor: Colors.palette.blue,
+    backgroundColor: Colors.palette.accent,
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
   },
   chipText: {
     color: Colors.palette.darkest,
@@ -707,7 +710,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
   },
   accordionTitleRow: {
     flexDirection: "row",
@@ -725,7 +728,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
   },
   selectedText: {
     fontSize: 14,
@@ -750,17 +753,21 @@ const styles = StyleSheet.create({
   unitPicker: {
     flexDirection: "row",
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
     borderRadius: 10,
     overflow: "hidden",
   },
   unitOption: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    backgroundColor: "white",
+    backgroundColor: Colors.palette.lightest,
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
   },
   unitOptionSelected: {
-    backgroundColor: Colors.palette.blue,
+    backgroundColor: Colors.palette.accent,
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
   },
   unitText: {
     fontSize: 14,
@@ -776,7 +783,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: Colors.palette.dark,
+    borderColor: Colors.palette.darkest,
     alignItems: "center",
   },
   cancelButtonText: {
@@ -789,6 +796,8 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     backgroundColor: Colors.palette.blue,
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
     alignItems: "center",
   },
   applyButtonText: {
@@ -847,20 +856,22 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: Colors.palette.blue,
+    backgroundColor: "white",
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   saveButtonText: {
     fontFamily: "Poppins_700Bold",
     fontSize: 16,
-    color: "white",
+    color: Colors.palette.darkest,
     letterSpacing: 1,
   },
   postButton: {
@@ -869,6 +880,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

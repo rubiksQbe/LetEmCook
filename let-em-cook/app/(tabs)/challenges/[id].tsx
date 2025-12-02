@@ -360,8 +360,8 @@ export default function ChallengeDetailScreen() {
         {/* Hero Image with Creator Submission Vote Buttons */}
         <View style={styles.heroContainer}>
           <Image source={displayChallenge.image} style={styles.heroImage} />
-          {/* Creator's Submission Vote Buttons (only show if not creator) */}
-          {!isCreator && displayChallenge.image_url && (
+          {/* Challenge Vote Buttons */}
+          {displayChallenge.image_url && (
             <View style={styles.creatorSubmissionVoteOverlay}>
               <TouchableOpacity
                 style={[
