@@ -1,21 +1,86 @@
 import Colors from "@/constants/Colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { FlatList, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { fetchChallenges, supabase } from "../../lib/supabase";
 
-// TEMP MOCK DATA
-const pinnedChallenge = { id: "1", title: "10 Pushups" };
-
-const historyChallenges = [
-  { id: "a", title: "Sunset Photo" },
-  { id: "b", title: "Drink 8 Cups" },
-  { id: "c", title: "Try Yoga" },
-  { id: "d", title: "Cook Eggs" },
-  { id: "e", title: "Morning Walk" },
-  { id: "f", title: "Stretch 5 min" },
-];
+interface Challenge {
+  id: string;
+  title: string;
+  image_url?: string | null;
+}
 
 export default function FridgeScreen() {
+  const [pinnedChallenge, setPinnedChallenge] = useState<Challenge | null>(
+    null
+  );
+  const [historyChallenges, setHistoryChallenges] = useState<Challenge[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadFridgeData() {
+      setLoading(true);
+
+      try {
+        // 1️⃣ Get current user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // 2️⃣ Fetch all challenges
+        const { data: allChallenges } = await fetchChallenges();
+        if (!allChallenges) return;
+
+        // 3️⃣ Determine pinned challenge (user metadata)
+        const pinnedId = user.user_metadata?.pinned_challenge_id;
+        const pinned = allChallenges.find((c) => c.id === pinnedId) || null;
+
+        // 4️⃣ Filter history: only challenges where user submitted
+        const historyWithSubmission = await Promise.all(
+          allChallenges
+            .filter((c) => c.id !== pinnedId)
+            .map(async (challenge) => {
+              const { data: submissions } = await supabase
+                .from("submissions")
+                .select("id")
+                .eq("challenge_id", challenge.id)
+                .eq("user_id", user.id);
+
+              return submissions?.length ? challenge : null;
+            })
+        );
+
+        const history = historyWithSubmission.filter(Boolean) as Challenge[];
+
+        setPinnedChallenge(pinned);
+        setHistoryChallenges(history);
+      } catch (error) {
+        console.error("Error loading fridge data:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFridgeData();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <ActivityIndicator size="large" color={Colors.palette.darkest} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.headerBackground}>
@@ -24,36 +89,34 @@ export default function FridgeScreen() {
         </View>
       </View>
 
-      {/* WALL BACKGROUND */}
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={{ height: 100 }} />
 
-          {/* === FRIDGE === */}
           <View style={styles.fridgeWrapper}>
-            {/* === FREEZER === */}
+            {/* FREEZER / Pinned */}
             <View style={styles.freezerSection}>
-              <View style={styles.polaroid}>
-                <View style={styles.magnet}>
-                  <MaterialCommunityIcons
-                    name="pin"
-                    size={20}
-                    color={Colors.palette.darkest}
-                  />
+              {pinnedChallenge && (
+                <View style={styles.pinnedPolaroid}>
+                  <View style={styles.magnet}>
+                    <MaterialCommunityIcons
+                      name="pin"
+                      size={20}
+                      color={Colors.palette.darkest}
+                    />
+                  </View>
+                  <View style={styles.polaroidBody}>
+                    <Text style={styles.polaroidCaption}>
+                      {pinnedChallenge.title}
+                    </Text>
+                  </View>
                 </View>
-
-                <View style={styles.polaroidBody}>
-                  <Text style={styles.polaroidCaption}>
-                    {pinnedChallenge.title}
-                  </Text>
-                </View>
-              </View>
+              )}
             </View>
 
-            {/* dividing line */}
             <View style={styles.divider} />
 
-            {/* === HISTORY LABEL (tilted letters) === */}
+            {/* HISTORY LABEL */}
             <View style={styles.historyLabelRow}>
               {["H", "I", "S", "T", "O", "R", "Y"].map((char, i) => (
                 <Text
@@ -70,7 +133,7 @@ export default function FridgeScreen() {
               ))}
             </View>
 
-            {/* === HISTORY GRID === */}
+            {/* HISTORY GRID */}
             <FlatList
               data={historyChallenges}
               keyExtractor={(item) => item.id}
@@ -91,7 +154,6 @@ export default function FridgeScreen() {
               )}
             />
 
-            {/* bottom offscreen */}
             <View style={{ height: 200 }} />
           </View>
         </ScrollView>
@@ -106,18 +168,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.accent,
   },
-
   headerBackground: {
     backgroundColor: Colors.palette.accent,
   },
-
-  /* === WALL BG === */
   wall: {
     flex: 1,
     backgroundColor: Colors.palette.light,
   },
-
-  /* === TITLE === */
   titleRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -133,8 +190,6 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     letterSpacing: -0.5,
   },
-
-  /* === FRIDGE BODY === */
   fridgeWrapper: {
     width: "130%",
     alignSelf: "center",
@@ -144,17 +199,29 @@ const styles = StyleSheet.create({
     paddingTop: 70,
     marginLeft: -40,
     marginRight: -40,
-
-    /* hides bottom of fridge offscreen */
     marginBottom: -200,
   },
-
-  /* === FREEZER === */
   freezerSection: {
+    height: 200, // fixed height for top part
     alignItems: "center",
+    justifyContent: "center",
+    position: "relative", // allow absolute children
   },
 
-  /* === POLAROIDS === */
+  pinnedPolaroid: {
+    position: "absolute",
+    top: 0,
+    width: 150,
+    height: 180,
+    backgroundColor: "white",
+    alignItems: "center",
+    paddingTop: 25,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+
   polaroid: {
     width: 150,
     height: 180,
@@ -178,7 +245,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-
   polaroidBody: {
     flex: 1,
     justifyContent: "flex-end",
@@ -190,8 +256,6 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     textAlign: "center",
   },
-
-  /* === MAGNETS === */
   magnet: {
     position: "absolute",
     top: -12,
@@ -208,16 +272,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  /* === DIVIDER === */
   divider: {
     width: "100%",
     height: 5,
     backgroundColor: Colors.palette.darkest,
     marginTop: 30,
   },
-
-  /* === HISTORY LETTERS === */
   historyLabelRow: {
     flexDirection: "row",
     justifyContent: "center",
@@ -225,9 +285,8 @@ const styles = StyleSheet.create({
     marginTop: 18,
     marginBottom: 10,
   },
-
   magnetLetter: {
-    fontSize: 42,
+    fontSize: 40,
     fontWeight: "900",
     color: Colors.palette.accent,
     textShadowColor: "rgba(0,0,0,0.3)",
