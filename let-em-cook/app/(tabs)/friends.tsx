@@ -60,9 +60,17 @@ export default function FriendScreen() {
     let mounted = true;
     async function loadData() {
       try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
-        const username = user?.user_metadata?.username ?? user?.email ?? null;
+        setLoading(true);
+        // 1. Get the current user's ID and username
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+        if (userError) throw userError;
+        const myUserId = userData?.user?.id;
+
+        const username =
+          userData?.user?.user_metadata?.username ??
+          userData?.user?.email ??
+          null;
         if (mounted && username) setUserName(username);
 
         // 2. TEMPORARILY Fetch ALL profiles, excluding the current user
@@ -126,22 +134,28 @@ export default function FriendScreen() {
     // Function to handle the press event
     const handleCardPress = () => {
       if (!challengeIsPresent || !item.curr_chal) {
+        // If no current challenge, do nothing
         return;
       }
 
+      // Navigate to the challenge details page
       router.push({
         pathname: "/challenges/[id]",
         params: {
           id: item.curr_chal.id,
-          // OPTIONAL: Pass minimal data for instant UI display before full data loads
+          // Since the ChallengeDetailScreen expects a full 'challenge' object in params,
+          // we must construct it or rely on the detail screen to fetch it.
+          // For now, let's use the ID and assume the detail screen can fetch the rest.
+          // The other Challenge screen ([id].tsx) seems to rely on JSON.parse(params.challenge)
+          // so we'll pass the friend's simplified challenge data.
           challenge: JSON.stringify({
             id: item.curr_chal.id,
             title: item.current_challenge_name,
             image_url: item.current_challenge_image,
-            // Pass minimal vote counts if available to prevent initial 0/0 flash
-            upvotes: item.curr_chal.upvotes || 0,
-            downvotes: item.curr_chal.downvotes || 0,
-            submission_count: item.curr_chal.submission_count || 0,
+            // NOTE: The ChallengeDetailScreen ([id].tsx) needs more fields (timeLimit, ingredients, etc.)
+            // which are NOT available in the 'Friend' type. You will need to update the
+            // ChallengeDetailScreen to fetch the full challenge data by ID if it's missing.
+            // For now, this is the best we can do with available data.
           }),
         },
       });
@@ -195,17 +209,14 @@ export default function FriendScreen() {
             friends.length === 0 ? styles.emptyList : styles.listContent
           }
           ListHeaderComponent={() => (
-            <View style={styles.userHeaderContainer}>
+            <View style={styles.userHeader}>
               <Image
                 source={require("../../assets/images/mouse-assets/macaroni.png")}
                 style={styles.userAvatar}
               />
-              <View style={styles.speechBubble}>
-                <Text style={styles.greeting}>
-                  {userName ? `Hi, ${userName}!` : "Hi!"}
-                </Text>
-                <View style={styles.speechBubbleTail} />
-              </View>
+              <Text style={styles.greeting}>
+                {userName ? `Hi, ${userName}!` : "Hi!"}
+              </Text>
             </View>
           )}
           ListEmptyComponent={() => (
@@ -228,13 +239,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
-    paddingBottom: 8,
+    paddingBottom: 14,
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 28,
+    fontFamily: "Poppins_700Bold",
+    fontSize: 34,
     color: Colors.palette.darkest,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
@@ -243,51 +255,26 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  userHeaderContainer: {
+  userHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 20,
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingVertical: 16,
+    backgroundColor: Colors.palette.blue,
+    borderRadius: 12,
   },
   userAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     marginRight: 12,
     backgroundColor: Colors.palette.lightest,
   },
-  speechBubble: {
-    flex: 1,
-    backgroundColor: Colors.palette.lightest,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
-    position: "relative",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  speechBubbleTail: {
-    position: "absolute",
-    left: -8,
-    top: 20,
-    width: 0,
-    height: 0,
-    borderTopWidth: 8,
-    borderTopColor: "transparent",
-    borderBottomWidth: 8,
-    borderBottomColor: "transparent",
-    borderRightWidth: 8,
-    borderRightColor: Colors.palette.lightest,
-  },
   greeting: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: Colors.palette.darkest,
+    color: Colors.palette.lightest,
     fontFamily: "Poppins_700Bold",
   },
   friendRow: {
@@ -318,7 +305,7 @@ const styles = StyleSheet.create({
   },
   challengeLabel: {
     marginTop: 8,
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.palette.darkest,
     textAlign: "center",
   },
