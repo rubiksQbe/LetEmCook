@@ -1,11 +1,13 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -50,13 +52,16 @@ export default function ChallengeScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
 
   // Filter states
-  const [titleSearch, setTitleSearch] = useState("");
-  const [creatorSearch, setCreatorSearch] = useState("");
-  const [selectedDifficulty, setSelectedDifficulty] = useState<"Easy" | "Medium" | "Hard" | null>(null);
-  const [maxTimeMinutes, setMaxTimeMinutes] = useState<number | null>(null);
-  const [ingredientSearch, setIngredientSearch] = useState("");
+  const [unifiedSearch, setUnifiedSearch] = useState("");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<("Easy" | "Medium" | "Hard")[]>([]);
+  const [maxTimeMinutes, setMaxTimeMinutes] = useState<number[]>([]);
+  const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
   const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  
+  // Modal states
+  const [modalVisible, setModalVisible] = useState<"difficulty" | "time" | "ingredients" | "dietary" | null>(null);
+  const [ingredientInput, setIngredientInput] = useState("");
+  const [dietaryInput, setDietaryInput] = useState("");
 
   // Function to load challenges
   const loadChallenges = useCallback(async () => {
@@ -194,39 +199,35 @@ export default function ChallengeScreen() {
   // Filter challenges in real-time
   const filteredChallenges = useMemo(() => {
     return challenges.filter((challenge) => {
-      // Title search filter
-      if (titleSearch) {
-        const titleLower = titleSearch.toLowerCase();
-        const titleMatch = challenge.title.toLowerCase().includes(titleLower);
-        if (!titleMatch) return false;
-      }
-
-      // Creator search filter
-      if (creatorSearch) {
-        const creatorLower = creatorSearch.toLowerCase();
+      // Unified search filter (searches both title and creator)
+      if (unifiedSearch) {
+        const searchLower = unifiedSearch.toLowerCase();
+        const titleMatch = challenge.title.toLowerCase().includes(searchLower);
         
         // Allow searching for own challenges with keywords like "me", "my", "mine", "your"
         const isOwnChallengeKeyword = ["me", "my", "mine", "your"].some(keyword => 
-          creatorLower.includes(keyword)
+          searchLower.includes(keyword)
         );
         const isOwnChallenge = challenge.created_by === currentUserId;
         
+        let creatorMatch = false;
         if (isOwnChallengeKeyword && isOwnChallenge) {
-          // Match found - this is the user's challenge
+          creatorMatch = true;
         } else {
-          // Check if creator name matches
-          const creatorMatch = challenge.created_by_username?.toLowerCase().includes(creatorLower);
-          if (!creatorMatch) return false;
+          creatorMatch = challenge.created_by_username?.toLowerCase().includes(searchLower) || false;
         }
+        
+        // Show challenge if either title or creator matches
+        if (!titleMatch && !creatorMatch) return false;
       }
 
-      // Difficulty filter
-      if (selectedDifficulty && challenge.difficulty !== selectedDifficulty) {
+      // Difficulty filter (multi-select)
+      if (selectedDifficulty.length > 0 && !selectedDifficulty.includes(challenge.difficulty as "Easy" | "Medium" | "Hard")) {
         return false;
       }
 
-      // Time limit filter
-      if (maxTimeMinutes !== null) {
+      // Time limit filter (multi-select)
+      if (maxTimeMinutes.length > 0) {
         // Parse time limit (assumes format like "30 minutes" or "1 hour")
         const timeLimitLower = challenge.timeLimit.toLowerCase();
         let challengeMinutes = 0;
@@ -238,16 +239,21 @@ export default function ChallengeScreen() {
           challengeMinutes = parseFloat(timeLimitLower);
         }
         
-        if (challengeMinutes > maxTimeMinutes) return false;
+        // Check if challenge time exactly matches any of the selected times
+        const matchesAnyTime = maxTimeMinutes.some(maxTime => challengeMinutes === maxTime);
+        if (!matchesAnyTime) return false;
       }
 
-      // Ingredient search
-      if (ingredientSearch) {
-        const ingredientLower = ingredientSearch.toLowerCase();
-        const hasIngredient = challenge.ingredients.some((ing) =>
-          ing.toLowerCase().includes(ingredientLower)
-        );
-        if (!hasIngredient) return false;
+      // Ingredient search (multi-select)
+      if (selectedIngredients.length > 0) {
+        // Check if challenge has at least one of the selected ingredients
+        const hasMatchingIngredient = selectedIngredients.some((selectedIng) => {
+          const selectedLower = selectedIng.toLowerCase();
+          return challenge.ingredients.some((ing) =>
+            ing.toLowerCase().includes(selectedLower)
+          );
+        });
+        if (!hasMatchingIngredient) return false;
       }
 
       // Dietary restrictions filter
@@ -261,7 +267,7 @@ export default function ChallengeScreen() {
 
       return true;
     });
-  }, [challenges, titleSearch, creatorSearch, selectedDifficulty, maxTimeMinutes, ingredientSearch, selectedDietaryRestrictions]);
+  }, [challenges, unifiedSearch, selectedDifficulty, maxTimeMinutes, selectedIngredients, selectedDietaryRestrictions, currentUserId]);
 
   // Common dietary restrictions for filtering
   const commonDietaryRestrictions = ["Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free"];
@@ -282,22 +288,44 @@ export default function ChallengeScreen() {
     );
   };
 
+  const addDietaryRestriction = () => {
+    const trimmed = dietaryInput.trim();
+    if (trimmed && !selectedDietaryRestrictions.includes(trimmed)) {
+      setSelectedDietaryRestrictions([...selectedDietaryRestrictions, trimmed]);
+      setDietaryInput("");
+    }
+  };
+
+  const removeDietaryRestriction = (restriction: string) => {
+    setSelectedDietaryRestrictions(selectedDietaryRestrictions.filter((r) => r !== restriction));
+  };
+
   const clearAllFilters = () => {
-    setTitleSearch("");
-    setCreatorSearch("");
-    setSelectedDifficulty(null);
-    setMaxTimeMinutes(null);
-    setIngredientSearch("");
+    setUnifiedSearch("");
+    setSelectedDifficulty([]);
+    setMaxTimeMinutes([]);
+    setSelectedIngredients([]);
     setSelectedDietaryRestrictions([]);
   };
 
   const hasActiveFilters =
-    titleSearch ||
-    creatorSearch ||
-    selectedDifficulty ||
-    maxTimeMinutes !== null ||
-    ingredientSearch ||
+    unifiedSearch ||
+    selectedDifficulty.length > 0 ||
+    maxTimeMinutes.length > 0 ||
+    selectedIngredients.length > 0 ||
     selectedDietaryRestrictions.length > 0;
+
+  const addIngredient = () => {
+    const trimmed = ingredientInput.trim();
+    if (trimmed && !selectedIngredients.includes(trimmed)) {
+      setSelectedIngredients([...selectedIngredients, trimmed]);
+      setIngredientInput("");
+    }
+  };
+
+  const removeIngredient = (ingredient: string) => {
+    setSelectedIngredients(selectedIngredients.filter((ing) => ing !== ingredient));
+  };
 
 
   return (
@@ -307,197 +335,443 @@ export default function ChallengeScreen() {
         <Text style={styles.pageTitle}>Challenges</Text>
       </View>
 
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={20} color={Colors.palette.dark} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search challenges or creators..."
+            placeholderTextColor={Colors.palette.dark}
+            value={unifiedSearch}
+            onChangeText={setUnifiedSearch}
+            autoCorrect={false}
+          />
+          {unifiedSearch ? (
+            <TouchableOpacity onPress={() => setUnifiedSearch("")}>
+              <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+
+      {/* Filters Section */}
+      <View style={styles.filtersSectionContainer}>
+        <View style={styles.filtersHeaderRow}>
+          <Text style={styles.filtersSectionLabel}>Filters</Text>
+          {hasActiveFilters ? (
+            <TouchableOpacity 
+              onPress={clearAllFilters} 
+              style={styles.clearFiltersButtonInline}
+            >
+              <Text style={styles.clearFiltersTextInline}>Clear All</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.clearFiltersButtonInline}>
+              <Text style={styles.clearFiltersTextPlaceholder}>Clear All</Text>
+            </View>
+          )}
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersScrollView}
+          contentContainerStyle={styles.filtersScrollContent}
+        >
+        {/* Difficulty Filter */}
+        <TouchableOpacity
+          style={[
+            styles.filterChip,
+            selectedDifficulty.length > 0 && styles.filterChipActive,
+          ]}
+          onPress={() => setModalVisible("difficulty")}
+        >
+          <Text style={styles.filterChipText} numberOfLines={1}>
+            Difficulty{selectedDifficulty.length > 0 ? ` (${selectedDifficulty.length})` : ""}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
+        </TouchableOpacity>
+
+        {/* Time Limit Filter */}
+        <TouchableOpacity
+          style={[
+            styles.filterChip,
+            maxTimeMinutes.length > 0 && styles.filterChipActive,
+          ]}
+          onPress={() => setModalVisible("time")}
+        >
+          <Text style={styles.filterChipText} numberOfLines={1}>
+            Time Limit{maxTimeMinutes.length > 0 ? ` (${maxTimeMinutes.length})` : ""}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
+        </TouchableOpacity>
+
+        {/* Ingredient Search Filter */}
+        <TouchableOpacity
+          style={[
+            styles.filterChip,
+            selectedIngredients.length > 0 && styles.filterChipActive,
+          ]}
+          onPress={() => {
+            setModalVisible("ingredients");
+            setIngredientInput("");
+          }}
+        >
+          <Text style={styles.filterChipText} numberOfLines={1}>
+            Ingredients{selectedIngredients.length > 0 ? ` (${selectedIngredients.length})` : ""}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
+        </TouchableOpacity>
+
+        {/* Dietary Restrictions Filter */}
+        <TouchableOpacity
+          style={[
+            styles.filterChip,
+            selectedDietaryRestrictions.length > 0 && styles.filterChipActive,
+          ]}
+          onPress={() => {
+            setModalVisible("dietary");
+            setDietaryInput("");
+          }}
+        >
+          <Text style={styles.filterChipText} numberOfLines={1}>
+            Dietary{selectedDietaryRestrictions.length > 0 ? ` (${selectedDietaryRestrictions.length})` : ""}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
+        </TouchableOpacity>
+        </ScrollView>
+      </View>
+
+      {/* Difficulty Modal */}
+      <Modal
+        visible={modalVisible === "difficulty"}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Difficulty</Text>
+              <TouchableOpacity onPress={() => setModalVisible(null)}>
+                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalOptions}>
+              {(["Easy", "Medium", "Hard"] as const).map((difficulty) => (
+                <TouchableOpacity
+                  key={difficulty}
+                  style={[
+                    styles.modalOption,
+                    selectedDifficulty.includes(difficulty) && styles.modalOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedDifficulty((prev) =>
+                      prev.includes(difficulty)
+                        ? prev.filter((d) => d !== difficulty)
+                        : [...prev, difficulty]
+                    );
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      selectedDifficulty.includes(difficulty) && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {difficulty}
+                  </Text>
+                  {selectedDifficulty.includes(difficulty) && (
+                    <Ionicons name="checkmark" size={20} color={Colors.palette.darkest} />
+                  )}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.modalClearButton}
+                onPress={() => {
+                  setSelectedDifficulty([]);
+                }}
+              >
+                <Text style={styles.modalClearText}>Clear Selection</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => setModalVisible(null)}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Time Limit Modal */}
+      <Modal
+        visible={modalVisible === "time"}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Time Limit</Text>
+              <TouchableOpacity onPress={() => setModalVisible(null)}>
+                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalOptions}>
+              {timeLimitOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    maxTimeMinutes.includes(option.value) && styles.modalOptionActive,
+                  ]}
+                  onPress={() => {
+                    setMaxTimeMinutes((prev) =>
+                      prev.includes(option.value)
+                        ? prev.filter((t) => t !== option.value)
+                        : [...prev, option.value]
+                    );
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      maxTimeMinutes.includes(option.value) && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {maxTimeMinutes.includes(option.value) && (
+                    <Ionicons name="checkmark" size={20} color={Colors.palette.darkest} />
+                  )}
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.modalClearButton}
+                onPress={() => {
+                  setMaxTimeMinutes([]);
+                }}
+              >
+                <Text style={styles.modalClearText}>Clear Selection</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => setModalVisible(null)}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Ingredients Modal */}
+      <Modal
+        visible={modalVisible === "ingredients"}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add Ingredients</Text>
+              <TouchableOpacity onPress={() => setModalVisible(null)}>
+                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Type ingredient..."
+                placeholderTextColor={Colors.palette.dark}
+                value={ingredientInput}
+                onChangeText={setIngredientInput}
+                autoCorrect={false}
+                autoFocus={true}
+                onSubmitEditing={addIngredient}
+                returnKeyType="done"
+              />
+              <TouchableOpacity 
+                onPress={addIngredient}
+                style={styles.plusButton}
+                disabled={!ingredientInput.trim()}
+              >
+                <Ionicons 
+                  name="add" 
+                  size={24} 
+                  color={ingredientInput.trim() ? Colors.palette.blue : Colors.palette.dark} 
+                />
+              </TouchableOpacity>
+            </View>
+            {selectedIngredients.length > 0 && (
+              <View style={styles.modalIngredientsList}>
+                <Text style={styles.modalIngredientsLabel}>Selected Ingredients:</Text>
+                <View style={styles.modalChipContainer}>
+                  {selectedIngredients.map((ingredient) => (
+                    <TouchableOpacity
+                      key={ingredient}
+                      style={styles.modalIngredientChip}
+                      onPress={() => removeIngredient(ingredient)}
+                    >
+                      <Text style={styles.modalIngredientChipText}>{ingredient}</Text>
+                      <Ionicons name="close-circle" size={18} color={Colors.palette.darkest} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClearButton}
+                  onPress={() => {
+                    setSelectedIngredients([]);
+                  }}
+                >
+                  <Text style={styles.modalClearText}>Clear All</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => {
+                setModalVisible(null);
+                setIngredientInput("");
+              }}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Dietary Restrictions Modal */}
+      <Modal
+        visible={modalVisible === "dietary"}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
+        >
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Dietary Restrictions</Text>
+              <TouchableOpacity onPress={() => setModalVisible(null)}>
+                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Type dietary restriction..."
+                placeholderTextColor={Colors.palette.dark}
+                value={dietaryInput}
+                onChangeText={setDietaryInput}
+                autoCorrect={false}
+                autoFocus={true}
+                onSubmitEditing={addDietaryRestriction}
+                returnKeyType="done"
+              />
+              <TouchableOpacity 
+                onPress={addDietaryRestriction}
+                style={styles.plusButton}
+                disabled={!dietaryInput.trim()}
+              >
+                <Ionicons 
+                  name="add" 
+                  size={24} 
+                  color={dietaryInput.trim() ? Colors.palette.blue : Colors.palette.dark} 
+                />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalScrollView}>
+              <View style={styles.modalChipContainer}>
+                {commonDietaryRestrictions.map((restriction) => (
+                  <TouchableOpacity
+                    key={restriction}
+                    style={[
+                      styles.modalChip,
+                      selectedDietaryRestrictions.includes(restriction) && styles.modalChipActive,
+                    ]}
+                    onPress={() => toggleDietaryRestriction(restriction)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalChipText,
+                        selectedDietaryRestrictions.includes(restriction) &&
+                          styles.modalChipTextActive,
+                      ]}
+                    >
+                      {restriction}
+                    </Text>
+                    {selectedDietaryRestrictions.includes(restriction) && (
+                      <Ionicons name="checkmark" size={16} color={Colors.palette.darkest} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            {selectedDietaryRestrictions.length > 0 && (
+              <View style={styles.modalIngredientsList}>
+                <Text style={styles.modalIngredientsLabel}>Selected Dietary Restrictions:</Text>
+                <View style={styles.modalChipContainer}>
+                  {selectedDietaryRestrictions.map((restriction) => (
+                    <TouchableOpacity
+                      key={restriction}
+                      style={styles.modalIngredientChip}
+                      onPress={() => removeDietaryRestriction(restriction)}
+                    >
+                      <Text style={styles.modalIngredientChipText}>{restriction}</Text>
+                      <Ionicons name="close-circle" size={18} color={Colors.palette.darkest} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  style={styles.modalClearButton}
+                  onPress={() => {
+                    setSelectedDietaryRestrictions([]);
+                  }}
+                >
+                  <Text style={styles.modalClearText}>Clear All</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => {
+                setModalVisible(null);
+                setDietaryInput("");
+              }}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Challenge List */}
       <FlatList
         data={filteredChallenges}
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: Colors.palette.light }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 100 }}
-        ListHeaderComponent={
-          <>
-            {/* Filter Toggle Button */}
-            <View style={styles.filterToggleContainer}>
-              <TouchableOpacity
-                style={styles.filterToggleButton}
-                onPress={() => setShowFilters(!showFilters)}
-              >
-                <Ionicons 
-                  name={showFilters ? "chevron-up" : "chevron-down"} 
-                  size={20} 
-                  color={Colors.palette.darkest} 
-                />
-                <Text style={styles.filterToggleText}>
-                  {showFilters ? "Hide Filters" : "Show Filters"}
-                </Text>
-                {hasActiveFilters && <View style={styles.activeFilterDot} />}
-              </TouchableOpacity>
-              {hasActiveFilters && (
-                <TouchableOpacity onPress={clearAllFilters}>
-                  <Text style={styles.clearFiltersText}>Clear All</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Filter Panel */}
-            {showFilters && (
-              <View style={[styles.filterPanel, styles.filterPanelContent]}>
-                {/* Search by Title */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Search Title</Text>
-                  <View style={styles.searchInputContainer}>
-                    <Ionicons name="search" size={20} color={Colors.palette.dark} />
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder="Search by challenge title..."
-                      placeholderTextColor={Colors.palette.dark}
-                      value={titleSearch}
-                      onChangeText={setTitleSearch}
-                      autoCorrect={false}
-                    />
-                    {titleSearch ? (
-                      <TouchableOpacity onPress={() => setTitleSearch("")}>
-                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
-
-                {/* Search by Creator */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Search Creator</Text>
-                  <View style={styles.searchInputContainer}>
-                    <Ionicons name="person" size={20} color={Colors.palette.dark} />
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder="Try 'my' or a chef's name..."
-                      placeholderTextColor={Colors.palette.dark}
-                      value={creatorSearch}
-                      onChangeText={setCreatorSearch}
-                      autoCorrect={false}
-                    />
-                    {creatorSearch ? (
-                      <TouchableOpacity onPress={() => setCreatorSearch("")}>
-                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
-
-                {/* Difficulty Filter */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Difficulty</Text>
-                  <View style={styles.buttonGroup}>
-                    {(["Easy", "Medium", "Hard"] as const).map((difficulty) => (
-                      <TouchableOpacity
-                        key={difficulty}
-                        style={[
-                          styles.filterButton,
-                          selectedDifficulty === difficulty && styles.filterButtonActive,
-                        ]}
-                        onPress={() =>
-                          setSelectedDifficulty(
-                            selectedDifficulty === difficulty ? null : difficulty
-                          )
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.filterButtonText,
-                            selectedDifficulty === difficulty && styles.filterButtonTextActive,
-                          ]}
-                        >
-                          {difficulty}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Time Limit Filter */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Max Time</Text>
-                  <View style={styles.buttonGroup}>
-                    {timeLimitOptions.map((option) => (
-                      <TouchableOpacity
-                        key={option.value}
-                        style={[
-                          styles.filterButton,
-                          maxTimeMinutes === option.value && styles.filterButtonActive,
-                        ]}
-                        onPress={() =>
-                          setMaxTimeMinutes(
-                            maxTimeMinutes === option.value ? null : option.value
-                          )
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.filterButtonText,
-                            maxTimeMinutes === option.value && styles.filterButtonTextActive,
-                          ]}
-                        >
-                          {option.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Ingredient Search */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterLabel}>Search Ingredients</Text>
-                  <View style={styles.searchInputContainer}>
-                    <MaterialCommunityIcons
-                      name="food-apple"
-                      size={20}
-                      color={Colors.palette.dark}
-                    />
-                    <TextInput
-                      style={styles.searchInput}
-                      placeholder="e.g., chicken, tomato..."
-                      placeholderTextColor={Colors.palette.dark}
-                      value={ingredientSearch}
-                      onChangeText={setIngredientSearch}
-                      autoCorrect={false}
-                    />
-                    {ingredientSearch ? (
-                      <TouchableOpacity onPress={() => setIngredientSearch("")}>
-                        <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                </View>
-
-                {/* Dietary Restrictions */}
-                <View style={[styles.filterSection, { marginBottom: 10 }]}>
-                  <Text style={styles.filterLabel}>Dietary Restrictions</Text>
-                  <View style={styles.chipGroup}>
-                    {commonDietaryRestrictions.map((restriction) => (
-                      <TouchableOpacity
-                        key={restriction}
-                        style={[
-                          styles.chip,
-                          selectedDietaryRestrictions.includes(restriction) && styles.chipActive,
-                        ]}
-                        onPress={() => toggleDietaryRestriction(restriction)}
-                      >
-                        <Text
-                          style={[
-                            styles.chipText,
-                            selectedDietaryRestrictions.includes(restriction) &&
-                              styles.chipTextActive,
-                          ]}
-                        >
-                          {restriction}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-              </View>
-            )}
-          </>
-        }
+        ListHeaderComponent={null}
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.loadingContainer}>
@@ -614,23 +888,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
-    paddingBottom: 14,
+    paddingBottom: 8,
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 34,
+    fontSize: 28,
     color: Colors.palette.darkest,
     letterSpacing: -0.5,
   },
   floatingAddButton: {
     position: "absolute",
-    bottom: 20,
+    bottom: 12,
     right: 20,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.palette.blue,
+    backgroundColor: Colors.palette.accent,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -658,66 +932,261 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
 
-  // Filter Toggle
-  filterToggleContainer: {
+  // Search Bar
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+    backgroundColor: Colors.palette.light,
+    gap: 10,
+  },
+
+  // Filters Section
+  filtersSectionContainer: {
+    backgroundColor: Colors.palette.light,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  filtersHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 8,
-    marginBottom: 0,
+    paddingBottom: 4,
   },
-  filterToggleButton: {
+  filtersSectionLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 15,
+    color: Colors.palette.darkest,
+    letterSpacing: 0.3,
+  },
+  clearFiltersButtonInline: {
+    paddingVertical: 4,
+    minWidth: 70,
+    alignItems: "flex-end",
+  },
+  clearFiltersTextInline: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 15,
+    color: Colors.palette.blue,
+    textDecorationLine: "underline",
+  },
+  clearFiltersTextPlaceholder: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: "transparent",
+  },
+  filtersScrollView: {
+    maxHeight: 60,
+  },
+  filtersScrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 0,
+    paddingBottom: 12,
+    gap: 6,
+    alignItems: "center",
+  },
+  filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: Colors.palette.darkest,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
     backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#D0D0D0",
+    gap: 6,
+    marginRight: 4,
+    maxWidth: 180,
   },
-  filterToggleText: {
-    fontFamily: "Poppins_600SemiBold",
+  filterChipActive: {
+    backgroundColor: Colors.palette.accent,
+    borderColor: Colors.palette.accent,
+  },
+  filterChipText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+    flexShrink: 1,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: Colors.palette.lightest,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: "80%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  modalTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: Colors.palette.darkest,
+  },
+  modalOptions: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  modalOption: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "white",
+    marginBottom: 8,
+    borderWidth: 1.5,
+    borderColor: "#E0E0E0",
+  },
+  modalOptionActive: {
+    backgroundColor: Colors.palette.accent,
+    borderColor: Colors.palette.accent,
+  },
+  modalOptionText: {
+    fontFamily: "Poppins_500Medium",
     fontSize: 16,
     color: Colors.palette.darkest,
   },
-  activeFilterDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.palette.darkest,
+  modalOptionTextActive: {
+    fontFamily: "Poppins_600SemiBold",
   },
-  clearFiltersText: {
+  modalClearButton: {
+    marginTop: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  modalClearText: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 14,
-    color: Colors.palette.dark,
+    fontSize: 15,
+    color: Colors.palette.blue,
     textDecorationLine: "underline",
   },
-
-  // Filter Panel
-  filterPanel: {
-    backgroundColor: Colors.palette.light,
+  modalInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 20,
+    marginTop: 16,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#E0E0E0",
   },
-  filterPanelContent: {
-    padding: 20,
-    paddingTop: 18,
-    paddingBottom: 22,
+  modalInput: {
+    flex: 1,
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: Colors.palette.darkest,
   },
-  filterSection: {
-    marginBottom: 20,
+  plusButton: {
+    padding: 4,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  filterLabel: {
+  modalScrollView: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  modalChipContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  modalChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
+    backgroundColor: "white",
+    borderWidth: 1.5,
+    borderColor: "#D0D0D0",
+    gap: 8,
+  },
+  modalChipActive: {
+    backgroundColor: Colors.palette.accent,
+    borderColor: Colors.palette.accent,
+  },
+  modalChipText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 15,
+    color: Colors.palette.darkest,
+  },
+  modalChipTextActive: {
+    fontFamily: "Poppins_600SemiBold",
+  },
+  modalIngredientsList: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  modalIngredientsLabel: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
     color: Colors.palette.darkest,
-    marginBottom: 10,
-    letterSpacing: 0.3,
+    marginBottom: 12,
+  },
+  modalIngredientChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: Colors.palette.accent,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.accent,
+    gap: 6,
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  modalIngredientChipText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 15,
+    color: Colors.palette.darkest,
+  },
+  modalDoneButton: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: Colors.palette.blue,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  modalDoneText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "white",
   },
 
   // Search Input
   searchInputContainer: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
@@ -738,66 +1207,12 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
   },
 
-  // Button Groups
-  buttonGroup: {
-    flexDirection: "row",
-    gap: 10,
-    flexWrap: "wrap",
-  },
-  filterButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "white",
-    borderWidth: 2,
-    borderColor: "#E0E0E0",
-  },
-  filterButtonActive: {
-    backgroundColor: Colors.palette.accent,
-    borderColor: Colors.palette.accent,
-  },
-  filterButtonText: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 14,
-    color: Colors.palette.darkest,
-  },
-  filterButtonTextActive: {
-    color: Colors.palette.darkest,
-  },
-
-  // Chips
-  chipGroup: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: "white",
-    borderWidth: 1.5,
-    borderColor: "#D0D0D0",
-  },
-  chipActive: {
-    backgroundColor: Colors.palette.accent,
-    borderColor: Colors.palette.accent,
-  },
-  chipText: {
-    fontFamily: "Poppins_500Medium",
-    fontSize: 13,
-    color: Colors.palette.darkest,
-  },
-  chipTextActive: {
-    color: Colors.palette.darkest,
-    fontFamily: "Poppins_600SemiBold",
-  },
 
   // Cards
   card: {
     backgroundColor: Colors.palette.lightest,
     borderRadius: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
@@ -807,11 +1222,11 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: "100%",
-    height: 220,
+    height: 180,
     resizeMode: "cover",
   },
   cardContent: {
-    padding: 16,
+    padding: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -819,14 +1234,14 @@ const styles = StyleSheet.create({
   cardTextContent: {
     flex: 1,
     flexDirection: "column",
-    gap: 4,
-    marginRight: 12,
+    gap: 3,
+    marginRight: 10,
   },
   cardTitle: {
     fontFamily: "Poppins_700Bold",
     fontSize: 24,
     color: Colors.palette.darkest,
-    lineHeight: 28,
+    lineHeight: 26,
   },
   cardCreator: {
     fontFamily: "Poppins_500Medium",
@@ -836,29 +1251,29 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: "column",
-    gap: 6,
+    gap: 4,
   },
   statSection: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     backgroundColor: "#E5E5E5",
     borderRadius: 8,
-    minWidth: 90,
-    gap: 6,
+    minWidth: 85,
+    gap: 5,
   },
   statSectionLikes: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     backgroundColor: "#E5E5E5",
     borderRadius: 8,
     alignSelf: "flex-end",
-    gap: 6,
+    gap: 5,
   },
   statCount: {
     fontFamily: "Poppins_700Bold",
@@ -868,7 +1283,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.palette.darkest,
     textTransform: "uppercase",
     letterSpacing: 0.5,

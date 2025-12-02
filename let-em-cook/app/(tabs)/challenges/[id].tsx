@@ -52,7 +52,7 @@ export default function ChallengeDetailScreen() {
     "up" | "down" | null
   >(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [showSubmissions, setShowSubmissions] = useState(false);
+  const [showSubmissions, setShowSubmissions] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
@@ -378,8 +378,8 @@ export default function ChallengeDetailScreen() {
         {/* Hero Image with Creator Submission Vote Buttons */}
         <View style={styles.heroContainer}>
           <Image source={displayChallenge.image} style={styles.heroImage} />
-          {/* Creator's Submission Vote Buttons (only show if not creator) */}
-          {!isCreator && displayChallenge.image_url && (
+          {/* Challenge Vote Buttons */}
+          {displayChallenge.image_url && (
             <View style={styles.creatorSubmissionVoteOverlay}>
               <TouchableOpacity
                 style={[
@@ -461,16 +461,6 @@ export default function ChallengeDetailScreen() {
 
         {/* Action Buttons */}
         <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.pinButton} onPress={handlePin}>
-            <MaterialCommunityIcons
-              name="pin"
-              size={24}
-              color={Colors.palette.darkest}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.pinButtonText}>PIN TO FRIDGE</Text>
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareButtonText}>SHARE</Text>
             <Ionicons
@@ -479,6 +469,16 @@ export default function ChallengeDetailScreen() {
               color={Colors.palette.darkest}
               style={{ marginLeft: 8 }}
             />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.pinButton} onPress={handlePin}>
+            <MaterialCommunityIcons
+              name="pin"
+              size={24}
+              color={Colors.palette.darkest}
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.pinButtonText}>PIN TO FRIDGE</Text>
           </TouchableOpacity>
         </View>
 
@@ -959,7 +959,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.palette.darkest,
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
   },
   pinButtonText: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.palette.darkest,
     letterSpacing: 0.5,
   },
@@ -1071,7 +1071,7 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.palette.darkest,
     letterSpacing: 0.5,
   },
@@ -1090,7 +1090,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 13,
+    fontSize: 14,
     color: Colors.palette.darkest,
     marginTop: 16,
     letterSpacing: 0.5,
