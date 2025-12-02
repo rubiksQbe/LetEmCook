@@ -107,7 +107,7 @@ export default function ChallengeDetailScreen() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id);
 
-      // Load user's vote on the challenge
+      // Load user's challenge vote status
       if (user) {
         const vote = await getUserChallengeVote(challenge.id);
         setUserChallengeVote(vote);
@@ -128,11 +128,10 @@ export default function ChallengeDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       async function refreshData() {
-        // Reload user's vote on the challenge
-        if (challenge?.id) {
-          const vote = await getUserChallengeVote(challenge.id);
-          setUserChallengeVote(vote);
-        }
+        if (!challenge) return;
+        // Refresh user's challenge vote status
+        const vote = await getUserChallengeVote(challenge.id);
+        setUserChallengeVote(vote);
         // Then load challenge data
         await loadChallengeData();
       }
@@ -159,7 +158,6 @@ export default function ChallengeDetailScreen() {
           if (payload.eventType === "INSERT") {
             // New submission added
             const newSubmission = payload.new as any;
-            // Load user vote for new submission
             const userVote = await getUserSubmissionVote(newSubmission.id);
             setSubmissions((prev) => [
               { ...newSubmission, user_vote: userVote },
@@ -168,7 +166,7 @@ export default function ChallengeDetailScreen() {
           } else if (payload.eventType === "UPDATE") {
             // Submission updated (image or votes)
             const updatedSubmission = payload.new as any;
-            // Preserve user vote when updating submission
+            // Preserve the existing user_vote from state
             setSubmissions((prev) =>
               prev.map((sub) =>
                 sub.id === updatedSubmission.id
@@ -237,7 +235,7 @@ export default function ChallengeDetailScreen() {
     setIsLoadingSubmissions(true);
     const { data, error } = await fetchSubmissions(challenge.id);
     if (data) {
-      // Load user votes for each submission
+      // Load user's vote for each submission
       const submissionsWithVotes = await Promise.all(
         data.map(async (sub) => {
           const userVote = await getUserSubmissionVote(sub.id);
@@ -336,43 +334,47 @@ export default function ChallengeDetailScreen() {
   const handleChallengeVote = async (voteType: "up" | "down") => {
     if (!displayChallenge || !currentUserId) return;
 
-    // Optimistically update UI
+    // Optimistic update for immediate feedback
     const previousVote = userChallengeVote;
-    const isToggleOff = previousVote === voteType;
-    
-    // Update local state optimistically
-    setUserChallengeVote(isToggleOff ? null : voteType);
-    
-    // Update vote counts optimistically
-    setChallengeData((prev) => {
-      if (!prev) return prev;
-      let newUpvotes = prev.upvotes || 0;
-      let newDownvotes = prev.downvotes || 0;
+    const previousUpvotes = displayChallenge.upvotes || 0;
+    const previousDownvotes = displayChallenge.downvotes || 0;
 
-      // Remove previous vote effect
+    // Calculate new vote state
+    let newVote: "up" | "down" | null;
+    let newUpvotes = previousUpvotes;
+    let newDownvotes = previousDownvotes;
+
+    if (previousVote === voteType) {
+      // Toggle off
+      newVote = null;
+      if (voteType === "up") newUpvotes--;
+      else newDownvotes--;
+    } else {
+      // Set new vote
+      newVote = voteType;
       if (previousVote === "up") newUpvotes--;
-      if (previousVote === "down") newDownvotes--;
+      else if (previousVote === "down") newDownvotes--;
+      if (voteType === "up") newUpvotes++;
+      else newDownvotes++;
+    }
 
-      // Add new vote effect (if not toggling off)
-      if (!isToggleOff) {
-        if (voteType === "up") newUpvotes++;
-        if (voteType === "down") newDownvotes++;
-      }
-
-      return {
-        ...prev,
-        upvotes: Math.max(0, newUpvotes),
-        downvotes: Math.max(0, newDownvotes),
-      };
-    });
+    // Apply optimistic update
+    setUserChallengeVote(newVote);
+    setChallengeData((prev) =>
+      prev ? { ...prev, upvotes: newUpvotes, downvotes: newDownvotes } : prev
+    );
 
     // Make API call
     const { error } = await voteOnChallenge(displayChallenge.id, voteType);
-    
+
     if (error) {
       // Revert on error
       setUserChallengeVote(previousVote);
-      await loadChallengeData();
+      setChallengeData((prev) =>
+        prev
+          ? { ...prev, upvotes: previousUpvotes, downvotes: previousDownvotes }
+          : prev
+      );
       console.error("Error voting on challenge:", error);
     }
   };
@@ -384,34 +386,37 @@ export default function ChallengeDetailScreen() {
     const submission = submissions.find((s) => s.id === submissionId);
     if (!submission) return;
 
+    // Optimistic update
     const previousVote = submission.user_vote;
-    const isToggleOff = previousVote === voteType;
+    const previousUpvotes = submission.upvotes;
+    const previousDownvotes = submission.downvotes;
 
-    // Optimistically update UI
+    // Calculate new vote state
+    let newVote: "up" | "down" | null;
+    let newUpvotes = previousUpvotes;
+    let newDownvotes = previousDownvotes;
+
+    if (previousVote === voteType) {
+      // Toggle off
+      newVote = null;
+      if (voteType === "up") newUpvotes--;
+      else newDownvotes--;
+    } else {
+      // Set new vote
+      newVote = voteType;
+      if (previousVote === "up") newUpvotes--;
+      else if (previousVote === "down") newDownvotes--;
+      if (voteType === "up") newUpvotes++;
+      else newDownvotes++;
+    }
+
+    // Apply optimistic update
     setSubmissions((prev) =>
-      prev.map((sub) => {
-        if (sub.id !== submissionId) return sub;
-
-        let newUpvotes = sub.upvotes;
-        let newDownvotes = sub.downvotes;
-
-        // Remove previous vote effect
-        if (previousVote === "up") newUpvotes--;
-        if (previousVote === "down") newDownvotes--;
-
-        // Add new vote effect (if not toggling off)
-        if (!isToggleOff) {
-          if (voteType === "up") newUpvotes++;
-          if (voteType === "down") newDownvotes++;
-        }
-
-        return {
-          ...sub,
-          user_vote: isToggleOff ? null : voteType,
-          upvotes: Math.max(0, newUpvotes),
-          downvotes: Math.max(0, newDownvotes),
-        };
-      })
+      prev.map((sub) =>
+        sub.id === submissionId
+          ? { ...sub, user_vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes }
+          : sub
+      )
     );
 
     // Make API call
@@ -422,7 +427,7 @@ export default function ChallengeDetailScreen() {
       setSubmissions((prev) =>
         prev.map((sub) =>
           sub.id === submissionId
-            ? { ...sub, user_vote: previousVote, upvotes: submission.upvotes, downvotes: submission.downvotes }
+            ? { ...sub, user_vote: previousVote, upvotes: previousUpvotes, downvotes: previousDownvotes }
             : sub
         )
       );
