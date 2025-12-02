@@ -947,7 +947,7 @@ const styles = StyleSheet.create({
   filtersSectionContainer: {
     backgroundColor: Colors.palette.light,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: Colors.palette.darkest,
   },
   filtersHeaderRow: {
     flexDirection: "row",
@@ -997,7 +997,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "white",
     borderWidth: 1.5,
-    borderColor: "#D0D0D0",
+    borderColor: Colors.palette.darkest,
     gap: 6,
     marginRight: 4,
     maxWidth: 180,
@@ -1039,7 +1039,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: Colors.palette.darkest,
   },
   modalTitle: {
     fontFamily: "Poppins_700Bold",
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     marginBottom: 8,
     borderWidth: 1.5,
-    borderColor: "#E0E0E0",
+    borderColor: Colors.palette.darkest,
   },
   modalOptionActive: {
     backgroundColor: Colors.palette.accent,
@@ -1096,7 +1096,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     gap: 10,
     borderWidth: 1.5,
-    borderColor: "#E0E0E0",
+    borderColor: Colors.palette.darkest,
   },
   modalInput: {
     flex: 1,
@@ -1127,7 +1127,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "white",
     borderWidth: 1.5,
-    borderColor: "#D0D0D0",
+    borderColor: Colors.palette.darkest,
     gap: 8,
   },
   modalChipActive: {

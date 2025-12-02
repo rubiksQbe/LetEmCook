@@ -1246,7 +1246,7 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    borderBottomColor: Colors.palette.darkest,
   },
   modalTitle: {
     fontFamily: "Poppins_700Bold",

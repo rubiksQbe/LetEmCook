@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
     padding: 12,
     borderRadius: 10,
     fontSize: 16,
@@ -814,7 +814,7 @@ const styles = StyleSheet.create({
   ingredientInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: Colors.palette.light,
+    borderColor: Colors.palette.darkest,
     padding: 10,
     borderRadius: 8,
     marginRight: 10,
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
   },
   postButton: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.blue,
     paddingVertical: 16,
     borderRadius: 30,
     alignItems: "center",
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
   postButtonText: {
     fontFamily: "Poppins_700Bold",
     fontSize: 16,
-    color: Colors.palette.darkest,
+    color: Colors.palette.lightest,
     letterSpacing: 1,
   },
 });
