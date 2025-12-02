@@ -20,11 +20,15 @@ import { Challenge, ChallengeRow } from "../../../constants/types";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
 
 // Helper function to convert database row to Challenge interface
-function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challenge {
+function convertToChallenge(
+  row: ChallengeRow,
+  currentUserId?: string
+): Challenge {
   // Format username as "Chef [Username]" or "Your Challenge" if current user
-  const displayUsername = row.created_by === currentUserId 
-    ? "Your Challenge" 
-    : `Chef ${row.created_by_username}`;
+  const displayUsername =
+    row.created_by === currentUserId
+      ? "Your Challenge"
+      : `Chef ${row.created_by_username}`;
 
   return {
     id: row.id,
@@ -34,7 +38,9 @@ function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challeng
     ingredients: row.ingredients,
     description: row.description ?? undefined,
     pinned: false, // Pinned state is per-user, stored locally
-    image: row.image_url ? { uri: row.image_url } : require("@/assets/images/placeholder.jpg"),
+    image: row.image_url
+      ? { uri: row.image_url }
+      : require("@/assets/images/placeholder.jpg"),
     created_at: row.created_at,
     created_by: row.created_by,
     created_by_username: displayUsername,
@@ -53,13 +59,18 @@ export default function ChallengeScreen() {
 
   // Filter states
   const [unifiedSearch, setUnifiedSearch] = useState("");
-  const [selectedDifficulty, setSelectedDifficulty] = useState<("Easy" | "Medium" | "Hard")[]>([]);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<
+    ("Easy" | "Medium" | "Hard")[]
+  >([]);
   const [maxTimeMinutes, setMaxTimeMinutes] = useState<number[]>([]);
   const [selectedIngredients, setSelectedIngredients] = useState<string[]>([]);
-  const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
-  
+  const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] =
+    useState<string[]>([]);
+
   // Modal states
-  const [modalVisible, setModalVisible] = useState<"difficulty" | "time" | "ingredients" | "dietary" | null>(null);
+  const [modalVisible, setModalVisible] = useState<
+    "difficulty" | "time" | "ingredients" | "dietary" | null
+  >(null);
   const [ingredientInput, setIngredientInput] = useState("");
   const [dietaryInput, setDietaryInput] = useState("");
 
@@ -67,7 +78,9 @@ export default function ChallengeScreen() {
   const loadChallenges = useCallback(async () => {
     try {
       // Get current user ID
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setCurrentUserId(user?.id);
 
       // Fetch challenges
@@ -78,7 +91,7 @@ export default function ChallengeScreen() {
       }
 
       if (data) {
-        const convertedChallenges = data.map((row: ChallengeRow) => 
+        const convertedChallenges = data.map((row: ChallengeRow) =>
           convertToChallenge(row, user?.id)
         );
         setChallenges(convertedChallenges);
@@ -114,18 +127,19 @@ export default function ChallengeScreen() {
           table: "challenges",
         },
         async (payload) => {
-
           if (payload.eventType === "INSERT") {
             // New challenge added - fetch the full challenge data to ensure all fields are present
             const { data: fullChallenge, error } = await supabase
               .from("challenges")
-              .select(`
+              .select(
+                `
                 *,
                 submissions(id)
-              `)
+              `
+              )
               .eq("id", payload.new.id)
               .single();
-            
+
             if (fullChallenge && !error) {
               const challengeWithCount = {
                 ...fullChallenge,
@@ -138,7 +152,7 @@ export default function ChallengeScreen() {
               );
               setChallenges((prev) => {
                 // Check if challenge already exists to avoid duplicates
-                const exists = prev.some(c => c.id === newChallenge.id);
+                const exists = prev.some((c) => c.id === newChallenge.id);
                 if (exists) return prev;
                 return [newChallenge, ...prev];
               });
@@ -150,11 +164,15 @@ export default function ChallengeScreen() {
               currentUserId
             );
             setChallenges((prev) =>
-              prev.map((c) => (c.id === updatedChallenge.id ? updatedChallenge : c))
+              prev.map((c) =>
+                c.id === updatedChallenge.id ? updatedChallenge : c
+              )
             );
           } else if (payload.eventType === "DELETE") {
             // Challenge deleted
-            setChallenges((prev) => prev.filter((c) => c.id !== payload.old.id));
+            setChallenges((prev) =>
+              prev.filter((c) => c.id !== payload.old.id)
+            );
           }
         }
       )
@@ -167,17 +185,17 @@ export default function ChallengeScreen() {
         },
         async (payload) => {
           // Update submission count for the affected challenge
-          const challengeId = 
-            payload.eventType === "DELETE" 
-              ? payload.old.challenge_id 
+          const challengeId =
+            payload.eventType === "DELETE"
+              ? payload.old.challenge_id
               : payload.new.challenge_id;
-          
+
           if (challengeId) {
             const { count } = await supabase
               .from("submissions")
               .select("*", { count: "exact", head: true })
               .eq("challenge_id", challengeId);
-            
+
             setChallenges((prev) =>
               prev.map((c) =>
                 c.id === challengeId
@@ -203,26 +221,34 @@ export default function ChallengeScreen() {
       if (unifiedSearch) {
         const searchLower = unifiedSearch.toLowerCase();
         const titleMatch = challenge.title.toLowerCase().includes(searchLower);
-        
+
         // Allow searching for own challenges with keywords like "me", "my", "mine", "your"
-        const isOwnChallengeKeyword = ["me", "my", "mine", "your"].some(keyword => 
-          searchLower.includes(keyword)
+        const isOwnChallengeKeyword = ["me", "my", "mine", "your"].some(
+          (keyword) => searchLower.includes(keyword)
         );
         const isOwnChallenge = challenge.created_by === currentUserId;
-        
+
         let creatorMatch = false;
         if (isOwnChallengeKeyword && isOwnChallenge) {
           creatorMatch = true;
         } else {
-          creatorMatch = challenge.created_by_username?.toLowerCase().includes(searchLower) || false;
+          creatorMatch =
+            challenge.created_by_username
+              ?.toLowerCase()
+              .includes(searchLower) || false;
         }
-        
+
         // Show challenge if either title or creator matches
         if (!titleMatch && !creatorMatch) return false;
       }
 
       // Difficulty filter (multi-select)
-      if (selectedDifficulty.length > 0 && !selectedDifficulty.includes(challenge.difficulty as "Easy" | "Medium" | "Hard")) {
+      if (
+        selectedDifficulty.length > 0 &&
+        !selectedDifficulty.includes(
+          challenge.difficulty as "Easy" | "Medium" | "Hard"
+        )
+      ) {
         return false;
       }
 
@@ -231,46 +257,64 @@ export default function ChallengeScreen() {
         // Parse time limit (assumes format like "30 minutes" or "1 hour")
         const timeLimitLower = challenge.timeLimit.toLowerCase();
         let challengeMinutes = 0;
-        
+
         if (timeLimitLower.includes("hour")) {
           const hours = parseFloat(timeLimitLower);
           challengeMinutes = hours * 60;
         } else if (timeLimitLower.includes("minute")) {
           challengeMinutes = parseFloat(timeLimitLower);
         }
-        
+
         // Check if challenge time exactly matches any of the selected times
-        const matchesAnyTime = maxTimeMinutes.some(maxTime => challengeMinutes === maxTime);
+        const matchesAnyTime = maxTimeMinutes.some(
+          (maxTime) => challengeMinutes === maxTime
+        );
         if (!matchesAnyTime) return false;
       }
 
       // Ingredient search (multi-select)
       if (selectedIngredients.length > 0) {
         // Check if challenge has at least one of the selected ingredients
-        const hasMatchingIngredient = selectedIngredients.some((selectedIng) => {
-          const selectedLower = selectedIng.toLowerCase();
-          return challenge.ingredients.some((ing) =>
-            ing.toLowerCase().includes(selectedLower)
-          );
-        });
+        const hasMatchingIngredient = selectedIngredients.some(
+          (selectedIng) => {
+            const selectedLower = selectedIng.toLowerCase();
+            return challenge.ingredients.some((ing) =>
+              ing.toLowerCase().includes(selectedLower)
+            );
+          }
+        );
         if (!hasMatchingIngredient) return false;
       }
 
       // Dietary restrictions filter
       if (selectedDietaryRestrictions.length > 0) {
         const challengeRestrictions = challenge.dietary_restrictions || [];
-        const hasAllRestrictions = selectedDietaryRestrictions.every((restriction) =>
-          challengeRestrictions.includes(restriction)
+        const hasAllRestrictions = selectedDietaryRestrictions.every(
+          (restriction) => challengeRestrictions.includes(restriction)
         );
         if (!hasAllRestrictions) return false;
       }
 
       return true;
     });
-  }, [challenges, unifiedSearch, selectedDifficulty, maxTimeMinutes, selectedIngredients, selectedDietaryRestrictions, currentUserId]);
+  }, [
+    challenges,
+    unifiedSearch,
+    selectedDifficulty,
+    maxTimeMinutes,
+    selectedIngredients,
+    selectedDietaryRestrictions,
+    currentUserId,
+  ]);
 
   // Common dietary restrictions for filtering
-  const commonDietaryRestrictions = ["Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free"];
+  const commonDietaryRestrictions = [
+    "Vegetarian",
+    "Vegan",
+    "Gluten-Free",
+    "Dairy-Free",
+    "Nut-Free",
+  ];
 
   // Time limit options in minutes
   const timeLimitOptions = [
@@ -297,7 +341,9 @@ export default function ChallengeScreen() {
   };
 
   const removeDietaryRestriction = (restriction: string) => {
-    setSelectedDietaryRestrictions(selectedDietaryRestrictions.filter((r) => r !== restriction));
+    setSelectedDietaryRestrictions(
+      selectedDietaryRestrictions.filter((r) => r !== restriction)
+    );
   };
 
   const clearAllFilters = () => {
@@ -324,9 +370,10 @@ export default function ChallengeScreen() {
   };
 
   const removeIngredient = (ingredient: string) => {
-    setSelectedIngredients(selectedIngredients.filter((ing) => ing !== ingredient));
+    setSelectedIngredients(
+      selectedIngredients.filter((ing) => ing !== ingredient)
+    );
   };
-
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -349,7 +396,11 @@ export default function ChallengeScreen() {
           />
           {unifiedSearch ? (
             <TouchableOpacity onPress={() => setUnifiedSearch("")}>
-              <Ionicons name="close-circle" size={20} color={Colors.palette.dark} />
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={Colors.palette.dark}
+              />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -360,8 +411,8 @@ export default function ChallengeScreen() {
         <View style={styles.filtersHeaderRow}>
           <Text style={styles.filtersSectionLabel}>Filters</Text>
           {hasActiveFilters ? (
-            <TouchableOpacity 
-              onPress={clearAllFilters} 
+            <TouchableOpacity
+              onPress={clearAllFilters}
               style={styles.clearFiltersButtonInline}
             >
               <Text style={styles.clearFiltersTextInline}>Clear All</Text>
@@ -378,67 +429,93 @@ export default function ChallengeScreen() {
           style={styles.filtersScrollView}
           contentContainerStyle={styles.filtersScrollContent}
         >
-        {/* Difficulty Filter */}
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            selectedDifficulty.length > 0 && styles.filterChipActive,
-          ]}
-          onPress={() => setModalVisible("difficulty")}
-        >
-          <Text style={styles.filterChipText} numberOfLines={1}>
-            Difficulty{selectedDifficulty.length > 0 ? ` (${selectedDifficulty.length})` : ""}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
-        </TouchableOpacity>
+          {/* Difficulty Filter */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              selectedDifficulty.length > 0 && styles.filterChipActive,
+            ]}
+            onPress={() => setModalVisible("difficulty")}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              Difficulty
+              {selectedDifficulty.length > 0
+                ? ` (${selectedDifficulty.length})`
+                : ""}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
 
-        {/* Time Limit Filter */}
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            maxTimeMinutes.length > 0 && styles.filterChipActive,
-          ]}
-          onPress={() => setModalVisible("time")}
-        >
-          <Text style={styles.filterChipText} numberOfLines={1}>
-            Time Limit{maxTimeMinutes.length > 0 ? ` (${maxTimeMinutes.length})` : ""}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
-        </TouchableOpacity>
+          {/* Time Limit Filter */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              maxTimeMinutes.length > 0 && styles.filterChipActive,
+            ]}
+            onPress={() => setModalVisible("time")}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              Time Limit
+              {maxTimeMinutes.length > 0 ? ` (${maxTimeMinutes.length})` : ""}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
 
-        {/* Ingredient Search Filter */}
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            selectedIngredients.length > 0 && styles.filterChipActive,
-          ]}
-          onPress={() => {
-            setModalVisible("ingredients");
-            setIngredientInput("");
-          }}
-        >
-          <Text style={styles.filterChipText} numberOfLines={1}>
-            Ingredients{selectedIngredients.length > 0 ? ` (${selectedIngredients.length})` : ""}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
-        </TouchableOpacity>
+          {/* Ingredient Search Filter */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              selectedIngredients.length > 0 && styles.filterChipActive,
+            ]}
+            onPress={() => {
+              setModalVisible("ingredients");
+              setIngredientInput("");
+            }}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              Ingredients
+              {selectedIngredients.length > 0
+                ? ` (${selectedIngredients.length})`
+                : ""}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
 
-        {/* Dietary Restrictions Filter */}
-        <TouchableOpacity
-          style={[
-            styles.filterChip,
-            selectedDietaryRestrictions.length > 0 && styles.filterChipActive,
-          ]}
-          onPress={() => {
-            setModalVisible("dietary");
-            setDietaryInput("");
-          }}
-        >
-          <Text style={styles.filterChipText} numberOfLines={1}>
-            Dietary{selectedDietaryRestrictions.length > 0 ? ` (${selectedDietaryRestrictions.length})` : ""}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={Colors.palette.darkest} />
-        </TouchableOpacity>
+          {/* Dietary Restrictions Filter */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              selectedDietaryRestrictions.length > 0 && styles.filterChipActive,
+            ]}
+            onPress={() => {
+              setModalVisible("dietary");
+              setDietaryInput("");
+            }}
+          >
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              Dietary
+              {selectedDietaryRestrictions.length > 0
+                ? ` (${selectedDietaryRestrictions.length})`
+                : ""}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
         </ScrollView>
       </View>
 
@@ -454,11 +531,18 @@ export default function ChallengeScreen() {
           activeOpacity={1}
           onPress={() => setModalVisible(null)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Difficulty</Text>
               <TouchableOpacity onPress={() => setModalVisible(null)}>
-                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={Colors.palette.darkest}
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.modalOptions}>
@@ -467,7 +551,8 @@ export default function ChallengeScreen() {
                   key={difficulty}
                   style={[
                     styles.modalOption,
-                    selectedDifficulty.includes(difficulty) && styles.modalOptionActive,
+                    selectedDifficulty.includes(difficulty) &&
+                      styles.modalOptionActive,
                   ]}
                   onPress={() => {
                     setSelectedDifficulty((prev) =>
@@ -480,13 +565,18 @@ export default function ChallengeScreen() {
                   <Text
                     style={[
                       styles.modalOptionText,
-                      selectedDifficulty.includes(difficulty) && styles.modalOptionTextActive,
+                      selectedDifficulty.includes(difficulty) &&
+                        styles.modalOptionTextActive,
                     ]}
                   >
                     {difficulty}
                   </Text>
                   {selectedDifficulty.includes(difficulty) && (
-                    <Ionicons name="checkmark" size={20} color={Colors.palette.darkest} />
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={Colors.palette.darkest}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
@@ -521,11 +611,18 @@ export default function ChallengeScreen() {
           activeOpacity={1}
           onPress={() => setModalVisible(null)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Time Limit</Text>
               <TouchableOpacity onPress={() => setModalVisible(null)}>
-                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={Colors.palette.darkest}
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.modalOptions}>
@@ -534,7 +631,8 @@ export default function ChallengeScreen() {
                   key={option.value}
                   style={[
                     styles.modalOption,
-                    maxTimeMinutes.includes(option.value) && styles.modalOptionActive,
+                    maxTimeMinutes.includes(option.value) &&
+                      styles.modalOptionActive,
                   ]}
                   onPress={() => {
                     setMaxTimeMinutes((prev) =>
@@ -547,13 +645,18 @@ export default function ChallengeScreen() {
                   <Text
                     style={[
                       styles.modalOptionText,
-                      maxTimeMinutes.includes(option.value) && styles.modalOptionTextActive,
+                      maxTimeMinutes.includes(option.value) &&
+                        styles.modalOptionTextActive,
                     ]}
                   >
                     {option.label}
                   </Text>
                   {maxTimeMinutes.includes(option.value) && (
-                    <Ionicons name="checkmark" size={20} color={Colors.palette.darkest} />
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={Colors.palette.darkest}
+                    />
                   )}
                 </TouchableOpacity>
               ))}
@@ -588,11 +691,18 @@ export default function ChallengeScreen() {
           activeOpacity={1}
           onPress={() => setModalVisible(null)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Add Ingredients</Text>
               <TouchableOpacity onPress={() => setModalVisible(null)}>
-                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={Colors.palette.darkest}
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.modalInputContainer}>
@@ -607,21 +717,27 @@ export default function ChallengeScreen() {
                 onSubmitEditing={addIngredient}
                 returnKeyType="done"
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={addIngredient}
                 style={styles.plusButton}
                 disabled={!ingredientInput.trim()}
               >
-                <Ionicons 
-                  name="add" 
-                  size={24} 
-                  color={ingredientInput.trim() ? Colors.palette.blue : Colors.palette.dark} 
+                <Ionicons
+                  name="add"
+                  size={24}
+                  color={
+                    ingredientInput.trim()
+                      ? Colors.palette.blue
+                      : Colors.palette.dark
+                  }
                 />
               </TouchableOpacity>
             </View>
             {selectedIngredients.length > 0 && (
               <View style={styles.modalIngredientsList}>
-                <Text style={styles.modalIngredientsLabel}>Selected Ingredients:</Text>
+                <Text style={styles.modalIngredientsLabel}>
+                  Selected Ingredients:
+                </Text>
                 <View style={styles.modalChipContainer}>
                   {selectedIngredients.map((ingredient) => (
                     <TouchableOpacity
@@ -629,8 +745,14 @@ export default function ChallengeScreen() {
                       style={styles.modalIngredientChip}
                       onPress={() => removeIngredient(ingredient)}
                     >
-                      <Text style={styles.modalIngredientChipText}>{ingredient}</Text>
-                      <Ionicons name="close-circle" size={18} color={Colors.palette.darkest} />
+                      <Text style={styles.modalIngredientChipText}>
+                        {ingredient}
+                      </Text>
+                      <Ionicons
+                        name="close-circle"
+                        size={18}
+                        color={Colors.palette.darkest}
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -669,11 +791,18 @@ export default function ChallengeScreen() {
           activeOpacity={1}
           onPress={() => setModalVisible(null)}
         >
-          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Dietary Restrictions</Text>
               <TouchableOpacity onPress={() => setModalVisible(null)}>
-                <Ionicons name="close" size={24} color={Colors.palette.darkest} />
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={Colors.palette.darkest}
+                />
               </TouchableOpacity>
             </View>
             <View style={styles.modalInputContainer}>
@@ -688,15 +817,19 @@ export default function ChallengeScreen() {
                 onSubmitEditing={addDietaryRestriction}
                 returnKeyType="done"
               />
-              <TouchableOpacity 
+              <TouchableOpacity
                 onPress={addDietaryRestriction}
                 style={styles.plusButton}
                 disabled={!dietaryInput.trim()}
               >
-                <Ionicons 
-                  name="add" 
-                  size={24} 
-                  color={dietaryInput.trim() ? Colors.palette.blue : Colors.palette.dark} 
+                <Ionicons
+                  name="add"
+                  size={24}
+                  color={
+                    dietaryInput.trim()
+                      ? Colors.palette.blue
+                      : Colors.palette.dark
+                  }
                 />
               </TouchableOpacity>
             </View>
@@ -707,7 +840,8 @@ export default function ChallengeScreen() {
                     key={restriction}
                     style={[
                       styles.modalChip,
-                      selectedDietaryRestrictions.includes(restriction) && styles.modalChipActive,
+                      selectedDietaryRestrictions.includes(restriction) &&
+                        styles.modalChipActive,
                     ]}
                     onPress={() => toggleDietaryRestriction(restriction)}
                   >
@@ -721,7 +855,11 @@ export default function ChallengeScreen() {
                       {restriction}
                     </Text>
                     {selectedDietaryRestrictions.includes(restriction) && (
-                      <Ionicons name="checkmark" size={16} color={Colors.palette.darkest} />
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={Colors.palette.darkest}
+                      />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -729,7 +867,9 @@ export default function ChallengeScreen() {
             </ScrollView>
             {selectedDietaryRestrictions.length > 0 && (
               <View style={styles.modalIngredientsList}>
-                <Text style={styles.modalIngredientsLabel}>Selected Dietary Restrictions:</Text>
+                <Text style={styles.modalIngredientsLabel}>
+                  Selected Dietary Restrictions:
+                </Text>
                 <View style={styles.modalChipContainer}>
                   {selectedDietaryRestrictions.map((restriction) => (
                     <TouchableOpacity
@@ -737,8 +877,14 @@ export default function ChallengeScreen() {
                       style={styles.modalIngredientChip}
                       onPress={() => removeDietaryRestriction(restriction)}
                     >
-                      <Text style={styles.modalIngredientChipText}>{restriction}</Text>
-                      <Ionicons name="close-circle" size={18} color={Colors.palette.darkest} />
+                      <Text style={styles.modalIngredientChipText}>
+                        {restriction}
+                      </Text>
+                      <Ionicons
+                        name="close-circle"
+                        size={18}
+                        color={Colors.palette.darkest}
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -770,7 +916,11 @@ export default function ChallengeScreen() {
         data={filteredChallenges}
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: Colors.palette.light }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 100 }}
+        contentContainerStyle={{
+          paddingHorizontal: 20,
+          paddingTop: 15,
+          paddingBottom: 10,
+        }}
         ListHeaderComponent={null}
         ListEmptyComponent={
           isLoading ? (
@@ -781,7 +931,9 @@ export default function ChallengeScreen() {
           ) : (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>
-                {hasActiveFilters ? "No challenges match your filters" : "No challenges yet!"}
+                {hasActiveFilters
+                  ? "No challenges match your filters"
+                  : "No challenges yet!"}
               </Text>
               <Text style={styles.emptySubText}>
                 {hasActiveFilters
@@ -807,7 +959,7 @@ export default function ChallengeScreen() {
               <View style={styles.card}>
                 {/* Large Hero Image */}
                 <Image source={item.image} style={styles.cardImage} />
-                
+
                 {/* Card Content */}
                 <View style={styles.cardContent}>
                   {/* Left: Title and Chef Name */}
@@ -837,16 +989,16 @@ export default function ChallengeScreen() {
           );
         }}
       />
-      
+
       {/* Floating Add Button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.floatingAddButton}
         onPress={() => router.push("/(modals)/addChallenge")}
       >
         <MaterialCommunityIcons
           name="plus"
-          size={28}
-          color="white"
+          size={30}
+          color={Colors.palette.darkest}
         />
       </TouchableOpacity>
     </SafeAreaView>
@@ -892,10 +1044,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   floatingAddButton: {
     position: "absolute",
@@ -937,8 +1088,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: 12,
+    paddingBottom: 3,
     backgroundColor: Colors.palette.light,
     gap: 10,
   },
@@ -955,7 +1106,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 4,
-    paddingBottom: 4,
+    paddingBottom: 2,
   },
   filtersSectionLabel: {
     fontFamily: "Poppins_600SemiBold",
@@ -1207,7 +1358,6 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
   },
 
-
   // Cards
   card: {
     backgroundColor: Colors.palette.lightest,
@@ -1238,8 +1388,8 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cardTitle: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 24,
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 22,
     color: Colors.palette.darkest,
     lineHeight: 26,
   },
@@ -1276,10 +1426,10 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   statCount: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_500Medium",
     fontSize: 18,
     color: Colors.palette.darkest,
-    lineHeight: 20,
+    lineHeight: 23,
   },
   statLabel: {
     fontFamily: "Poppins_500Medium",
