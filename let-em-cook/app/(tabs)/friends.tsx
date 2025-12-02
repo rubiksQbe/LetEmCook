@@ -1,97 +1,194 @@
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { FlatList, Image, StyleSheet, Text, View } from "react-native";
+import {
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Colors from "@/constants/Colors";
 import { supabase } from "@/lib/supabase";
 
-type Friend = {
+// Define your local image assets map
+const LocalAvatars: { [key: string]: any } = {
+  dipsy: require("../../assets/images/mouse-assets/dipsy.png"),
+  laalaa: require("../../assets/images/mouse-assets/laalaa.png"),
+  po: require("../../assets/images/mouse-assets/po.png"),
+  macaroni: require("../../assets/images/mouse-assets/macaroni.png"),
+};
+
+// Define the shape of a single challenge row from the 'challenges' table
+type Challenge = {
   id: string;
-  username?: string | null;
-  avatar_url?: string | number | null;
-  current_challenge_name?: string | null;
-  current_challenge_image?: string | null;
-  [key: string]: any;
+  title: string | null; // Assuming your challenge name is 'title'
+  image_url: string | null; // Assuming your challenge image is 'image_url'
+  // Add other challenge fields here if needed
+};
+
+// Define the shape of a friend's profile, including the nested challenge data
+type FriendProfile = {
+  id: string;
+  username: string | null;
+  avatar: string | null; // Renamed from avatar_url to match your table column 'avatar'
+  // curr_chal will now be the full Challenge object via the join, or null
+  curr_chal: Challenge | null;
+};
+
+type Friend = FriendProfile & {
+  current_challenge_name: string | null;
+  current_challenge_image: string | null;
 };
 
 export default function FriendScreen() {
-  const [userName, setUserName] = useState<string | null>("Current User");
+  const [userName, setUserName] = useState<string | null>(null);
+  const [friends, setFriends] = useState<Friend[]>([]); // Initialize as empty array
+  const [loading, setLoading] = useState(true);
 
-  // Placeholder friends (removed duplicates)
-  const [friends] = useState<Friend[]>([
-    {
-      id: "1",
-      username: "Laa-laa",
-      avatar_url: require("../../assets/images/mouse-assets/laalaa.png"),
-      current_challenge_name: "Placeholder Challenge",
-      current_challenge_image: null,
-    },
-    {
-      id: "2",
-      username: "Po",
-      avatar_url: require("../../assets/images/mouse-assets/po.png"),
-      current_challenge_name: "Placeholder Challenge",
-      current_challenge_image: null,
-    },
-    {
-      id: "3",
-      username: "Dipsy",
-      avatar_url: require("../../assets/images/mouse-assets/dipsy.png"),
-      current_challenge_name: "Placeholder Challenge",
-      current_challenge_image: null,
-    },
-  ]);
+  // Function to map the complex Supabase result into the simple Friend array for FlatList
+  const mapToFriend = (profile: FriendProfile): Friend => ({
+    ...profile,
+    current_challenge_name: profile.curr_chal?.title ?? "None",
+    current_challenge_image: profile.curr_chal?.image_url ?? null,
+  });
 
+  // ... (useEffect loadData and fetching logic unchanged) ...
   useEffect(() => {
     let mounted = true;
-    async function loadUser() {
+    async function loadData() {
       try {
-        const { data } = await supabase.auth.getUser();
-        const user = data?.user;
-        const username = user?.user_metadata?.username ?? user?.email ?? null;
+        setLoading(true);
+        // 1. Get the current user's ID and username
+        const { data: userData, error: userError } =
+          await supabase.auth.getUser();
+        if (userError) throw userError;
+        const myUserId = userData?.user?.id;
+
+        const username =
+          userData?.user?.user_metadata?.username ??
+          userData?.user?.email ??
+          null;
         if (mounted && username) setUserName(username);
+
+        // 2. TEMPORARILY Fetch ALL profiles, excluding the current user
+        // We select the profile data and deep-join to the challenges table.
+        const { data: profileData, error: profilesError } = await supabase
+          .from("profiles")
+          .select(
+            `
+            id,
+            username,
+            avatar,
+            curr_chal:challenges (id, title, image_url)
+          `
+          )
+          .neq("id", myUserId); // IMPORTANT: Exclude the current user from the list
+
+        if (profilesError) throw profilesError;
+
+        // 3. Process the results
+        const friendProfiles: Friend[] = (profileData ?? []).map(
+          (profileRow) => {
+            // Map the joined profile data to the final Friend type for rendering
+            return mapToFriend(profileRow as FriendProfile);
+          }
+        );
+
+        if (mounted) {
+          setFriends(friendProfiles);
+        }
       } catch (e) {
-        console.error("Error fetching current user:", e);
+        console.error("Error fetching data:", e);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
-    loadUser();
+    loadData();
     return () => {
       mounted = false;
     };
   }, []);
 
   function renderFriend({ item }: { item: Friend }) {
-    const isLocalImage = typeof item.avatar_url === "number";
+    const isLocalKey = item.avatar && LocalAvatars.hasOwnProperty(item.avatar);
+
+    const avatarSource = isLocalKey
+      ? LocalAvatars[item.avatar] // Use the mapped 'require()' result
+      : item.avatar
+      ? { uri: item.avatar } // Otherwise, treat it as a remote URI
+      : require("../../assets/images/placeholder.jpg");
+
+    // Note: The challenge image is also a remote URL from the 'challenges' table
+    const challengeImageSource = item.current_challenge_image
+      ? { uri: item.current_challenge_image }
+      : require("../../assets/images/placeholder.jpg");
+
+    const challengeIsPresent = !!item.curr_chal?.id; // Check if a challenge ID exists
+
+    // Function to handle the press event
+    const handleCardPress = () => {
+      if (!challengeIsPresent || !item.curr_chal) {
+        // If no current challenge, do nothing
+        return;
+      }
+
+      // Navigate to the challenge details page
+      router.push({
+        pathname: "/challenges/[id]",
+        params: {
+          id: item.curr_chal.id,
+          // Since the ChallengeDetailScreen expects a full 'challenge' object in params,
+          // we must construct it or rely on the detail screen to fetch it.
+          // For now, let's use the ID and assume the detail screen can fetch the rest.
+          // The other Challenge screen ([id].tsx) seems to rely on JSON.parse(params.challenge)
+          // so we'll pass the friend's simplified challenge data.
+          challenge: JSON.stringify({
+            id: item.curr_chal.id,
+            title: item.current_challenge_name,
+            image_url: item.current_challenge_image,
+            // NOTE: The ChallengeDetailScreen ([id].tsx) needs more fields (timeLimit, ingredients, etc.)
+            // which are NOT available in the 'Friend' type. You will need to update the
+            // ChallengeDetailScreen to fetch the full challenge data by ID if it's missing.
+            // For now, this is the best we can do with available data.
+          }),
+        },
+      });
+    };
+
     return (
-      <View style={styles.friendRow}>
+      // 2. Wrap the whole row with TouchableOpacity
+      <TouchableOpacity
+        onPress={handleCardPress}
+        disabled={!challengeIsPresent} // Disable press if no challenge is set
+        activeOpacity={challengeIsPresent ? 0.8 : 1.0} // Change opacity only if clickable
+        style={styles.friendRow} // Apply the row style to the TouchableOpacity
+      >
         <View style={styles.friendAvatarColumn}>
-          <Image
-            source={
-              isLocalImage
-                ? item.avatar_url
-                : item.avatar_url
-                ? { uri: item.avatar_url as string }
-                : require("../../assets/images/placeholder.jpg")
-            }
-            style={styles.avatar}
-          />
+          <Image source={avatarSource} style={styles.avatar} />
           <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
         </View>
         <View style={styles.challengeCard}>
           <Image
-            source={
-              item.current_challenge_image
-                ? { uri: item.current_challenge_image }
-                : require("../../assets/images/placeholder.jpg")
-            }
-            style={styles.challengeImage}
+            source={challengeImageSource}
+            style={[
+              styles.challengeImage,
+              // Dim the image slightly if it's not clickable/no challenge is set
+              !challengeIsPresent && { opacity: 0.5 },
+            ]}
           />
           <Text style={styles.challengeLabel}>
-            {`Current challenge: ${item.current_challenge_name ?? "None"}`}
+            {challengeIsPresent
+              ? `Current challenge: ${item.current_challenge_name}`
+              : "No current challenge..."}
           </Text>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -112,17 +209,14 @@ export default function FriendScreen() {
             friends.length === 0 ? styles.emptyList : styles.listContent
           }
           ListHeaderComponent={() => (
-            <View style={styles.userHeaderContainer}>
+            <View style={styles.userHeader}>
               <Image
                 source={require("../../assets/images/mouse-assets/macaroni.png")}
                 style={styles.userAvatar}
               />
-              <View style={styles.speechBubble}>
-                <Text style={styles.greeting}>
-                  {userName ? `Hi, ${userName}!` : "Hi!"}
-                </Text>
-                <View style={styles.speechBubbleTail} />
-              </View>
+              <Text style={styles.greeting}>
+                {userName ? `Hi, ${userName}!` : "Hi!"}
+              </Text>
             </View>
           )}
           ListEmptyComponent={() => (
@@ -145,13 +239,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
-    paddingBottom: 8,
+    paddingBottom: 14,
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 28,
+    fontFamily: "Poppins_700Bold",
+    fontSize: 34,
     color: Colors.palette.darkest,
+    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
@@ -160,51 +255,26 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  userHeaderContainer: {
+  userHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 20,
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingVertical: 16,
+    backgroundColor: Colors.palette.blue,
+    borderRadius: 12,
   },
   userAvatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     marginRight: 12,
     backgroundColor: Colors.palette.lightest,
   },
-  speechBubble: {
-    flex: 1,
-    backgroundColor: Colors.palette.lightest,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginTop: 8,
-    position: "relative",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  speechBubbleTail: {
-    position: "absolute",
-    left: -8,
-    top: 20,
-    width: 0,
-    height: 0,
-    borderTopWidth: 8,
-    borderTopColor: "transparent",
-    borderBottomWidth: 8,
-    borderBottomColor: "transparent",
-    borderRightWidth: 8,
-    borderRightColor: Colors.palette.lightest,
-  },
   greeting: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    color: Colors.palette.darkest,
+    color: Colors.palette.lightest,
     fontFamily: "Poppins_700Bold",
   },
   friendRow: {
@@ -230,12 +300,12 @@ const styles = StyleSheet.create({
     height: 84,
     borderRadius: 8,
     backgroundColor: Colors.palette.lightest,
-    opacity: 0.35,
+    //opacity: 0.35,
     resizeMode: "cover",
   },
   challengeLabel: {
     marginTop: 8,
-    fontSize: 15,
+    fontSize: 14,
     color: Colors.palette.darkest,
     textAlign: "center",
   },

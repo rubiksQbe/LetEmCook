@@ -59,7 +59,6 @@ function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challeng
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
-
   let challenge: Challenge | null = null;
   try {
     challenge = params.challenge
