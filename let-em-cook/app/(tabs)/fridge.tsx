@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,11 +19,18 @@ interface Challenge {
   image_url?: string | null;
 }
 
+interface ChallengeWithSubmission extends Challenge {
+  submissionImage: string;
+}
+
 export default function FridgeScreen() {
   const [pinnedChallenge, setPinnedChallenge] = useState<Challenge | null>(
     null
   );
-  const [historyChallenges, setHistoryChallenges] = useState<Challenge[]>([]);
+  const [historyChallenges, setHistoryChallenges] = useState<
+    ChallengeWithSubmission[]
+  >([]);
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,24 +53,31 @@ export default function FridgeScreen() {
         const pinned = allChallenges.find((c) => c.id === pinnedId) || null;
 
         // 4️⃣ Filter history: only challenges where user submitted
-        const historyWithSubmission = await Promise.all(
-          allChallenges
-            .filter((c) => c.id !== pinnedId)
-            .map(async (challenge) => {
-              const { data: submissions } = await supabase
-                .from("submissions")
-                .select("id")
-                .eq("challenge_id", challenge.id)
-                .eq("user_id", user.id);
+        const historyWithSubmission: ChallengeWithSubmission[] = (
+          await Promise.all(
+            allChallenges
+              .filter((c) => c.id !== pinnedId)
+              .map(async (challenge) => {
+                const { data: submissions } = await supabase
+                  .from("submissions")
+                  .select("image_url") // fetch the image
+                  .eq("challenge_id", challenge.id)
+                  .eq("user_id", user.id)
+                  .limit(1);
 
-              return submissions?.length ? challenge : null;
-            })
-        );
-
-        const history = historyWithSubmission.filter(Boolean) as Challenge[];
+                if (submissions?.length) {
+                  return {
+                    ...challenge,
+                    submissionImage: submissions[0].image_url as string, // include user's image
+                  };
+                }
+                return null;
+              })
+          )
+        ).filter(Boolean) as ChallengeWithSubmission[];
 
         setPinnedChallenge(pinned);
-        setHistoryChallenges(history);
+        setHistoryChallenges(historyWithSubmission);
       } catch (error) {
         console.error("Error loading fridge data:", error);
       } finally {
@@ -75,7 +90,13 @@ export default function FridgeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView
+        style={{
+          backgroundColor: Colors.palette.light,
+          flex: 1,
+          justifyContent: "center",
+        }}
+      >
         <ActivityIndicator size="large" color={Colors.palette.darkest} />
       </SafeAreaView>
     );
@@ -144,9 +165,22 @@ export default function FridgeScreen() {
                 paddingHorizontal: 50,
               }}
               scrollEnabled={false}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: ChallengeWithSubmission }) => (
                 <View style={styles.polaroidHistory}>
                   <View style={styles.magnet} />
+
+                  {item.submissionImage && (
+                    <Image
+                      source={{ uri: item.submissionImage }}
+                      style={{
+                        width: 130,
+                        height: 100,
+                        marginBottom: 5,
+                      }}
+                      resizeMode="cover"
+                    />
+                  )}
+
                   <View style={styles.polaroidBody}>
                     <Text style={styles.polaroidCaption}>{item.title}</Text>
                   </View>
@@ -201,7 +235,7 @@ const styles = StyleSheet.create({
     marginBottom: -200,
   },
   freezerSection: {
-    height: 200, // fixed height for top part
+    height: 180, // fixed height for top part
     alignItems: "center",
     justifyContent: "center",
     position: "relative", // allow absolute children
@@ -247,17 +281,18 @@ const styles = StyleSheet.create({
   polaroidBody: {
     flex: 1,
     justifyContent: "flex-end",
-    paddingBottom: 15,
+    paddingBottom: 5,
   },
   polaroidCaption: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: "Poppins_500Medium",
     color: Colors.palette.darkest,
     textAlign: "center",
+    lineHeight: 16,
   },
   magnet: {
     position: "absolute",
-    top: -12,
+    top: -20,
     width: 36,
     height: 36,
     borderRadius: 18,
