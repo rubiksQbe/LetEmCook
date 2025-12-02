@@ -14,10 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, Submission } from "../../../constants/types";
 import {
@@ -357,7 +354,7 @@ export default function ChallengeDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
+    <View style={{ flex: 1 }}>
       {/* Sticky Blurred Status Bar Overlay */}
       <BlurView
         intensity={80}
@@ -372,7 +369,7 @@ export default function ChallengeDetailScreen() {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={{ paddingBottom: insets.bottom }}
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
@@ -629,7 +626,7 @@ export default function ChallengeDetailScreen() {
             </Text>
             <Ionicons
               name={showSubmissions ? "chevron-up" : "chevron-down"}
-              size={24}
+              size={22}
               color={Colors.palette.darkest}
             />
           </TouchableOpacity>
@@ -810,21 +807,17 @@ export default function ChallengeDetailScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.palette.light,
   },
   scrollView: {
     flex: 1,
     backgroundColor: Colors.palette.light,
-  },
-  scrollContent: {
-    paddingBottom: 40,
   },
   container: {
     flex: 1,
@@ -1218,8 +1211,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   submissionsTitle: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 18,
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 15,
     color: Colors.palette.darkest,
   },
   submissionsList: {
