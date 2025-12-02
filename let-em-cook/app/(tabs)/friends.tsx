@@ -98,9 +98,9 @@ export default function FriendScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Page Title */}
-      <View style={styles.titleRow}>
+      {/* <View style={styles.titleRow}>
         <Text style={styles.pageTitle}>Friends</Text>
-      </View>
+      </View> */}
 
       {/* Friends List */}
       <View style={styles.content}>
@@ -137,7 +137,7 @@ export default function FriendScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   titleRow: {
     flexDirection: "row",
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.lightest,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",

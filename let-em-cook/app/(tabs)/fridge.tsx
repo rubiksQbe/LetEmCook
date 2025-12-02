@@ -104,11 +104,11 @@ export default function FridgeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.headerBackground}>
+      {/* <View style={styles.headerBackground}>
         <View style={styles.titleRow}>
           <Text style={styles.pageTitle}>Fridge</Text>
         </View>
-      </View>
+      </View> */}
 
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   /* === SAFE AREA HEADER === */
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   headerBackground: {
     backgroundColor: Colors.palette.accent,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.lightest,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",

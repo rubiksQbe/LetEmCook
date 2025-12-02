@@ -22,8 +22,10 @@ import {
   getUserChallengeVote,
   getUserSubmissionVote,
   hasUserSubmitted,
+  isChallengePinned,
   submitToChallenge,
   supabase,
+  togglePinChallenge,
   voteOnChallenge,
   voteOnSubmission,
 } from "../../../lib/supabase";
@@ -212,9 +214,48 @@ export default function ChallengeDetailScreen() {
     (sub) => sub.user_id === currentUserId
   );
 
-  const handlePin = () => {
-    // TODO: Implement pin functionality
-    console.log("Pin to fridge");
+  const [isPinned, setIsPinned] = useState(false);
+
+  // Check if challenge is pinned when component mounts or currentUserId changes
+  useEffect(() => {
+    async function checkPinned() {
+      if (!currentUserId || !displayChallenge) return;
+
+      const pinned = await isChallengePinned(
+        displayChallenge.id,
+        currentUserId
+      );
+      setIsPinned(pinned);
+    }
+
+    checkPinned();
+  }, [currentUserId, displayChallenge]);
+
+  const handlePin = async () => {
+    if (!currentUserId || !displayChallenge) return;
+
+    try {
+      const result = await togglePinChallenge(
+        currentUserId,
+        displayChallenge.id
+      );
+
+      if (result === true) {
+        setIsPinned(true);
+      } else if (result === false) {
+        // Successfully unpinned
+        setIsPinned(false);
+      } else {
+        // Error
+        Alert.alert(
+          "Error",
+          "Failed to pin/unpin challenge. Please try again."
+        );
+      }
+    } catch (error) {
+      console.error("Error handling pin:", error);
+      Alert.alert("Error", "Something went wrong while pinning/unpinning.");
+    }
   };
 
   const handleShare = () => {
@@ -446,7 +487,7 @@ export default function ChallengeDetailScreen() {
         </View>
 
         {/* Likes and Submissions Counter */}
-        <View style={styles.statsContainer}>
+        {/* <View style={styles.statsContainer}>
           <View style={styles.statSection}>
             <Text style={styles.statCount}>{netVotes}</Text>
             <Text style={styles.statLabel}>Likes</Text>
@@ -455,7 +496,7 @@ export default function ChallengeDetailScreen() {
             <Text style={styles.statCount}>{submissionCount}</Text>
             <Text style={styles.statLabel}>Submissions</Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Action Buttons */}
         <View style={styles.buttonRow}>
@@ -471,12 +512,14 @@ export default function ChallengeDetailScreen() {
 
           <TouchableOpacity style={styles.pinButton} onPress={handlePin}>
             <MaterialCommunityIcons
-              name="pin"
+              name={isPinned ? "check" : "pin"}
               size={24}
-              color={Colors.palette.darkest}
+              color={Colors.palette.lightest}
               style={{ marginRight: 8 }}
             />
-            <Text style={styles.pinButtonText}>PIN TO FRIDGE</Text>
+            <Text style={styles.pinButtonText}>
+              {isPinned ? "PINNED" : "PIN TO FRIDGE"}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -895,7 +938,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingVertical: 20,
     backgroundColor: "white",
     borderRadius: 16,
     borderLeftWidth: 6,
@@ -1025,11 +1068,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   pinButton: {
-    flex: 1,
+    flex: 3,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "white",
+    backgroundColor: Colors.palette.blue,
     paddingVertical: 14,
     borderRadius: 25,
     borderWidth: 2,
@@ -1043,11 +1086,11 @@ const styles = StyleSheet.create({
   pinButtonText: {
     fontFamily: "Poppins_700Bold",
     fontSize: 14,
-    color: Colors.palette.darkest,
+    color: Colors.palette.lightest,
     letterSpacing: 0.5,
   },
   shareButton: {
-    flex: 1,
+    flex: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

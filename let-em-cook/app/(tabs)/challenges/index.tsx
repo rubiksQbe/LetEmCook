@@ -378,9 +378,9 @@ export default function ChallengeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Page Title */}
-      <View style={styles.titleRow}>
+      {/* <View style={styles.titleRow}>
         <Text style={styles.pageTitle}>Challenges</Text>
-      </View>
+      </View> */}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -1010,7 +1010,7 @@ export default function ChallengeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
     position: "relative",
   },
   loadingContainerBackground: {
@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",
@@ -1088,8 +1088,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 3,
+    paddingTop: 15,
+    paddingBottom: 12,
     backgroundColor: Colors.palette.light,
     gap: 10,
   },
@@ -1098,20 +1098,18 @@ const styles = StyleSheet.create({
   filtersSectionContainer: {
     backgroundColor: Colors.palette.light,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.palette.darkest,
+    borderBottomColor: Colors.palette.dark,
   },
   filtersHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 2,
   },
   filtersSectionLabel: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 15,
-    color: Colors.palette.darkest,
+    color: Colors.palette.dark,
     letterSpacing: 0.3,
   },
   clearFiltersButtonInline: {
@@ -1136,15 +1134,15 @@ const styles = StyleSheet.create({
   filtersScrollContent: {
     paddingHorizontal: 20,
     paddingTop: 0,
-    paddingBottom: 12,
-    gap: 6,
+    paddingBottom: 10,
+    gap: 3,
     alignItems: "center",
   },
   filterChip: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 16,
     backgroundColor: "white",
     borderWidth: 1.5,
@@ -1427,9 +1425,9 @@ const styles = StyleSheet.create({
   },
   statCount: {
     fontFamily: "Poppins_500Medium",
-    fontSize: 18,
+    fontSize: 16,
     color: Colors.palette.darkest,
-    lineHeight: 23,
+    lineHeight: 22,
   },
   statLabel: {
     fontFamily: "Poppins_500Medium",

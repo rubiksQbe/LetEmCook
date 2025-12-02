@@ -184,10 +184,12 @@ export async function fetchChallenges() {
   try {
     const { data, error } = await supabase
       .from("challenges")
-      .select(`
+      .select(
+        `
         *,
         submissions(id)
-      `)
+      `
+      )
       .order("created_at", { ascending: false });
 
     if (data) {
@@ -633,4 +635,134 @@ async function updateSubmissionVoteCounts(submissionId: string) {
     .from("submissions")
     .update({ upvotes, downvotes })
     .eq("id", submissionId);
+}
+
+// ================= PINNED CHALLENGE FUNCTIONS =================
+
+/**
+ * Check if a specific challenge is currently pinned by a user
+ * @param challengeId - The ID of the challenge
+ * @param userId - The ID of the user
+ * @returns true if pinned, false otherwise
+ */
+export async function isChallengePinned(
+  challengeId: string,
+  userId: string
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("pinned")
+      .select("id")
+      .eq("challenge_id", challengeId)
+      .eq("user_id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      // ignore "No rows found" error
+      console.error("Error checking pinned challenge:", error);
+    }
+
+    return !!data;
+  } catch (err) {
+    console.error("Error in isChallengePinnedByUser:", err);
+    return false;
+  }
+}
+
+/**
+ * Get the currently pinned challenge (if any) for a user
+ * @param userId - The ID of the user
+ * @returns The challenge_id of the pinned challenge or null
+ */
+export async function getPinnedChallengeForUser(
+  userId: string
+): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from("pinned")
+      .select("challenge_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("Error fetching pinned challenge:", error);
+    }
+
+    return data?.challenge_id || null;
+  } catch (err) {
+    console.error("Error in getPinnedChallengeForUser:", err);
+    return null;
+  }
+}
+
+/**
+ * Toggle pin/unpin for a challenge
+ * @param userId - current user ID
+ * @param challengeId - challenge to pin/unpin
+ * @returns true if pinned, false if unpinned, null if error
+ */
+export async function togglePinChallenge(
+  userId: string,
+  challengeId: string
+): Promise<boolean | null> {
+  try {
+    // 1️⃣ Check if user already has this challenge pinned
+    const { data: existingPinned, error: selectError } = await supabase
+      .from("pinned")
+      .select("id, challenge_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (selectError && selectError.code !== "PGRST116") {
+      console.error("Error checking pinned challenge:", selectError);
+      return null;
+    }
+
+    // 2️⃣ If same challenge is already pinned → unpin
+    if (existingPinned?.challenge_id === challengeId) {
+      const { error: deleteError } = await supabase
+        .from("pinned")
+        .delete()
+        .eq("id", existingPinned.id);
+
+      if (deleteError) {
+        console.error("Error unpinning challenge:", deleteError);
+        return null;
+      }
+      return false; // unpinned
+    }
+
+    // 3️⃣ Delete old pinned challenge if exists (different challenge)
+    if (existingPinned) {
+      const { error: deleteOldError } = await supabase
+        .from("pinned")
+        .delete()
+        .eq("id", existingPinned.id);
+
+      if (deleteOldError) {
+        console.error("Error deleting old pinned challenge:", deleteOldError);
+        return null;
+      }
+    }
+
+    // 4️⃣ Insert new pinned challenge
+    const { data: newPinned, error: insertError } = await supabase
+      .from("pinned")
+      .insert({
+        user_id: userId,
+        challenge_id: challengeId,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("Error pinning challenge:", insertError);
+      return null;
+    }
+
+    return true; // pinned
+  } catch (err) {
+    console.error("Unexpected error in togglePinChallenge:", err);
+    return null;
+  }
 }
