@@ -113,14 +113,17 @@ export default function FriendScreen() {
             friends.length === 0 ? styles.emptyList : styles.listContent
           }
           ListHeaderComponent={() => (
-            <View style={styles.userHeader}>
+            <View style={styles.userHeaderContainer}>
               <Image
                 source={require("../../assets/images/mouse-assets/macaroni.png")}
                 style={styles.userAvatar}
               />
-              <Text style={styles.greeting}>
-                {userName ? `Hi, ${userName}!` : "Hi!"}
-              </Text>
+              <View style={styles.speechBubble}>
+                <Text style={styles.greeting}>
+                  {userName ? `Hi, ${userName}!` : "Hi!"}
+                </Text>
+                <View style={styles.speechBubbleTail} />
+              </View>
             </View>
           )}
           ListEmptyComponent={() => (
@@ -143,12 +146,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
-    paddingBottom: 14,
+    paddingBottom: 8,
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
     fontFamily: "Poppins_700Bold",
-    fontSize: 34,
+    fontSize: 28,
     color: Colors.palette.darkest,
     letterSpacing: -0.5,
   },
@@ -159,26 +162,51 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  userHeader: {
+  userHeaderContainer: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     marginBottom: 20,
     paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: Colors.palette.blue,
-    borderRadius: 12,
+    paddingTop: 8,
   },
   userAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     marginRight: 12,
     backgroundColor: Colors.palette.lightest,
   },
+  speechBubble: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: 8,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  speechBubbleTail: {
+    position: "absolute",
+    left: -8,
+    top: 20,
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderTopColor: "transparent",
+    borderBottomWidth: 8,
+    borderBottomColor: "transparent",
+    borderRightWidth: 8,
+    borderRightColor: Colors.palette.lightest,
+  },
   greeting: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: Colors.palette.lightest,
+    color: Colors.palette.darkest,
     fontFamily: "Poppins_700Bold",
   },
   friendRow: {
@@ -209,7 +237,7 @@ const styles = StyleSheet.create({
   },
   challengeLabel: {
     marginTop: 8,
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.palette.darkest,
     textAlign: "center",
   },
