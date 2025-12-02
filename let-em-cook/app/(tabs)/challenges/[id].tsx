@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,8 +17,9 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
-import { Challenge, Submission } from "../../../constants/types";
+import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
+  fetchChallenge,
   fetchSubmissions,
   getUserChallengeVote,
   getUserSubmissionVote,
@@ -27,6 +29,32 @@ import {
   voteOnChallenge,
   voteOnSubmission,
 } from "../../../lib/supabase";
+
+// Helper function to convert database row to Challenge interface
+function convertToChallenge(row: ChallengeRow, currentUserId?: string): Challenge {
+  const displayUsername = row.created_by === currentUserId 
+    ? "Your Challenge" 
+    : `Chef ${row.created_by_username}`;
+
+  return {
+    id: row.id,
+    title: row.title,
+    timeLimit: row.time_limit,
+    difficulty: row.difficulty,
+    ingredients: row.ingredients,
+    description: row.description ?? undefined,
+    pinned: false,
+    image: row.image_url ? { uri: row.image_url } : require("@/assets/images/placeholder.jpg"),
+    created_at: row.created_at,
+    created_by: row.created_by,
+    created_by_username: displayUsername,
+    image_url: row.image_url ?? undefined,
+    dietary_restrictions: row.dietary_restrictions ?? undefined,
+    upvotes: row.upvotes || 0,
+    downvotes: row.downvotes || 0,
+    submission_count: row.submission_count || 0,
+  };
+}
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
@@ -54,6 +82,23 @@ export default function ChallengeDetailScreen() {
 
   const [challengeData, setChallengeData] = useState<Challenge | null>(challenge);
 
+  // Function to load challenge data from database
+  const loadChallengeData = useCallback(async () => {
+    if (!challenge?.id) return;
+
+    try {
+      const { data, error } = await fetchChallenge(challenge.id);
+      if (data && !error) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const convertedChallenge = convertToChallenge(data as ChallengeRow, user?.id);
+        setChallengeData(convertedChallenge);
+        setIsCreator(user?.id === convertedChallenge.created_by);
+      }
+    } catch (error) {
+      console.error("Error loading challenge data:", error);
+    }
+  }, [challenge?.id]);
+
   useEffect(() => {
     async function init() {
       if (!challenge) return;
@@ -61,24 +106,39 @@ export default function ChallengeDetailScreen() {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id);
-      setIsCreator(user?.id === challenge.created_by);
 
-      // Check if user has submitted
+      // Load user's vote on the challenge
       if (user) {
-        const submitted = await hasUserSubmitted(challenge.id);
-        setHasSubmitted(submitted);
-
-        // Get user's vote on challenge
         const vote = await getUserChallengeVote(challenge.id);
         setUserChallengeVote(vote);
       }
 
-      // Load submissions
-      loadSubmissions();
+      // Load fresh challenge data from database and other data in parallel
+      await Promise.all([
+        loadChallengeData(),
+        user ? hasUserSubmitted(challenge.id).then(setHasSubmitted) : Promise.resolve(),
+        loadSubmissions(),
+      ]);
     }
 
     init();
-  }, [challenge?.id]);
+  }, [challenge?.id, loadChallengeData]);
+
+  // Refetch challenge data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      async function refreshData() {
+        // Reload user's vote on the challenge
+        if (challenge?.id) {
+          const vote = await getUserChallengeVote(challenge.id);
+          setUserChallengeVote(vote);
+        }
+        // Then load challenge data
+        await loadChallengeData();
+      }
+      refreshData();
+    }, [loadChallengeData, challenge?.id])
+  );
 
   // Real-time subscription for submissions
   useEffect(() => {
@@ -99,6 +159,7 @@ export default function ChallengeDetailScreen() {
           if (payload.eventType === "INSERT") {
             // New submission added
             const newSubmission = payload.new as any;
+            // Load user vote for new submission
             const userVote = await getUserSubmissionVote(newSubmission.id);
             setSubmissions((prev) => [
               { ...newSubmission, user_vote: userVote },
@@ -107,11 +168,11 @@ export default function ChallengeDetailScreen() {
           } else if (payload.eventType === "UPDATE") {
             // Submission updated (image or votes)
             const updatedSubmission = payload.new as any;
-            const userVote = await getUserSubmissionVote(updatedSubmission.id);
+            // Preserve user vote when updating submission
             setSubmissions((prev) =>
               prev.map((sub) =>
                 sub.id === updatedSubmission.id
-                  ? { ...updatedSubmission, user_vote: userVote }
+                  ? { ...updatedSubmission, user_vote: sub.user_vote }
                   : sub
               )
             );
@@ -130,7 +191,7 @@ export default function ChallengeDetailScreen() {
     };
   }, [challenge?.id]);
 
-  // Real-time subscription for challenge updates (image changes)
+  // Real-time subscription for challenge updates (image changes, vote counts)
   useEffect(() => {
     if (!challenge) return;
 
@@ -147,7 +208,7 @@ export default function ChallengeDetailScreen() {
         async (payload) => {
           const updatedChallenge = payload.new as any;
           
-          // Update challenge data (especially image_url)
+          // Update challenge data (image_url, vote counts, etc.)
           setChallengeData((prev) => {
             if (!prev) return prev;
             return {
@@ -162,12 +223,13 @@ export default function ChallengeDetailScreen() {
           });
         }
       )
+      // Voting removed - no longer subscribing to challenge_votes changes
       .subscribe();
 
     return () => {
       supabase.removeChannel(challengeChannel);
     };
-  }, [challenge?.id]);
+  }, [challenge?.id, loadChallengeData, currentUserId]);
 
   async function loadSubmissions() {
     if (!challenge) return;
@@ -175,11 +237,14 @@ export default function ChallengeDetailScreen() {
     setIsLoadingSubmissions(true);
     const { data, error } = await fetchSubmissions(challenge.id);
     if (data) {
-      // Get user votes for each submission
+      // Load user votes for each submission
       const submissionsWithVotes = await Promise.all(
         data.map(async (sub) => {
           const userVote = await getUserSubmissionVote(sub.id);
-          return { ...sub, user_vote: userVote };
+          return {
+            ...sub,
+            user_vote: userVote,
+          };
         })
       );
       setSubmissions(submissionsWithVotes);
@@ -269,72 +334,99 @@ export default function ChallengeDetailScreen() {
   };
 
   const handleChallengeVote = async (voteType: "up" | "down") => {
-    // Optimistic update
+    if (!displayChallenge || !currentUserId) return;
+
+    // Optimistically update UI
     const previousVote = userChallengeVote;
-    const newVote = previousVote === voteType ? null : voteType;
-    setUserChallengeVote(newVote);
+    const isToggleOff = previousVote === voteType;
     
-    // Update challenge data optimistically
+    // Update local state optimistically
+    setUserChallengeVote(isToggleOff ? null : voteType);
+    
+    // Update vote counts optimistically
     setChallengeData((prev) => {
       if (!prev) return prev;
-      let upvotes = prev.upvotes || 0;
-      let downvotes = prev.downvotes || 0;
-      
-      // Remove previous vote
-      if (previousVote === "up") upvotes--;
-      if (previousVote === "down") downvotes--;
-      
-      // Add new vote
-      if (newVote === "up") upvotes++;
-      if (newVote === "down") downvotes++;
-      
-      return { ...prev, upvotes, downvotes };
+      let newUpvotes = prev.upvotes || 0;
+      let newDownvotes = prev.downvotes || 0;
+
+      // Remove previous vote effect
+      if (previousVote === "up") newUpvotes--;
+      if (previousVote === "down") newDownvotes--;
+
+      // Add new vote effect (if not toggling off)
+      if (!isToggleOff) {
+        if (voteType === "up") newUpvotes++;
+        if (voteType === "down") newDownvotes++;
+      }
+
+      return {
+        ...prev,
+        upvotes: Math.max(0, newUpvotes),
+        downvotes: Math.max(0, newDownvotes),
+      };
     });
-    
+
     // Make API call
     const { error } = await voteOnChallenge(displayChallenge.id, voteType);
+    
     if (error) {
       // Revert on error
       setUserChallengeVote(previousVote);
-      setChallengeData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          upvotes: displayChallenge.upvotes || 0,
-          downvotes: displayChallenge.downvotes || 0,
-        };
-      });
+      await loadChallengeData();
+      console.error("Error voting on challenge:", error);
     }
   };
 
   const handleSubmissionVote = async (submissionId: string, voteType: "up" | "down") => {
-    // Optimistic update - update UI immediately
+    if (!currentUserId) return;
+
+    // Find the submission
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) return;
+
+    const previousVote = submission.user_vote;
+    const isToggleOff = previousVote === voteType;
+
+    // Optimistically update UI
     setSubmissions((prev) =>
       prev.map((sub) => {
-        if (sub.id === submissionId) {
-          const currentVote = sub.user_vote;
-          const newVote = currentVote === voteType ? null : voteType;
-          
-          // Calculate new vote counts
-          let upvotes = sub.upvotes;
-          let downvotes = sub.downvotes;
-          
-          if (currentVote === "up") upvotes--;
-          if (currentVote === "down") downvotes--;
-          if (newVote === "up") upvotes++;
-          if (newVote === "down") downvotes++;
-          
-          return { ...sub, user_vote: newVote, upvotes, downvotes };
+        if (sub.id !== submissionId) return sub;
+
+        let newUpvotes = sub.upvotes;
+        let newDownvotes = sub.downvotes;
+
+        // Remove previous vote effect
+        if (previousVote === "up") newUpvotes--;
+        if (previousVote === "down") newDownvotes--;
+
+        // Add new vote effect (if not toggling off)
+        if (!isToggleOff) {
+          if (voteType === "up") newUpvotes++;
+          if (voteType === "down") newDownvotes++;
         }
-        return sub;
+
+        return {
+          ...sub,
+          user_vote: isToggleOff ? null : voteType,
+          upvotes: Math.max(0, newUpvotes),
+          downvotes: Math.max(0, newDownvotes),
+        };
       })
     );
-    
-    // Make API call in background
+
+    // Make API call
     const { error } = await voteOnSubmission(submissionId, voteType);
+
     if (error) {
-      // Revert on error - reload submissions to get correct state
-      loadSubmissions();
+      // Revert on error
+      setSubmissions((prev) =>
+        prev.map((sub) =>
+          sub.id === submissionId
+            ? { ...sub, user_vote: previousVote, upvotes: submission.upvotes, downvotes: submission.downvotes }
+            : sub
+        )
+      );
+      console.error("Error voting on submission:", error);
     }
   };
 
@@ -357,12 +449,11 @@ export default function ChallengeDetailScreen() {
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Image with Creator Submission Vote Buttons */}
+        {/* Hero Image with Challenge Vote Buttons */}
         <View style={styles.heroContainer}>
           <Image source={displayChallenge.image} style={styles.heroImage} />
-          {/* Challenge Vote Buttons */}
-          {displayChallenge.image_url && (
-            <View style={styles.creatorSubmissionVoteOverlay}>
+          {/* Challenge Vote Buttons - Always visible */}
+          <View style={styles.creatorSubmissionVoteOverlay}>
               <TouchableOpacity
                 style={[
                   styles.creatorSubmissionVoteButton,
@@ -414,7 +505,6 @@ export default function ChallengeDetailScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          )}
         </View>
 
         {/* Title and Creator */}
