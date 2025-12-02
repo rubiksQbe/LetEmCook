@@ -14,7 +14,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, Submission } from "../../../constants/types";
 import {
@@ -46,20 +49,26 @@ export default function ChallengeDetailScreen() {
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userChallengeVote, setUserChallengeVote] = useState<"up" | "down" | null>(null);
+  const [userChallengeVote, setUserChallengeVote] = useState<
+    "up" | "down" | null
+  >(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [showSubmissions, setShowSubmissions] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
-  const [challengeData, setChallengeData] = useState<Challenge | null>(challenge);
+  const [challengeData, setChallengeData] = useState<Challenge | null>(
+    challenge
+  );
 
   useEffect(() => {
     async function init() {
       if (!challenge) return;
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       setCurrentUserId(user?.id);
       setIsCreator(user?.id === challenge.created_by);
 
@@ -95,7 +104,6 @@ export default function ChallengeDetailScreen() {
           filter: `challenge_id=eq.${challenge.id}`,
         },
         async (payload) => {
-
           if (payload.eventType === "INSERT") {
             // New submission added
             const newSubmission = payload.new as any;
@@ -146,7 +154,7 @@ export default function ChallengeDetailScreen() {
         },
         async (payload) => {
           const updatedChallenge = payload.new as any;
-          
+
           // Update challenge data (especially image_url)
           setChallengeData((prev) => {
             if (!prev) return prev;
@@ -171,7 +179,7 @@ export default function ChallengeDetailScreen() {
 
   async function loadSubmissions() {
     if (!challenge) return;
-    
+
     setIsLoadingSubmissions(true);
     const { data, error } = await fetchSubmissions(challenge.id);
     if (data) {
@@ -198,11 +206,14 @@ export default function ChallengeDetailScreen() {
     );
   }
 
-  const netVotes = (displayChallenge.upvotes || 0) - (displayChallenge.downvotes || 0);
+  const netVotes =
+    (displayChallenge.upvotes || 0) - (displayChallenge.downvotes || 0);
   const submissionCount = displayChallenge.submission_count || 0;
-  
+
   // Find user's own submission
-  const userSubmission = submissions.find((sub) => sub.user_id === currentUserId);
+  const userSubmission = submissions.find(
+    (sub) => sub.user_id === currentUserId
+  );
 
   const handlePin = () => {
     // TODO: Implement pin functionality
@@ -215,10 +226,14 @@ export default function ChallengeDetailScreen() {
   };
 
   const handlePickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+
     if (permissionResult.granted === false) {
-      Alert.alert("Permission Required", "You need to allow access to your photos to submit.");
+      Alert.alert(
+        "Permission Required",
+        "You need to allow access to your photos to submit."
+      );
       return;
     }
 
@@ -261,7 +276,7 @@ export default function ChallengeDetailScreen() {
       setHasSubmitted(true);
       setSelectedImage(null);
       setShowSubmissionModal(false);
-      
+
       // Reload submissions
       loadSubmissions();
     }
@@ -273,24 +288,24 @@ export default function ChallengeDetailScreen() {
     const previousVote = userChallengeVote;
     const newVote = previousVote === voteType ? null : voteType;
     setUserChallengeVote(newVote);
-    
+
     // Update challenge data optimistically
     setChallengeData((prev) => {
       if (!prev) return prev;
       let upvotes = prev.upvotes || 0;
       let downvotes = prev.downvotes || 0;
-      
+
       // Remove previous vote
       if (previousVote === "up") upvotes--;
       if (previousVote === "down") downvotes--;
-      
+
       // Add new vote
       if (newVote === "up") upvotes++;
       if (newVote === "down") downvotes++;
-      
+
       return { ...prev, upvotes, downvotes };
     });
-    
+
     // Make API call
     const { error } = await voteOnChallenge(displayChallenge.id, voteType);
     if (error) {
@@ -307,29 +322,32 @@ export default function ChallengeDetailScreen() {
     }
   };
 
-  const handleSubmissionVote = async (submissionId: string, voteType: "up" | "down") => {
+  const handleSubmissionVote = async (
+    submissionId: string,
+    voteType: "up" | "down"
+  ) => {
     // Optimistic update - update UI immediately
     setSubmissions((prev) =>
       prev.map((sub) => {
         if (sub.id === submissionId) {
           const currentVote = sub.user_vote;
           const newVote = currentVote === voteType ? null : voteType;
-          
+
           // Calculate new vote counts
           let upvotes = sub.upvotes;
           let downvotes = sub.downvotes;
-          
+
           if (currentVote === "up") upvotes--;
           if (currentVote === "down") downvotes--;
           if (newVote === "up") upvotes++;
           if (newVote === "down") downvotes++;
-          
+
           return { ...sub, user_vote: newVote, upvotes, downvotes };
         }
         return sub;
       })
     );
-    
+
     // Make API call in background
     const { error } = await voteOnSubmission(submissionId, voteType);
     if (error) {
@@ -341,18 +359,19 @@ export default function ChallengeDetailScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["bottom"]}>
       {/* Sticky Blurred Status Bar Overlay */}
-      <BlurView intensity={80} tint="light" style={[styles.statusBarOverlay, { height: insets.top }]} />
-      
+      <BlurView
+        intensity={80}
+        tint="light"
+        style={[styles.statusBarOverlay, { height: insets.top }]}
+      />
+
       {/* Sticky Back Button */}
-      <TouchableOpacity 
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color="white" />
       </TouchableOpacity>
-      
-      <ScrollView 
-        style={styles.scrollView} 
+
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         bounces={false}
         showsVerticalScrollIndicator={false}
@@ -366,7 +385,8 @@ export default function ChallengeDetailScreen() {
               <TouchableOpacity
                 style={[
                   styles.creatorSubmissionVoteButton,
-                  userChallengeVote === "up" && styles.creatorSubmissionVoteButtonActive,
+                  userChallengeVote === "up" &&
+                    styles.creatorSubmissionVoteButtonActive,
                 ]}
                 onPress={() => handleChallengeVote("up")}
               >
@@ -382,7 +402,8 @@ export default function ChallengeDetailScreen() {
                 <Text
                   style={[
                     styles.creatorSubmissionVoteCount,
-                    userChallengeVote === "up" && styles.creatorSubmissionVoteCountActive,
+                    userChallengeVote === "up" &&
+                      styles.creatorSubmissionVoteCountActive,
                   ]}
                 >
                   {displayChallenge.upvotes || 0}
@@ -391,7 +412,8 @@ export default function ChallengeDetailScreen() {
               <TouchableOpacity
                 style={[
                   styles.creatorSubmissionVoteButton,
-                  userChallengeVote === "down" && styles.creatorSubmissionVoteButtonActive,
+                  userChallengeVote === "down" &&
+                    styles.creatorSubmissionVoteButtonActive,
                 ]}
                 onPress={() => handleChallengeVote("down")}
               >
@@ -407,7 +429,8 @@ export default function ChallengeDetailScreen() {
                 <Text
                   style={[
                     styles.creatorSubmissionVoteCount,
-                    userChallengeVote === "down" && styles.creatorSubmissionVoteCountActive,
+                    userChallengeVote === "down" &&
+                      styles.creatorSubmissionVoteCountActive,
                   ]}
                 >
                   {displayChallenge.downvotes || 0}
@@ -471,7 +494,12 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Time Limit */}
-          <Text style={[styles.label, !displayChallenge.description && { marginTop: 0 }]}>
+          <Text
+            style={[
+              styles.label,
+              !displayChallenge.description && { marginTop: 0 },
+            ]}
+          >
             TIME LIMIT:{" "}
             <Text style={styles.value}>
               {displayChallenge.timeLimit} (not including prep time)
@@ -481,7 +509,9 @@ export default function ChallengeDetailScreen() {
           {/* Ingredients */}
           <Text style={styles.label}>
             INGREDIENTS:{" "}
-            <Text style={styles.value}>{displayChallenge.ingredients.join(", ")}</Text>
+            <Text style={styles.value}>
+              {displayChallenge.ingredients.join(", ")}
+            </Text>
           </Text>
 
           {/* Dietary Restrictions */}
@@ -510,7 +540,8 @@ export default function ChallengeDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.userSubmissionVoteButton,
-                    userSubmission.user_vote === "up" && styles.userSubmissionVoteButtonActive,
+                    userSubmission.user_vote === "up" &&
+                      styles.userSubmissionVoteButtonActive,
                   ]}
                   onPress={() => handleSubmissionVote(userSubmission.id, "up")}
                 >
@@ -526,7 +557,8 @@ export default function ChallengeDetailScreen() {
                   <Text
                     style={[
                       styles.userSubmissionVoteCount,
-                      userSubmission.user_vote === "up" && styles.userSubmissionVoteCountActive,
+                      userSubmission.user_vote === "up" &&
+                        styles.userSubmissionVoteCountActive,
                     ]}
                   >
                     {userSubmission.upvotes}
@@ -535,9 +567,12 @@ export default function ChallengeDetailScreen() {
                 <TouchableOpacity
                   style={[
                     styles.userSubmissionVoteButton,
-                    userSubmission.user_vote === "down" && styles.userSubmissionVoteButtonActive,
+                    userSubmission.user_vote === "down" &&
+                      styles.userSubmissionVoteButtonActive,
                   ]}
-                  onPress={() => handleSubmissionVote(userSubmission.id, "down")}
+                  onPress={() =>
+                    handleSubmissionVote(userSubmission.id, "down")
+                  }
                 >
                   <Ionicons
                     name="arrow-down"
@@ -551,7 +586,8 @@ export default function ChallengeDetailScreen() {
                   <Text
                     style={[
                       styles.userSubmissionVoteCount,
-                      userSubmission.user_vote === "down" && styles.userSubmissionVoteCountActive,
+                      userSubmission.user_vote === "down" &&
+                        styles.userSubmissionVoteCountActive,
                     ]}
                   >
                     {userSubmission.downvotes}
@@ -574,110 +610,120 @@ export default function ChallengeDetailScreen() {
             style={{ marginRight: 8 }}
           />
           <Text style={styles.submissionButtonText}>
-            {isCreator ? "UPDATE CHALLENGE IMAGE" : hasSubmitted ? "RESUBMIT ENTRY" : "SUBMIT ENTRY"}
+            {isCreator
+              ? "UPDATE CHALLENGE IMAGE"
+              : hasSubmitted
+              ? "RESUBMIT ENTRY"
+              : "SUBMIT ENTRY"}
           </Text>
         </TouchableOpacity>
 
         {/* Submissions Section */}
         <View style={styles.submissionsSection}>
-            <TouchableOpacity
-              style={styles.submissionsHeader}
-              onPress={() => setShowSubmissions(!showSubmissions)}
-            >
-              <Text style={styles.submissionsTitle}>
-                Community Submissions ({submissions.length})
-              </Text>
-              <Ionicons
-                name={showSubmissions ? "chevron-up" : "chevron-down"}
-                size={24}
-                color={Colors.palette.darkest}
-              />
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.submissionsHeader}
+            onPress={() => setShowSubmissions(!showSubmissions)}
+          >
+            <Text style={styles.submissionsTitle}>
+              Community Submissions ({submissions.length})
+            </Text>
+            <Ionicons
+              name={showSubmissions ? "chevron-up" : "chevron-down"}
+              size={24}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
 
-            {showSubmissions && (
-              <View style={styles.submissionsList}>
-                {isLoadingSubmissions ? (
-                  <ActivityIndicator
-                    size="large"
-                    color={Colors.palette.darkest}
-                    style={{ marginVertical: 20 }}
-                  />
-                ) : submissions.length === 0 ? (
-                  <Text style={styles.noSubmissionsText}>
-                    No submissions yet. Be the first!
-                  </Text>
-                ) : (
-                  submissions.map((submission) => (
-                    <View key={submission.id} style={styles.submissionItem}>
-                      <Image
-                        source={{ uri: submission.image_url }}
-                        style={styles.submissionImage}
-                      />
-                      <View style={styles.submissionInfo}>
-                        <Text style={styles.submissionUsername}>
-                          Chef {submission.username}
-                        </Text>
-                        <View style={styles.submissionVotes}>
-                          <TouchableOpacity
+          {showSubmissions && (
+            <View style={styles.submissionsList}>
+              {isLoadingSubmissions ? (
+                <ActivityIndicator
+                  size="large"
+                  color={Colors.palette.darkest}
+                  style={{ marginVertical: 20 }}
+                />
+              ) : submissions.length === 0 ? (
+                <Text style={styles.noSubmissionsText}>
+                  No submissions yet. Be the first!
+                </Text>
+              ) : (
+                submissions.map((submission) => (
+                  <View key={submission.id} style={styles.submissionItem}>
+                    <Image
+                      source={{ uri: submission.image_url }}
+                      style={styles.submissionImage}
+                    />
+                    <View style={styles.submissionInfo}>
+                      <Text style={styles.submissionUsername}>
+                        Chef {submission.username}
+                      </Text>
+                      <View style={styles.submissionVotes}>
+                        <TouchableOpacity
+                          style={[
+                            styles.submissionVoteButton,
+                            submission.user_vote === "up" &&
+                              styles.submissionVoteButtonActive,
+                          ]}
+                          onPress={() =>
+                            handleSubmissionVote(submission.id, "up")
+                          }
+                        >
+                          <Ionicons
+                            name="arrow-up"
+                            size={20}
+                            color={
+                              submission.user_vote === "up"
+                                ? "white"
+                                : Colors.palette.dark
+                            }
+                          />
+                          <Text
                             style={[
-                              styles.submissionVoteButton,
+                              styles.voteCount,
                               submission.user_vote === "up" &&
-                                styles.submissionVoteButtonActive,
+                                styles.voteCountActive,
                             ]}
-                            onPress={() => handleSubmissionVote(submission.id, "up")}
                           >
-                            <Ionicons
-                              name="arrow-up"
-                              size={20}
-                              color={
-                                submission.user_vote === "up"
-                                  ? "white"
-                                  : Colors.palette.dark
-                              }
-                            />
-                            <Text
-                              style={[
-                                styles.voteCount,
-                                submission.user_vote === "up" && styles.voteCountActive,
-                              ]}
-                            >
-                              {submission.upvotes}
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity
+                            {submission.upvotes}
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[
+                            styles.submissionVoteButton,
+                            submission.user_vote === "down" &&
+                              styles.submissionVoteButtonActive,
+                          ]}
+                          onPress={() =>
+                            handleSubmissionVote(submission.id, "down")
+                          }
+                        >
+                          <Ionicons
+                            name="arrow-down"
+                            size={20}
+                            color={
+                              submission.user_vote === "down"
+                                ? "white"
+                                : Colors.palette.dark
+                            }
+                          />
+                          <Text
                             style={[
-                              styles.submissionVoteButton,
+                              styles.voteCount,
                               submission.user_vote === "down" &&
-                                styles.submissionVoteButtonActive,
+                                styles.voteCountActive,
                             ]}
-                            onPress={() => handleSubmissionVote(submission.id, "down")}
                           >
-                            <Ionicons
-                              name="arrow-down"
-                              size={20}
-                              color={
-                                submission.user_vote === "down"
-                                  ? "white"
-                                  : Colors.palette.dark
-                              }
-                            />
-                            <Text
-                              style={[
-                                styles.voteCount,
-                                submission.user_vote === "down" && styles.voteCountActive,
-                              ]}
-                            >
-                              {submission.downvotes}
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                            {submission.downvotes}
+                          </Text>
+                        </TouchableOpacity>
                       </View>
                     </View>
-                  ))
-                )}
-              </View>
-            )}
-          </View>
+                  </View>
+                ))
+              )}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Submission Modal */}
@@ -692,7 +738,11 @@ export default function ChallengeDetailScreen() {
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {isCreator ? "Update Challenge Image" : hasSubmitted ? "Resubmit Entry" : "Submit Entry"}
+                {isCreator
+                  ? "Update Challenge Image"
+                  : hasSubmitted
+                  ? "Resubmit Entry"
+                  : "Submit Entry"}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -700,7 +750,11 @@ export default function ChallengeDetailScreen() {
                   setSelectedImage(null);
                 }}
               >
-                <Ionicons name="close" size={28} color={Colors.palette.darkest} />
+                <Ionicons
+                  name="close"
+                  size={28}
+                  color={Colors.palette.darkest}
+                />
               </TouchableOpacity>
             </View>
 
@@ -710,12 +764,22 @@ export default function ChallengeDetailScreen() {
               showsVerticalScrollIndicator={false}
             >
               {/* Image Picker */}
-              <TouchableOpacity style={styles.imagePickerButton} onPress={handlePickImage}>
+              <TouchableOpacity
+                style={styles.imagePickerButton}
+                onPress={handlePickImage}
+              >
                 {selectedImage ? (
-                  <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+                  <Image
+                    source={{ uri: selectedImage }}
+                    style={styles.selectedImage}
+                  />
                 ) : (
                   <View style={styles.imagePickerPlaceholder}>
-                    <Ionicons name="camera" size={40} color={Colors.palette.dark} />
+                    <Ionicons
+                      name="camera"
+                      size={40}
+                      color={Colors.palette.dark}
+                    />
                     <Text style={styles.imagePickerText}>Select Photo</Text>
                   </View>
                 )}
@@ -723,7 +787,10 @@ export default function ChallengeDetailScreen() {
 
               {/* Submit Button */}
               <TouchableOpacity
-                style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                style={[
+                  styles.submitButton,
+                  isSubmitting && styles.submitButtonDisabled,
+                ]}
                 onPress={handleSubmit}
                 disabled={isSubmitting}
               >
@@ -863,8 +930,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 8,
+    marginVertical: 6,
     gap: 12,
   },
   statSection: {
@@ -886,10 +952,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statCount: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 18,
     color: Colors.palette.darkest,
-    lineHeight: 20,
+    lineHeight: 23,
   },
   statLabel: {
     fontFamily: "Poppins_500Medium",

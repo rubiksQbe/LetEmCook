@@ -48,8 +48,7 @@ export default function FriendScreen() {
       try {
         const { data } = await supabase.auth.getUser();
         const user = data?.user;
-        const username =
-          user?.user_metadata?.username ?? user?.email ?? null;
+        const username = user?.user_metadata?.username ?? user?.email ?? null;
         if (mounted && username) setUserName(username);
       } catch (e) {
         console.error("Error fetching current user:", e);
@@ -150,10 +149,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   content: {
     flex: 1,

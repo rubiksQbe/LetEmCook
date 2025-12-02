@@ -185,10 +185,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.accent,
   },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   fridgeWrapper: {
     width: "130%",
