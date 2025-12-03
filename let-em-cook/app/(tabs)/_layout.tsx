@@ -3,7 +3,6 @@ import React from "react";
 import { Image, StyleSheet } from "react-native";
 
 import { useClientOnlyValue } from "@/components/useClientOnlyValue";
-import { useColorScheme } from "@/components/useColorScheme";
 import Colors from "@/constants/Colors";
 
 // Custom TabBarIcon component that uses images
@@ -39,8 +38,6 @@ function TabBarIcon({
 }
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       initialRouteName="challenges"
@@ -56,11 +53,6 @@ export default function TabLayout() {
           fontSize: 14,
           fontFamily: "Poppins_600SemiBold",
         },
-        // tabBarStyle: {
-        //   borderTopWidth: 0,
-        //   backgroundColor:
-        //     colorScheme === "dark" ? Colors.palette.lightest : undefined,
-        // },
       }}
     >
       <Tabs.Screen

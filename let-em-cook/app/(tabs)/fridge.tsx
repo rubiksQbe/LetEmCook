@@ -11,7 +11,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { fetchChallenges, supabase } from "../../lib/supabase";
+import {
+  fetchChallenges,
+  getPinnedChallengeForUser,
+  supabase,
+} from "../../lib/supabase";
 
 interface Challenge {
   id: string;
@@ -48,31 +52,32 @@ export default function FridgeScreen() {
         const { data: allChallenges } = await fetchChallenges();
         if (!allChallenges) return;
 
-        // 3️⃣ Determine pinned challenge (user metadata)
-        const pinnedId = user.user_metadata?.pinned_challenge_id;
-        const pinned = allChallenges.find((c) => c.id === pinnedId) || null;
+        // 3️⃣ Determine pinned challenge
+        const pinnedId = await getPinnedChallengeForUser(user.id);
+
+        const pinned = pinnedId
+          ? allChallenges.find((c) => c.id === pinnedId) || null
+          : null;
 
         // 4️⃣ Filter history: only challenges where user submitted
         const historyWithSubmission: ChallengeWithSubmission[] = (
           await Promise.all(
-            allChallenges
-              .filter((c) => c.id !== pinnedId)
-              .map(async (challenge) => {
-                const { data: submissions } = await supabase
-                  .from("submissions")
-                  .select("image_url") // fetch the image
-                  .eq("challenge_id", challenge.id)
-                  .eq("user_id", user.id)
-                  .limit(1);
+            allChallenges.map(async (challenge) => {
+              const { data: submissions } = await supabase
+                .from("submissions")
+                .select("image_url") // fetch the image
+                .eq("challenge_id", challenge.id)
+                .eq("user_id", user.id)
+                .limit(1);
 
-                if (submissions?.length) {
-                  return {
-                    ...challenge,
-                    submissionImage: submissions[0].image_url as string, // include user's image
-                  };
-                }
-                return null;
-              })
+              if (submissions?.length) {
+                return {
+                  ...challenge,
+                  submissionImage: submissions[0].image_url as string, // include user's image
+                };
+              }
+              return null;
+            })
           )
         ).filter(Boolean) as ChallengeWithSubmission[];
 
@@ -127,7 +132,11 @@ export default function FridgeScreen() {
                     />
                   </View>
                   <View style={styles.polaroidBody}>
-                    <Text style={styles.polaroidCaption}>
+                    <Text
+                      style={styles.polaroidCaption}
+                      numberOfLines={2}
+                      ellipsizeMode="tail"
+                    >
                       {pinnedChallenge.title}
                     </Text>
                   </View>
@@ -136,57 +145,64 @@ export default function FridgeScreen() {
             </View>
 
             <View style={styles.divider} />
+            <View style={styles.historySection}>
+              {/* HISTORY LABEL */}
+              <View style={styles.historyLabelRow}>
+                {["H", "I", "S", "T", "O", "R", "Y"].map((char, i) => (
+                  <Text
+                    key={i}
+                    style={[
+                      styles.magnetLetter,
+                      {
+                        transform: [{ rotate: i % 2 === 0 ? "-6deg" : "7deg" }],
+                      },
+                    ]}
+                  >
+                    {char}
+                  </Text>
+                ))}
+              </View>
 
-            {/* HISTORY LABEL */}
-            <View style={styles.historyLabelRow}>
-              {["H", "I", "S", "T", "O", "R", "Y"].map((char, i) => (
-                <Text
-                  key={i}
-                  style={[
-                    styles.magnetLetter,
-                    {
-                      transform: [{ rotate: i % 2 === 0 ? "-6deg" : "7deg" }],
-                    },
-                  ]}
-                >
-                  {char}
-                </Text>
-              ))}
-            </View>
+              {/* HISTORY GRID */}
+              <FlatList
+                data={historyChallenges}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={{
+                  justifyContent: "space-around",
+                  marginTop: 20,
+                  paddingHorizontal: 50,
+                }}
+                scrollEnabled={false}
+                renderItem={({ item }: { item: ChallengeWithSubmission }) => (
+                  <View style={styles.polaroidHistory}>
+                    <View style={styles.magnet} />
 
-            {/* HISTORY GRID */}
-            <FlatList
-              data={historyChallenges}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              columnWrapperStyle={{
-                justifyContent: "space-around",
-                marginTop: 20,
-                paddingHorizontal: 50,
-              }}
-              scrollEnabled={false}
-              renderItem={({ item }: { item: ChallengeWithSubmission }) => (
-                <View style={styles.polaroidHistory}>
-                  <View style={styles.magnet} />
+                    {item.submissionImage && (
+                      <Image
+                        source={{ uri: item.submissionImage }}
+                        style={{
+                          width: 130,
+                          height: 100,
+                          marginBottom: 5,
+                        }}
+                        resizeMode="cover"
+                      />
+                    )}
 
-                  {item.submissionImage && (
-                    <Image
-                      source={{ uri: item.submissionImage }}
-                      style={{
-                        width: 130,
-                        height: 100,
-                        marginBottom: 5,
-                      }}
-                      resizeMode="cover"
-                    />
-                  )}
-
-                  <View style={styles.polaroidBody}>
-                    <Text style={styles.polaroidCaption}>{item.title}</Text>
+                    <View style={styles.polaroidBody}>
+                      <Text
+                        style={styles.polaroidCaption}
+                        numberOfLines={2}
+                        ellipsizeMode="tail"
+                      >
+                        {item.title}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              )}
-            />
+                )}
+              />
+            </View>
 
             <View style={{ height: 200 }} />
           </View>
@@ -202,34 +218,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.light,
   },
-  headerBackground: {
-    backgroundColor: Colors.palette.accent,
-  },
+  // headerBackground: {
+  //   backgroundColor: Colors.palette.accent,
+  // },
   wall: {
     flex: 1,
     backgroundColor: Colors.palette.light,
   },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 1,
-    paddingBottom: 8,
-    backgroundColor: Colors.palette.lightest,
-  },
-  pageTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 28,
-    color: Colors.palette.darkest,
-  },
+  // titleRow: {
+  //   flexDirection: "row",
+  //   justifyContent: "center",
+  //   alignItems: "center",
+  //   paddingHorizontal: 20,
+  //   paddingTop: 1,
+  //   paddingBottom: 8,
+  //   backgroundColor: Colors.palette.lightest,
+  // },
+  // pageTitle: {
+  //   fontFamily: "Poppins_600SemiBold",
+  //   fontSize: 28,
+  //   color: Colors.palette.darkest,
+  // },
   fridgeWrapper: {
     width: "130%",
     alignSelf: "center",
     backgroundColor: Colors.palette.blue,
     borderWidth: 3,
     borderColor: Colors.palette.darkest,
-    paddingTop: 70,
+    paddingTop: 50,
     marginLeft: -40,
     marginRight: -40,
     marginBottom: -200,
@@ -293,14 +309,14 @@ const styles = StyleSheet.create({
   magnet: {
     position: "absolute",
     top: -20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.palette.accent,
     shadowColor: "#000",
     shadowOpacity: 0.3,
     shadowRadius: 2,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 3 },
     elevation: 5,
     zIndex: 10,
     alignItems: "center",
@@ -317,14 +333,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 15,
     marginTop: 18,
-    marginBottom: 10,
+    marginBottom: 15,
   },
   magnetLetter: {
-    fontSize: 40,
+    fontSize: 36,
     fontWeight: "900",
     color: Colors.palette.accent,
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
+  },
+  historySection: {
+    minHeight: 400,
+    justifyContent: "flex-start",
   },
 });
