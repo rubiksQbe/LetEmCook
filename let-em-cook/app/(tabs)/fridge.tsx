@@ -11,11 +11,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  fetchChallenges,
-  getPinnedChallengeForUser,
-  supabase,
-} from "../../lib/supabase";
+import { fetchChallenges, supabase } from "../../lib/supabase";
 
 interface Challenge {
   id: string;
@@ -27,6 +23,19 @@ interface ChallengeWithSubmission extends Challenge {
   submissionImage: string;
 }
 
+interface PinnedRow {
+  id: string;
+  user_id: string;
+  challenge_id: string;
+}
+
+interface SubmissionRow {
+  id: string;
+  user_id: string;
+  challenge_id: string;
+  image_url: string;
+}
+
 export default function FridgeScreen() {
   const [pinnedChallenge, setPinnedChallenge] = useState<Challenge | null>(
     null
@@ -34,63 +43,105 @@ export default function FridgeScreen() {
   const [historyChallenges, setHistoryChallenges] = useState<
     ChallengeWithSubmission[]
   >([]);
-
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadFridgeData() {
-      setLoading(true);
+  // --- Load fridge data ---
+  async function loadFridgeData() {
+    setLoading(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-      try {
-        // 1️⃣ Get current user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
+      const { data: allChallenges } = await fetchChallenges();
+      if (!allChallenges) return;
 
-        // 2️⃣ Fetch all challenges
-        const { data: allChallenges } = await fetchChallenges();
-        if (!allChallenges) return;
+      // --- Pinned challenge ---
+      const { data: pinnedData } = await supabase
+        .from<PinnedRow>("pinned")
+        .select("challenge_id")
+        .eq("user_id", user.id)
+        .single();
 
-        // 3️⃣ Determine pinned challenge
-        const pinnedId = await getPinnedChallengeForUser(user.id);
+      const pinnedId = pinnedData?.challenge_id || null;
+      const pinned = pinnedId
+        ? allChallenges.find((c) => c.id === pinnedId) || null
+        : null;
 
-        const pinned = pinnedId
-          ? allChallenges.find((c) => c.id === pinnedId) || null
-          : null;
+      // --- History submissions ---
+      const historyWithSubmission: ChallengeWithSubmission[] = (
+        await Promise.all(
+          allChallenges.map(async (challenge) => {
+            const { data: submissions } = await supabase
+              .from<SubmissionRow>("submissions")
+              .select("image_url")
+              .eq("challenge_id", challenge.id)
+              .eq("user_id", user.id)
+              .limit(1);
 
-        // 4️⃣ Filter history: only challenges where user submitted
-        const historyWithSubmission: ChallengeWithSubmission[] = (
-          await Promise.all(
-            allChallenges.map(async (challenge) => {
-              const { data: submissions } = await supabase
-                .from("submissions")
-                .select("image_url") // fetch the image
-                .eq("challenge_id", challenge.id)
-                .eq("user_id", user.id)
-                .limit(1);
+            if (submissions?.length) {
+              return {
+                ...challenge,
+                submissionImage: submissions[0].image_url,
+              };
+            }
+            return null;
+          })
+        )
+      ).filter(Boolean) as ChallengeWithSubmission[];
 
-              if (submissions?.length) {
-                return {
-                  ...challenge,
-                  submissionImage: submissions[0].image_url as string, // include user's image
-                };
-              }
-              return null;
-            })
-          )
-        ).filter(Boolean) as ChallengeWithSubmission[];
-
-        setPinnedChallenge(pinned);
-        setHistoryChallenges(historyWithSubmission);
-      } catch (error) {
-        console.error("Error loading fridge data:", error);
-      } finally {
-        setLoading(false);
-      }
+      setPinnedChallenge(pinned);
+      setHistoryChallenges(historyWithSubmission);
+    } catch (err) {
+      console.error("Error loading fridge data:", err);
+    } finally {
+      setLoading(false);
     }
+  }
 
+  // --- Real-time subscriptions ---
+  useEffect(() => {
+    let pinnedChannel: any;
+    let submissionsChannel: any;
+
+    // initial load
     loadFridgeData();
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+
+      // Pinned table
+      pinnedChannel = supabase
+        .channel(`realtime-pinned-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pinned" },
+          () => loadFridgeData()
+        )
+        .subscribe();
+
+      // Submissions table
+      submissionsChannel = supabase
+        .channel(`realtime-submissions-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "submissions",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => loadFridgeData()
+        )
+        .subscribe();
+    });
+
+    // cleanup
+    return () => {
+      if (pinnedChannel) supabase.removeChannel(pinnedChannel);
+      if (submissionsChannel) supabase.removeChannel(submissionsChannel);
+    };
   }, []);
 
   if (loading) {
@@ -102,19 +153,13 @@ export default function FridgeScreen() {
           justifyContent: "center",
         }}
       >
-        <ActivityIndicator size="large" color={Colors.palette.darkest} />
+        <ActivityIndicator size="large" color={Colors.palette.dark} />
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {/* <View style={styles.headerBackground}>
-        <View style={styles.titleRow}>
-          <Text style={styles.pageTitle}>Fridge</Text>
-        </View>
-      </View> */}
-
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={{ height: 100 }} />
@@ -131,6 +176,13 @@ export default function FridgeScreen() {
                       color={Colors.palette.darkest}
                     />
                   </View>
+                  {pinnedChallenge.image_url && (
+                    <Image
+                      source={{ uri: pinnedChallenge.image_url }}
+                      style={{ width: 130, height: 100, marginBottom: 5 }}
+                      resizeMode="cover"
+                    />
+                  )}
                   <View style={styles.polaroidBody}>
                     <Text
                       style={styles.polaroidCaption}
@@ -174,22 +226,16 @@ export default function FridgeScreen() {
                   paddingHorizontal: 50,
                 }}
                 scrollEnabled={false}
-                renderItem={({ item }: { item: ChallengeWithSubmission }) => (
+                renderItem={({ item }) => (
                   <View style={styles.polaroidHistory}>
                     <View style={styles.magnet} />
-
                     {item.submissionImage && (
                       <Image
                         source={{ uri: item.submissionImage }}
-                        style={{
-                          width: 130,
-                          height: 100,
-                          marginBottom: 5,
-                        }}
+                        style={{ width: 130, height: 100, marginBottom: 5 }}
                         resizeMode="cover"
                       />
                     )}
-
                     <View style={styles.polaroidBody}>
                       <Text
                         style={styles.polaroidCaption}
@@ -212,33 +258,10 @@ export default function FridgeScreen() {
   );
 }
 
+// --- Styles ---
 const styles = StyleSheet.create({
-  /* === SAFE AREA HEADER === */
-  safeArea: {
-    flex: 1,
-    backgroundColor: Colors.palette.light,
-  },
-  // headerBackground: {
-  //   backgroundColor: Colors.palette.accent,
-  // },
-  wall: {
-    flex: 1,
-    backgroundColor: Colors.palette.light,
-  },
-  // titleRow: {
-  //   flexDirection: "row",
-  //   justifyContent: "center",
-  //   alignItems: "center",
-  //   paddingHorizontal: 20,
-  //   paddingTop: 1,
-  //   paddingBottom: 8,
-  //   backgroundColor: Colors.palette.lightest,
-  // },
-  // pageTitle: {
-  //   fontFamily: "Poppins_600SemiBold",
-  //   fontSize: 28,
-  //   color: Colors.palette.darkest,
-  // },
+  safeArea: { flex: 1, backgroundColor: Colors.palette.light },
+  wall: { flex: 1, backgroundColor: Colors.palette.light },
   fridgeWrapper: {
     width: "130%",
     alignSelf: "center",
@@ -251,27 +274,14 @@ const styles = StyleSheet.create({
     marginBottom: -200,
   },
   freezerSection: {
-    height: 180, // fixed height for top part
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
-    position: "relative", // allow absolute children
+    position: "relative",
   },
-
   pinnedPolaroid: {
     position: "absolute",
     top: 0,
-    width: 150,
-    height: 180,
-    backgroundColor: "white",
-    alignItems: "center",
-    paddingTop: 25,
-    shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-
-  polaroid: {
     width: 150,
     height: 180,
     backgroundColor: "white",
@@ -294,11 +304,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 4,
   },
-  polaroidBody: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingBottom: 5,
-  },
+  polaroidBody: { flex: 1, justifyContent: "center", paddingBottom: 5 },
   polaroidCaption: {
     fontSize: 14,
     fontFamily: "Poppins_500Medium",
@@ -343,8 +349,5 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
   },
-  historySection: {
-    minHeight: 400,
-    justifyContent: "flex-start",
-  },
+  historySection: { minHeight: 400, justifyContent: "flex-start" },
 });
