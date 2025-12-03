@@ -98,6 +98,9 @@ export default function SignUpScreen() {
             placeholderTextColor="#999"
             style={styles.input}
             autoCorrect={false}
+            textContentType="none"
+            autoComplete="off"
+            passwordRules=""
           />
         </View>
 
@@ -112,6 +115,9 @@ export default function SignUpScreen() {
             placeholderTextColor="#999"
             style={styles.input}
             autoCorrect={false}
+            textContentType="none"
+            autoComplete="off"
+            passwordRules=""
           />
         </View>
 

@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Colors from "@/constants/Colors";
@@ -196,7 +197,21 @@ export default function FriendScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Page Title */}
       <View style={styles.titleRow}>
+        <View style={styles.titleRowSpacer} />
         <Text style={styles.pageTitle}>Friends</Text>
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: "/(tabs)/profile",
+            params: { from: "friends" }
+          })}
+          style={styles.profileButton}
+        >
+            <Ionicons
+              name="person-circle-outline"
+              size={36}
+              color={Colors.palette.darkest}
+            />
+        </TouchableOpacity>
       </View>
 
       {/* Friends List */}
@@ -235,18 +250,23 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
-    paddingBottom: 14,
+    paddingBottom: 8,
     backgroundColor: Colors.palette.accent,
   },
+  titleRowSpacer: {
+    width: 28,
+  },
+  profileButton: {
+    padding: 8,
+  },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 34,
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   content: {
     flex: 1,

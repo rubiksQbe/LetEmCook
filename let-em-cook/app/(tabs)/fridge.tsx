@@ -1,5 +1,6 @@
 import Colors from "@/constants/Colors";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -104,10 +106,22 @@ export default function FridgeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.headerBackground}>
-        <View style={styles.titleRow}>
-          <Text style={styles.pageTitle}>Fridge</Text>
-        </View>
+      <View style={styles.titleRow}>
+        <View style={styles.titleRowSpacer} />
+        <Text style={styles.pageTitle}>Fridge</Text>
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: "/(tabs)/profile",
+            params: { from: "fridge" }
+          })}
+          style={styles.profileButton}
+        >
+            <Ionicons
+              name="person-circle-outline"
+              size={36}
+              color={Colors.palette.darkest}
+            />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.wall}>
@@ -202,21 +216,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.accent,
   },
-  headerBackground: {
-    backgroundColor: Colors.palette.accent,
-  },
   wall: {
     flex: 1,
     backgroundColor: Colors.palette.light,
   },
   titleRow: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
     backgroundColor: Colors.palette.accent,
+  },
+  titleRowSpacer: {
+    width: 28,
+  },
+  profileButton: {
+    padding: 8,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",

@@ -379,7 +379,21 @@ export default function ChallengeScreen() {
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Page Title */}
       <View style={styles.titleRow}>
+        <View style={styles.titleRowSpacer} />
         <Text style={styles.pageTitle}>Challenges</Text>
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: "/(tabs)/profile",
+            params: { from: "challenges" }
+          })}
+          style={styles.profileButton}
+        >
+          <Ionicons
+            name="person-circle-outline"
+            size={36}
+            color={Colors.palette.darkest}
+          />
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -1036,12 +1050,18 @@ const styles = StyleSheet.create({
   // Page Title
   titleRow: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
     backgroundColor: Colors.palette.accent,
+  },
+  titleRowSpacer: {
+    width: 28,
+  },
+  profileButton: {
+    padding: 8,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",
