@@ -174,7 +174,7 @@ export default function FridgeScreen() {
               }}
             >
               <Image
-                source={require("@/assets/images/mouse-assets/defaultmouse.png")}
+                source={require("@/assets/images/mouse-assets/macaroni.png")}
                 style={styles.inlineMouse}
                 resizeMode="contain"
               />

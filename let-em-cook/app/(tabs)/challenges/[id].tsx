@@ -64,6 +64,12 @@ function convertToChallenge(
   };
 }
 
+type FriendForShare = {
+  id: string;
+  username: string;
+  avatar: string | null;
+};
+
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -119,6 +125,47 @@ export default function ChallengeDetailScreen() {
     }
   }, [challenge?.id]);
 
+  const loadFriendsForShare = useCallback(async () => {
+    if (!currentUserId) return;
+
+    setIsFriendsLoading(true);
+
+    try {
+      // Query friendships where the current user is user_id1
+      const { data: friendshipData, error } = await supabase
+        .from("friendships")
+        .select(
+          `
+            
+            friend:profiles!friendships_user_id2_fkey (
+                id,
+                username,
+                avatar
+            )
+          `
+        )
+        // Filter: user_id1 must match the current user
+        .eq("user_id1", currentUserId);
+
+      if (error) throw error;
+
+      if (friendshipData) {
+        // Map the results to the FriendForShare type
+        const friendsList = friendshipData.map((row) => ({
+          id: row.friend.id,
+          username: row.friend.username || "Unknown User",
+          avatar: row.friend.avatar,
+        }));
+        setFriendsForShare(friendsList);
+      }
+    } catch (error) {
+      console.error("Error loading friends for share:", error);
+      Alert.alert("Error", "Could not load friend list.");
+    } finally {
+      setIsFriendsLoading(false);
+    }
+  }, [currentUserId]); // Rerun when currentUserId changes
+
   useEffect(() => {
     async function init() {
       if (!challenge) return;
@@ -162,6 +209,13 @@ export default function ChallengeDetailScreen() {
       refreshData();
     }, [loadChallengeData, challenge?.id])
   );
+
+  // Load friends when currentUserId is available
+  useEffect(() => {
+    if (currentUserId) {
+      loadFriendsForShare();
+    }
+  }, [currentUserId, loadFriendsForShare]);
 
   // Real-time subscription for submissions
   useEffect(() => {
@@ -295,6 +349,29 @@ export default function ChallengeDetailScreen() {
 
   const [isPinned, setIsPinned] = useState(false);
 
+  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
+  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  // Placeholder friends for share functionality
+  const placeholderFriends = [
+    {
+      id: "a",
+      username: "A",
+      avatar: require("@/assets/images/placeholder.jpg"),
+    },
+    {
+      id: "b",
+      username: "B",
+      avatar: require("@/assets/images/placeholder.jpg"),
+    },
+    {
+      id: "c",
+      username: "C",
+      avatar: require("@/assets/images/placeholder.jpg"),
+    },
+  ];
+
   // Check if challenge is pinned when component mounts or currentUserId changes
   useEffect(() => {
     async function checkPinned() {
@@ -338,8 +415,12 @@ export default function ChallengeDetailScreen() {
   };
 
   const handleShare = () => {
-    // TODO: Implement share functionality
-    console.log("Share challenge");
+    setShowShareModal(true);
+  };
+
+  const handleFriendTap = (friendId: string) => {
+    // TODO: Implement what happens when a friend is tapped
+    console.log(`Share challenge with friend: ${friendId}`);
   };
 
   const handlePickImage = async () => {
@@ -668,14 +749,15 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Ingredients */}
-          {displayChallenge.ingredients && displayChallenge.ingredients.length > 0 && (
-            <Text style={styles.label}>
-              INGREDIENTS:{" "}
-              <Text style={styles.value}>
-                {displayChallenge.ingredients.join(", ")}
+          {displayChallenge.ingredients &&
+            displayChallenge.ingredients.length > 0 && (
+              <Text style={styles.label}>
+                INGREDIENTS:{" "}
+                <Text style={styles.value}>
+                  {displayChallenge.ingredients.join(", ")}
+                </Text>
               </Text>
-            </Text>
-          )}
+            )}
 
           {/* Dietary Restrictions */}
           {displayChallenge.dietary_restrictions &&
@@ -888,6 +970,68 @@ export default function ChallengeDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Share Modal */}
+      <Modal
+        visible={showShareModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={styles.shareModalOverlay}>
+          <View style={styles.shareModalContent}>
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share Challenge</Text>
+              <TouchableOpacity onPress={() => setShowShareModal(false)}>
+                <Ionicons
+                  name="close"
+                  size={28}
+                  color={Colors.palette.darkest}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {isFriendsLoading ? (
+              <ActivityIndicator
+                size="large"
+                color={Colors.palette.blue}
+                style={{ marginVertical: 30 }}
+              />
+            ) : friendsForShare.length === 0 ? (
+              <Text style={styles.noFriendsText}>
+                You need to add friends first!
+              </Text>
+            ) : (
+              <View style={styles.friendsGrid}>
+                {friendsForShare.map(
+                  (
+                    friend // <-- Use friendsForShare here
+                  ) => (
+                    <TouchableOpacity
+                      key={friend.id}
+                      style={styles.friendCard}
+                      onPress={() => handleFriendTap(friend.id)}
+                    >
+                      {/* AVATAR LOGIC (Assuming local/remote logic from friends.tsx is adapted here) */}
+                      <Image
+                        source={
+                          friend.avatar
+                            ? { uri: friend.avatar }
+                            : require("@/assets/images/placeholder.jpg")
+                        }
+                        style={styles.friendCardImage}
+                      />
+                      <Text style={styles.friendCardName}>
+                        {friend.username}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Submission Modal */}
       <Modal
@@ -1490,5 +1634,71 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 24,
     paddingBottom: 40,
+  },
+
+  // Share Modal Styles
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  shareModalContent: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  shareModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.palette.lightest,
+  },
+  shareModalTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: Colors.palette.darkest,
+  },
+  friendsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 20,
+    justifyContent: "space-around",
+    gap: 16,
+  },
+  friendCard: {
+    alignItems: "center",
+    width: "30%",
+  },
+  friendCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 8,
+    backgroundColor: Colors.palette.lightest,
+  },
+  friendCardName: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+    textAlign: "center",
+  },
+  noFriendsText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.dark,
+    textAlign: "center",
+    padding: 20,
   },
 });
