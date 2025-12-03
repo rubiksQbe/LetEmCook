@@ -528,7 +528,7 @@ export default function ChallengeDetailScreen() {
 
       {/* Sticky Back Button */}
       <TouchableOpacity style={styles.backButton} onPress={handleBack}>
-        <Ionicons name="arrow-back" size={24} color="white" />
+        <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
       </TouchableOpacity>
 
       <ScrollView
@@ -983,7 +983,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.light,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   container: {
     flex: 1,
@@ -1046,7 +1046,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

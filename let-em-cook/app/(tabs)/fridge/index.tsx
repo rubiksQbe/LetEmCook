@@ -165,7 +165,19 @@ export default function FridgeScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View style={{ height: 100 }} />
+          <View
+            style={{
+              height: 100,
+              flexDirection: "column",
+              justifyContent: "flex-end",
+            }}
+          >
+            <Image
+              source={require("@/assets/images/mouse-assets/defaultmouse.png")}
+              style={styles.inlineMouse}
+              resizeMode="contain"
+            />
+          </View>
 
           <View style={styles.fridgeWrapper}>
             {/* FREEZER / Pinned */}
@@ -364,12 +376,24 @@ const styles = StyleSheet.create({
   },
   magnetLetter: {
     fontFamily: "Fredoka_700Bold",
-    fontSize: 36,
+    fontSize: 40,
     color: Colors.palette.accent,
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
-    marginHorizontal: 8,
+    marginHorizontal: 7,
   },
   historySection: { minHeight: 400, justifyContent: "flex-start" },
+  inlineMouse: {
+    width: 80,
+    height: 80,
+    marginLeft: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 5,
+    shadowOffset: { width: 3, height: 5 },
+    transform: [{ rotate: "-3deg" }], // optional tilt for magnet vibe
+    marginBottom: -6,
+  },
 });
