@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -272,7 +273,7 @@ export default function FriendScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header with Mouse */}
-      <View style={styles.headerContainer}>
+      {/* <View style={styles.headerContainer}>
         <View style={styles.mouseContainer}>
           <Image
             source={require("../../assets/images/mouse-assets/macaroni.png")}
@@ -285,7 +286,7 @@ export default function FriendScreen() {
             <View style={styles.speechBubbleTail} />
           </View>
         </View>
-      </View>
+      </View> */}
 
       {/*ADD FRIENDS SECTION */}
       <View style={styles.addFriendSection}>
@@ -293,7 +294,7 @@ export default function FriendScreen() {
         <View style={styles.searchBarContainer}>
           <TextInput
             style={styles.searchInput}
-            placeholder="Search username to add..."
+            placeholder="Search by username..."
             placeholderTextColor={Colors.palette.dark}
             value={searchUsername}
             onChangeText={setSearchUsername}
@@ -307,7 +308,11 @@ export default function FriendScreen() {
             {addFriendLoading ? (
               <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.addButtonText}>Add</Text>
+              <MaterialCommunityIcons
+                name="plus"
+                size={30}
+                color={Colors.palette.lightest}
+              />
             )}
           </TouchableOpacity>
         </View>
@@ -411,25 +416,25 @@ const styles = StyleSheet.create({
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 18,
-    marginBottom: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: Colors.palette.lightest,
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    marginBottom: 10,
+    marginHorizontal: 5,
+    // borderBottomWidth: 0.5,
+    // borderBottomColor: Colors.palette.lightest,
   },
   friendAvatarColumn: {
     alignItems: "center",
-    width: 100,
+    paddingHorizontal: 10,
   },
   challengeCard: {
-    flex: 1,
-    paddingLeft: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   challengeImage: {
-    width: "90%",
-    height: 84,
-    borderRadius: 8,
+    height: 120,
+    aspectRatio: 2,
+    borderRadius: 12,
     backgroundColor: Colors.palette.lightest,
     //opacity: 0.35,
     resizeMode: "cover",
@@ -439,6 +444,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.palette.darkest,
     textAlign: "center",
+    fontFamily: "Poppins_400Regular",
   },
   avatar: {
     width: 72,
@@ -481,23 +487,21 @@ const styles = StyleSheet.create({
   addFriendSection: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: Colors.palette.light,
     borderBottomWidth: 1,
     borderBottomColor: "#ddd",
   },
   addFriendTitle: {
     fontSize: 18,
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
     color: Colors.palette.darkest,
-    marginBottom: 10,
+    marginBottom: 7,
   },
   searchBarContainer: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "white",
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
     overflow: "hidden",
   },
   searchInput: {
@@ -510,15 +514,10 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: Colors.palette.blue,
-    paddingHorizontal: 20,
+    paddingHorizontal: 12,
     height: 48,
     justifyContent: "center",
     alignItems: "center",
-  },
-  addButtonText: {
-    color: "white",
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 16,
   },
   messageText: {
     marginTop: 8,
