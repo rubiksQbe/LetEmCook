@@ -1,5 +1,6 @@
 import Colors from "@/constants/Colors";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,10 +9,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { fetchChallenges, supabase } from "../../lib/supabase";
+import { fetchChallenges, supabase } from "../../../lib/supabase";
 
 interface Challenge {
   id: string;
@@ -44,6 +46,7 @@ export default function FridgeScreen() {
     ChallengeWithSubmission[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   // --- Load fridge data ---
   async function loadFridgeData() {
@@ -168,7 +171,18 @@ export default function FridgeScreen() {
             {/* FREEZER / Pinned */}
             <View style={styles.freezerSection}>
               {pinnedChallenge && (
-                <View style={styles.pinnedPolaroid}>
+                <TouchableOpacity
+                  onPress={() =>
+                    router.push({
+                      pathname: "/fridge/[id]",
+                      params: {
+                        id: pinnedChallenge.id,
+                        challenge: JSON.stringify(pinnedChallenge),
+                      },
+                    })
+                  }
+                  style={styles.pinnedPolaroid}
+                >
                   <View style={styles.magnet}>
                     <MaterialCommunityIcons
                       name="pin"
@@ -192,7 +206,7 @@ export default function FridgeScreen() {
                       {pinnedChallenge.title}
                     </Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               )}
             </View>
 
@@ -227,7 +241,18 @@ export default function FridgeScreen() {
                 }}
                 scrollEnabled={false}
                 renderItem={({ item }) => (
-                  <View style={styles.polaroidHistory}>
+                  <TouchableOpacity
+                    onPress={() =>
+                      router.push({
+                        pathname: "/fridge/[id]",
+                        params: {
+                          id: item.id,
+                          challenge: JSON.stringify(item),
+                        },
+                      })
+                    }
+                    style={styles.polaroidHistory}
+                  >
                     <View style={styles.magnet} />
                     {item.submissionImage && (
                       <Image
@@ -245,7 +270,7 @@ export default function FridgeScreen() {
                         {item.title}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 )}
               />
             </View>

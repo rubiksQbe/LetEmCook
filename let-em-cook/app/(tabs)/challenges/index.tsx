@@ -400,10 +400,12 @@ export default function ChallengeScreen() {
           ) : null}
         </View>
         <TouchableOpacity
-          onPress={() => router.push({
-            pathname: "/(tabs)/profile",
-            params: { from: "challenges" }
-          })}
+          onPress={() =>
+            router.push({
+              pathname: "/(tabs)/profile",
+              params: { from: "challenges" },
+            })
+          }
           style={styles.inlineProfileButton}
         >
           <Ionicons
@@ -960,7 +962,10 @@ export default function ChallengeScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/challenges/[id]",
-                  params: { id: item.id, challenge: JSON.stringify(item) },
+                  params: {
+                    id: item.id,
+                    challenge: JSON.stringify(item),
+                  },
                 })
               }
             >
