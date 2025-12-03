@@ -106,21 +106,21 @@ export default function FridgeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <View style={styles.titleRow}>
-        <View style={styles.titleRowSpacer} />
-        <Text style={styles.pageTitle}>Fridge</Text>
+      {/* Header with Profile Button */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerSpacer} />
         <TouchableOpacity
           onPress={() => router.push({
             pathname: "/(tabs)/profile",
             params: { from: "fridge" }
           })}
-          style={styles.profileButton}
+          style={styles.inlineProfileButton}
         >
-            <Ionicons
-              name="person-circle-outline"
-              size={36}
-              color={Colors.palette.darkest}
-            />
+          <Ionicons
+            name="person-circle-outline"
+            size={44}
+            color={Colors.palette.darkest}
+          />
         </TouchableOpacity>
       </View>
 
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   /* === SAFE AREA HEADER === */
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   wall: {
     flex: 1,
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.lightest,
   },
   titleRowSpacer: {
     width: 28,
@@ -343,5 +343,22 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 12,
+    backgroundColor: Colors.palette.light,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  inlineProfileButton: {
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

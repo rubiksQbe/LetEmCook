@@ -195,22 +195,21 @@ export default function FriendScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Page Title */}
-      <View style={styles.titleRow}>
-        <View style={styles.titleRowSpacer} />
-        <Text style={styles.pageTitle}>Friends</Text>
+      {/* Header with Profile Button */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerSpacer} />
         <TouchableOpacity
           onPress={() => router.push({
             pathname: "/(tabs)/profile",
             params: { from: "friends" }
           })}
-          style={styles.profileButton}
+          style={styles.inlineProfileButton}
         >
-            <Ionicons
-              name="person-circle-outline"
-              size={36}
-              color={Colors.palette.darkest}
-            />
+          <Ionicons
+            name="person-circle-outline"
+            size={44}
+            color={Colors.palette.darkest}
+          />
         </TouchableOpacity>
       </View>
 
@@ -246,7 +245,7 @@ export default function FriendScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   titleRow: {
     flexDirection: "row",
@@ -255,7 +254,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   titleRowSpacer: {
     width: 28,
@@ -352,5 +351,22 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 16,
     fontFamily: "Poppins_400Regular",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 12,
+    backgroundColor: Colors.palette.light,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  inlineProfileButton: {
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
