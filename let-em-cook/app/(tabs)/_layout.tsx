@@ -101,6 +101,10 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabBarIcon focused={focused} iconName="fridge" />
           ),
+          tabBarItemStyle: {
+            flex: 1,
+            marginLeft: 4,
+          },
         }}
       />
       <Tabs.Screen

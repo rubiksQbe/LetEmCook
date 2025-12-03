@@ -194,23 +194,6 @@ export default function FriendScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header with Mouse */}
-      {/* <View style={styles.headerContainer}>
-        <View style={styles.mouseContainer}>
-          <Image
-            source={require("../../assets/images/mouse-assets/macaroni.png")}
-            style={styles.headerMouseAvatar}
-          />
-          <View style={styles.speechBubble}>
-            <Text style={styles.greeting}>
-              {userName ? `Hi, ${userName}!` : "Hi!"}
-            </Text>
-            <View style={styles.speechBubbleTail} />
-          </View>
-        </View>
-      </View> */}
-
-      {/* Friends List */}
       <View style={styles.content}>
         <FlatList
           data={friends}
@@ -260,48 +243,6 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 100,
-  },
-  headerMouseAvatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: Colors.palette.lightest,
-    zIndex: 2,
-  },
-  speechBubble: {
-    flex: 1,
-    backgroundColor: Colors.palette.lightest,
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    marginLeft: 16,
-    position: "relative",
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 3,
-  },
-  speechBubbleTail: {
-    position: "absolute",
-    left: -8,
-    top: "50%",
-    marginTop: -4,
-    width: 0,
-    height: 0,
-    borderTopWidth: 12,
-    borderTopColor: "transparent",
-    borderBottomWidth: 12,
-    borderBottomColor: "transparent",
-    borderRightWidth: 12,
-    borderRightColor: Colors.palette.lightest,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: Colors.palette.darkest,
-    fontFamily: "Poppins_600SemiBold",
-    textAlign: "center",
   },
   friendRow: {
     flexDirection: "row",
@@ -358,19 +299,5 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 16,
     fontFamily: "Poppins_400Regular",
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    backgroundColor: Colors.palette.light,
-    minHeight: 100,
-  },
-  mouseContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
   },
 });
