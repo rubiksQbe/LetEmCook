@@ -6,14 +6,13 @@ import {
   Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, useRouter } from "expo-router";
+import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect } from "react";
-import { Alert, TouchableOpacity, View } from "react-native";
+import { View } from "react-native";
 import "react-native-reanimated";
 
 export {
@@ -58,31 +57,6 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const router = useRouter();
-
-  const discardChallenge = () => {
-    Alert.alert(
-      "Discard Challenge",
-      "Are you sure you want to discard this challenge? All changes will be lost.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: async () => {
-            // Clear the saved draft from AsyncStorage
-            try {
-              await AsyncStorage.removeItem("challengeDraft");
-            } catch (e) {
-              console.error("Failed to clear challenge draft", e);
-            }
-            router.back(); // close modal
-          },
-        },
-      ]
-    );
-  };
-
   return (
     <ThemeProvider value={DefaultTheme}>
       <Stack>
@@ -95,15 +69,7 @@ function RootLayoutNav() {
           name="(modals)"
           options={{
             presentation: "modal",
-            title: "Create a Challenge",
-            headerTitleStyle: {
-              fontSize: 20,
-            },
-            headerLeft: () => (
-              <TouchableOpacity onPress={discardChallenge}>
-                <FontAwesome name="trash" size={24} color="red" />
-              </TouchableOpacity>
-            ),
+            headerShown: false,
           }}
         />
       </Stack>
