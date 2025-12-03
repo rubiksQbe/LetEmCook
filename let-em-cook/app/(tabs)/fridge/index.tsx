@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 5,
     shadowOffset: { width: 3, height: 5 },
-    transform: [{ rotate: "-3deg" }], // optional tilt for magnet vibe
+    transform: [{ rotate: "-3deg" }],
     marginBottom: -6,
   },
   speechBubble: {

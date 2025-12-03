@@ -187,8 +187,8 @@ export default function AddChallengeScreen() {
 
     if (!hasTimeLimit && !hasIngredients && !hasDietaryRestrictions) {
       Alert.alert(
-        "Missing Filters",
-        "Please select at least one filter: Time Limit, Ingredients, or Dietary Restrictions."
+        "Missing Tags",
+        "Please select at least one tag: Time Limit, Ingredients, or Dietary Restrictions."
       );
       return;
     }
@@ -285,7 +285,7 @@ export default function AddChallengeScreen() {
 
         {/* ---------------- FILTERS ---------------- */}
         <View style={[styles.labelRow, { marginTop: 6 }]}>
-          <Text style={styles.label}>Filters</Text>
+          <Text style={styles.label}>Tags</Text>
           <Text style={styles.optional}>(Select at least 1)</Text>
         </View>
 

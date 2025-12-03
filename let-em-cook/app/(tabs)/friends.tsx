@@ -195,7 +195,7 @@ export default function FriendScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header with Mouse */}
-      <View style={styles.headerContainer}>
+      {/* <View style={styles.headerContainer}>
         <View style={styles.mouseContainer}>
           <Image
             source={require("../../assets/images/mouse-assets/macaroni.png")}
@@ -208,7 +208,7 @@ export default function FriendScreen() {
             <View style={styles.speechBubbleTail} />
           </View>
         </View>
-      </View>
+      </View> */}
 
       {/* Friends List */}
       <View style={styles.content}>
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   headerMouseAvatar: {
     width: 70,
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 18,
+    paddingVertical: 14,
     marginBottom: 8,
     borderBottomWidth: 0.5,
     borderBottomColor: Colors.palette.lightest,
