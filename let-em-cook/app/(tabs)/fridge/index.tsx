@@ -165,18 +165,34 @@ export default function FridgeScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
-          <View
-            style={{
-              height: 100,
-              flexDirection: "column",
-              justifyContent: "flex-end",
-            }}
-          >
-            <Image
-              source={require("@/assets/images/mouse-assets/defaultmouse.png")}
-              style={styles.inlineMouse}
-              resizeMode="contain"
-            />
+          <View style={{ width: "100%", flexDirection: "row" }}>
+            <View
+              style={{
+                height: 100,
+                flexDirection: "column",
+                justifyContent: "flex-end",
+              }}
+            >
+              <Image
+                source={require("@/assets/images/mouse-assets/defaultmouse.png")}
+                style={styles.inlineMouse}
+                resizeMode="contain"
+              />
+            </View>
+            {!pinnedChallenge && (
+              <View style={styles.speechBubble}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontFamily: "Poppins_400Regular",
+                    color: Colors.palette.darkest,
+                  }}
+                >
+                  Your pinned challenge will appear here!
+                </Text>
+                <View style={styles.speechBubbleTail} />
+              </View>
+            )}
           </View>
 
           <View style={styles.fridgeWrapper}>
@@ -395,5 +411,31 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 3, height: 5 },
     transform: [{ rotate: "-3deg" }], // optional tilt for magnet vibe
     marginBottom: -6,
+  },
+  speechBubble: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 5,
+    height: 70,
+    marginTop: 20,
+    marginRight: 50,
+    marginLeft: 10,
+    position: "relative",
+    justifyContent: "center",
+  },
+  speechBubbleTail: {
+    position: "absolute",
+    left: -8,
+    top: 20,
+    width: 0,
+    height: 0,
+    borderTopWidth: 8,
+    borderTopColor: "transparent",
+    borderBottomWidth: 8,
+    borderBottomColor: "transparent",
+    borderRightWidth: 8,
+    borderRightColor: Colors.palette.lightest,
   },
 });
