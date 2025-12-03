@@ -635,7 +635,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
   },
   loadingSafeArea: {
     flex: 1,
@@ -645,9 +645,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.light,
     paddingHorizontal: 8,
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.palette.dark,
   },
   loadingContainer: {
     flex: 1,

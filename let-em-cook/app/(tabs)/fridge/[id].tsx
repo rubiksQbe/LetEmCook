@@ -653,29 +653,25 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Time Limit */}
-          {displayChallenge.timeLimit && (
-            <Text
-              style={[
-                styles.label,
-                !displayChallenge.description && { marginTop: 0 },
-              ]}
-            >
-              TIME LIMIT:{" "}
-              <Text style={styles.value}>
-                {displayChallenge.timeLimit} (not including prep time)
-              </Text>
+          <Text
+            style={[
+              styles.label,
+              !displayChallenge.description && { marginTop: 0 },
+            ]}
+          >
+            TIME LIMIT:{" "}
+            <Text style={styles.value}>
+              {displayChallenge.timeLimit} (not including prep time)
             </Text>
-          )}
+          </Text>
 
           {/* Ingredients */}
-          {displayChallenge.ingredients && displayChallenge.ingredients.length > 0 && (
-            <Text style={styles.label}>
-              INGREDIENTS:{" "}
-              <Text style={styles.value}>
-                {displayChallenge.ingredients.join(", ")}
-              </Text>
+          <Text style={styles.label}>
+            INGREDIENTS:{" "}
+            <Text style={styles.value}>
+              {displayChallenge.ingredients.join(", ")}
             </Text>
-          )}
+          </Text>
 
           {/* Dietary Restrictions */}
           {displayChallenge.dietary_restrictions &&

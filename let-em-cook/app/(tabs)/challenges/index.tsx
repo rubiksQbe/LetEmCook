@@ -67,9 +67,12 @@ export default function ChallengeScreen() {
   const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] =
     useState<string[]>([]);
 
+  // Sort state
+  const [sortBy, setSortBy] = useState<"recent" | "submissions" | "likes">("recent");
+
   // Modal states
   const [modalVisible, setModalVisible] = useState<
-    "difficulty" | "time" | "ingredients" | "dietary" | null
+    "difficulty" | "time" | "ingredients" | "dietary" | "sort" | null
   >(null);
   const [ingredientInput, setIngredientInput] = useState("");
   const [dietaryInput, setDietaryInput] = useState("");
@@ -307,6 +310,35 @@ export default function ChallengeScreen() {
     currentUserId,
   ]);
 
+  // Sort challenges based on selected sort option
+  const sortedChallenges = useMemo(() => {
+    const sorted = [...filteredChallenges];
+    switch (sortBy) {
+      case "submissions":
+        return sorted.sort((a, b) => (b.submission_count || 0) - (a.submission_count || 0));
+      case "likes":
+        return sorted.sort((a, b) => {
+          const aLikes = (a.upvotes || 0) - (a.downvotes || 0);
+          const bLikes = (b.upvotes || 0) - (b.downvotes || 0);
+          return bLikes - aLikes;
+        });
+      case "recent":
+      default:
+        return sorted.sort((a, b) => {
+          const aDate = new Date(a.created_at || 0).getTime();
+          const bDate = new Date(b.created_at || 0).getTime();
+          return bDate - aDate;
+        });
+    }
+  }, [filteredChallenges, sortBy]);
+
+  // Sort options for display
+  const sortOptions = [
+    { label: "By Recent", value: "recent" as const },
+    { label: "By Submissions", value: "submissions" as const },
+    { label: "By Likes", value: "likes" as const },
+  ];
+
   // Common dietary restrictions for filtering
   const commonDietaryRestrictions = [
     "Vegetarian",
@@ -424,6 +456,29 @@ export default function ChallengeScreen() {
           style={styles.filtersScrollView}
           contentContainerStyle={styles.filtersScrollContent}
         >
+          {/* Sort By */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              styles.filterChipActive,
+            ]}
+            onPress={() => setModalVisible("sort")}
+          >
+            <Ionicons
+              name="swap-vertical"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+            <Text style={styles.filterChipText} numberOfLines={1}>
+              {sortOptions.find(opt => opt.value === sortBy)?.label || "Sort"}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={16}
+              color={Colors.palette.darkest}
+            />
+          </TouchableOpacity>
+
           {/* Difficulty Filter */}
           <TouchableOpacity
             style={[
@@ -906,15 +961,82 @@ export default function ChallengeScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Sort Modal */}
+      <Modal
+        visible={modalVisible === "sort"}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setModalVisible(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
+        >
+          <View
+            style={styles.modalContent}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sort By</Text>
+              <TouchableOpacity onPress={() => setModalVisible(null)}>
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={Colors.palette.darkest}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.modalOptions}>
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.value}
+                  style={[
+                    styles.modalOption,
+                    sortBy === option.value && styles.modalOptionActive,
+                  ]}
+                  onPress={() => {
+                    setSortBy(option.value);
+                    setModalVisible(null);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      sortBy === option.value && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                  {sortBy === option.value && (
+                    <Ionicons
+                      name="checkmark"
+                      size={20}
+                      color={Colors.palette.darkest}
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.modalDoneButton}
+              onPress={() => setModalVisible(null)}
+            >
+              <Text style={styles.modalDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Challenge List */}
       <FlatList
-        data={filteredChallenges}
+        data={sortedChallenges}
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: Colors.palette.light }}
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 15,
-          paddingBottom: 10,
+          paddingBottom: 100,
         }}
         ListHeaderComponent={null}
         ListEmptyComponent={
@@ -947,7 +1069,10 @@ export default function ChallengeScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/challenges/[id]",
-                  params: { id: item.id, challenge: JSON.stringify(item) },
+                  params: {
+                    id: item.id,
+                    challenge: JSON.stringify(item),
+                  },
                 })
               }
             >
@@ -1041,9 +1166,6 @@ const styles = StyleSheet.create({
   titleRowSpacer: {
     width: 28,
   },
-  profileButton: {
-    padding: 8,
-  },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 28,
@@ -1051,7 +1173,7 @@ const styles = StyleSheet.create({
   },
   floatingAddButton: {
     position: "absolute",
-    bottom: 12,
+    bottom: 100,
     right: 20,
     width: 56,
     height: 56,
