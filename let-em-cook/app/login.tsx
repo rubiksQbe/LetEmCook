@@ -29,7 +29,14 @@ export default function LoginScreen() {
     const { error } = await signInWithUsername(username.trim(), password);
     setLoading(false);
     if (error) {
-      Alert.alert("Sign in failed", error.message);
+      // Provide user-friendly error messages
+      let errorMessage = error.message;
+      if (error.message.includes("Invalid login credentials") || 
+          error.message.includes("Email not confirmed") ||
+          error.message.includes("User not found")) {
+        errorMessage = "Invalid username or password. Please check your credentials and try again.";
+      }
+      Alert.alert("Sign in failed", errorMessage);
     } else {
       router.replace("/(tabs)/challenges");
     }
@@ -91,6 +98,8 @@ export default function LoginScreen() {
             placeholderTextColor="#999"
             style={styles.input}
             autoCorrect={false}
+            textContentType="none"
+            autoComplete="off"
           />
         </View>
 

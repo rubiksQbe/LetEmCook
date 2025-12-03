@@ -37,19 +37,57 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 });
 
 export async function signUpWithUsername(username: string, password: string) {
+  // First, check if username already exists in profiles table
+  const trimmedUsername = username.trim().toLowerCase();
+  
+  const { data: existingProfiles, error: checkError } = await supabase
+    .from("profiles")
+    .select("username")
+    .ilike("username", trimmedUsername);
+
+  if (checkError) {
+    return { data: null, error: new Error("Failed to check username availability.") };
+  }
+
+  if (existingProfiles && existingProfiles.length > 0) {
+    return { data: null, error: new Error("Username already taken. Please choose another.") };
+  }
+
   // Supabase requires an email or phone as the primary identifier.
   // To support "username + password" UX without emails, we alias the username to a synthetic email.
   // Ensure you disable email confirmations in your Supabase project.
-  const aliasEmail = `${username}@example.local`;
+  const aliasEmail = `${trimmedUsername}@example.local`;
 
   const { data, error } = await supabase.auth.signUp({
     email: aliasEmail,
     password,
     options: {
-      data: { username },
+      data: { username: trimmedUsername },
       emailRedirectTo: undefined,
     },
   });
+
+  // If signup successful, create or update profile entry
+  if (data?.user && !error) {
+    // Use upsert to handle case where profile might already exist
+    // (e.g., if auth user was deleted but profile wasn't)
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .upsert({
+        id: data.user.id,
+        username: trimmedUsername,
+        avatar: null, // Default avatar
+      }, {
+        onConflict: 'id'
+      });
+
+    if (profileError) {
+      console.error("Error creating/updating profile:", profileError);
+      // Note: User is created but profile isn't - they can still use the app
+      // but might need to update their profile later
+    }
+  }
+
   return { data, error };
 }
 
@@ -59,7 +97,67 @@ export async function signInWithUsername(username: string, password: string) {
     email: aliasEmail,
     password,
   });
+  
+  // Ensure profile exists after sign in
+  if (data?.user && !error) {
+    await ensureUserProfile(data.user.id);
+  }
+  
   return { data, error };
+}
+
+/**
+ * Ensures a user has a profile entry in the profiles table.
+ * Creates one if it doesn't exist, using data from auth metadata.
+ */
+export async function ensureUserProfile(userId: string) {
+  try {
+    // Check if profile already exists
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (existingProfile) {
+      // Profile exists, nothing to do
+      return { success: true, created: false };
+    }
+
+    // Profile doesn't exist, get user data from auth
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    
+    if (!user || user.id !== userId) {
+      return { success: false, error: "User not found" };
+    }
+
+    // Get username from metadata or email
+    const username =
+      user.user_metadata?.username ||
+      user.email?.split("@")[0] ||
+      "user";
+
+    // Create profile entry
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .insert({
+        id: userId,
+        username: username.toLowerCase(),
+        avatar: null,
+      });
+
+    if (profileError) {
+      console.error("Error creating profile:", profileError);
+      return { success: false, error: profileError.message };
+    }
+
+    return { success: true, created: true };
+  } catch (error: any) {
+    console.error("Error in ensureUserProfile:", error);
+    return { success: false, error: error.message };
+  }
 }
 
 // ============= CHALLENGE FUNCTIONS =============

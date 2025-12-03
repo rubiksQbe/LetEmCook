@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Colors from "@/constants/Colors";
@@ -194,10 +195,23 @@ export default function FriendScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Page Title */}
-      {/* <View style={styles.titleRow}>
-        <Text style={styles.pageTitle}>Friends</Text>
-      </View> */}
+      {/* Header with Profile Button */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          onPress={() => router.push({
+            pathname: "/(tabs)/profile",
+            params: { from: "friends" }
+          })}
+          style={styles.inlineProfileButton}
+        >
+          <Ionicons
+            name="person-circle-outline"
+            size={44}
+            color={Colors.palette.darkest}
+          />
+        </TouchableOpacity>
+      </View>
 
       {/* Friends List */}
       <View style={styles.content}>
@@ -235,18 +249,23 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: "row",
-    justifyContent: "center",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 1,
     paddingBottom: 8,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: Colors.palette.light,
+  },
+  titleRowSpacer: {
+    width: 28,
+  },
+  profileButton: {
+    padding: 8,
   },
   pageTitle: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 34,
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 28,
     color: Colors.palette.darkest,
-    letterSpacing: -0.5,
   },
   content: {
     flex: 1,
@@ -332,5 +351,22 @@ const styles = StyleSheet.create({
     marginTop: 24,
     fontSize: 16,
     fontFamily: "Poppins_400Regular",
+  },
+  headerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 12,
+    backgroundColor: Colors.palette.light,
+  },
+  headerSpacer: {
+    flex: 1,
+  },
+  inlineProfileButton: {
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
   },
 });
