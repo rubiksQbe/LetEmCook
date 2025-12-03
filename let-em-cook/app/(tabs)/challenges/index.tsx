@@ -399,19 +399,6 @@ export default function ChallengeScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
-        <TouchableOpacity
-          onPress={() => router.push({
-            pathname: "/(tabs)/profile",
-            params: { from: "challenges" }
-          })}
-          style={styles.inlineProfileButton}
-        >
-          <Ionicons
-            name="person-circle-outline"
-            size={44}
-            color={Colors.palette.darkest}
-          />
-        </TouchableOpacity>
       </View>
 
       {/* Filters Section */}
@@ -1078,11 +1065,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  inlineProfileButton: {
-    padding: 6,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -1172,7 +1154,6 @@ const styles = StyleSheet.create({
   },
   filterChipActive: {
     backgroundColor: Colors.palette.accent,
-    borderColor: Colors.palette.accent,
   },
   filterChipText: {
     fontFamily: "Poppins_500Medium",
@@ -1232,7 +1213,6 @@ const styles = StyleSheet.create({
   },
   modalOptionActive: {
     backgroundColor: Colors.palette.accent,
-    borderColor: Colors.palette.accent,
   },
   modalOptionText: {
     fontFamily: "Poppins_500Medium",
@@ -1300,7 +1280,6 @@ const styles = StyleSheet.create({
   },
   modalChipActive: {
     backgroundColor: Colors.palette.accent,
-    borderColor: Colors.palette.accent,
   },
   modalChipText: {
     fontFamily: "Poppins_500Medium",
@@ -1328,7 +1307,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: Colors.palette.accent,
     borderWidth: 1.5,
-    borderColor: Colors.palette.accent,
+    borderColor: Colors.palette.darkest,
     gap: 6,
     marginRight: 8,
     marginBottom: 8,

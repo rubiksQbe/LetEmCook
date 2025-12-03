@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Colors from "@/constants/Colors";
@@ -195,22 +194,20 @@ export default function FriendScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* Header with Profile Button */}
+      {/* Header with Mouse */}
       <View style={styles.headerContainer}>
-        <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          onPress={() => router.push({
-            pathname: "/(tabs)/profile",
-            params: { from: "friends" }
-          })}
-          style={styles.inlineProfileButton}
-        >
-          <Ionicons
-            name="person-circle-outline"
-            size={44}
-            color={Colors.palette.darkest}
+        <View style={styles.mouseContainer}>
+          <Image
+            source={require("../../assets/images/mouse-assets/macaroni.png")}
+            style={styles.headerMouseAvatar}
           />
-        </TouchableOpacity>
+          <View style={styles.speechBubble}>
+            <Text style={styles.greeting}>
+              {userName ? `Hi, ${userName}!` : "Hi!"}
+            </Text>
+            <View style={styles.speechBubbleTail} />
+          </View>
+        </View>
       </View>
 
       {/* Friends List */}
@@ -222,17 +219,6 @@ export default function FriendScreen() {
           contentContainerStyle={
             friends.length === 0 ? styles.emptyList : styles.listContent
           }
-          ListHeaderComponent={() => (
-            <View style={styles.userHeader}>
-              <Image
-                source={require("../../assets/images/mouse-assets/macaroni.png")}
-                style={styles.userAvatar}
-              />
-              <Text style={styles.greeting}>
-                {userName ? `Hi, ${userName}!` : "Hi!"}
-              </Text>
-            </View>
-          )}
           ListEmptyComponent={() => (
             <Text style={styles.emptyText}>You have no friends yet.</Text>
           )}
@@ -274,27 +260,47 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  userHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: Colors.palette.blue,
-    borderRadius: 12,
-  },
-  userAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginRight: 12,
+  headerMouseAvatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: Colors.palette.lightest,
+    zIndex: 2,
+  },
+  speechBubble: {
+    flex: 1,
+    backgroundColor: Colors.palette.lightest,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    marginLeft: 16,
+    position: "relative",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  speechBubbleTail: {
+    position: "absolute",
+    left: -8,
+    top: "50%",
+    marginTop: -4,
+    width: 0,
+    height: 0,
+    borderTopWidth: 12,
+    borderTopColor: "transparent",
+    borderBottomWidth: 12,
+    borderBottomColor: "transparent",
+    borderRightWidth: 12,
+    borderRightColor: Colors.palette.lightest,
   },
   greeting: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: Colors.palette.lightest,
-    fontFamily: "Poppins_700Bold",
+    fontSize: 24,
+    fontWeight: "600",
+    color: Colors.palette.darkest,
+    fontFamily: "Poppins_600SemiBold",
+    textAlign: "center",
   },
   friendRow: {
     flexDirection: "row",
@@ -355,18 +361,15 @@ const styles = StyleSheet.create({
   headerContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "flex-end",
     paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 12,
+    paddingTop: 20,
+    paddingBottom: 20,
     backgroundColor: Colors.palette.light,
+    minHeight: 100,
   },
-  headerSpacer: {
+  mouseContainer: {
     flex: 1,
-  },
-  inlineProfileButton: {
-    padding: 6,
-    justifyContent: "center",
+    flexDirection: "row",
     alignItems: "center",
   },
 });

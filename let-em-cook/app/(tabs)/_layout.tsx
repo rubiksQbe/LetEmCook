@@ -12,7 +12,7 @@ function TabBarIcon({
   iconName,
 }: {
   focused: boolean;
-  iconName: "challenges" | "friends" | "fridge";
+  iconName: "challenges" | "friends" | "fridge" | "settings";
 }) {
   const iconMap = {
     challenges: {
@@ -26,6 +26,10 @@ function TabBarIcon({
     fridge: {
       default: require("@/assets/images/fridge.png"),
       selected: require("@/assets/images/fridge (1).png"),
+    },
+    settings: {
+      default: require("@/assets/images/settings.png"),
+      selected: require("@/assets/images/settings (1).png"),
     },
   };
 
@@ -55,6 +59,9 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 14,
           fontFamily: "Poppins_600SemiBold",
+        },
+        tabBarItemStyle: {
+          flex: 1,
         },
         // tabBarStyle: {
         //   borderTopWidth: 0,
@@ -94,10 +101,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="settings"
         options={{
-          href: null, // Hide from tab bar
+          title: "Settings",
           headerShown: false,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} iconName="settings" />
+          ),
         }}
       />
     </Tabs>
@@ -106,8 +116,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabIcon: {
-    width: 28,
-    height: 28,
-    marginBottom: -3,
+    width: 32,
+    height: 32,
+    marginBottom: 1,
   },
 });

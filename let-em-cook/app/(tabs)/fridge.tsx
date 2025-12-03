@@ -1,16 +1,14 @@
 import Colors from "@/constants/Colors";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchChallenges, supabase } from "../../lib/supabase";
@@ -106,24 +104,6 @@ export default function FridgeScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {/* Header with Profile Button */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerSpacer} />
-        <TouchableOpacity
-          onPress={() => router.push({
-            pathname: "/(tabs)/profile",
-            params: { from: "fridge" }
-          })}
-          style={styles.inlineProfileButton}
-        >
-          <Ionicons
-            name="person-circle-outline"
-            size={44}
-            color={Colors.palette.darkest}
-          />
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.wall}>
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={{ height: 100 }} />
@@ -231,9 +211,6 @@ const styles = StyleSheet.create({
   },
   titleRowSpacer: {
     width: 28,
-  },
-  profileButton: {
-    padding: 8,
   },
   pageTitle: {
     fontFamily: "Poppins_600SemiBold",
@@ -343,22 +320,5 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
-  },
-  headerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 12,
-    backgroundColor: Colors.palette.light,
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  inlineProfileButton: {
-    padding: 6,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });

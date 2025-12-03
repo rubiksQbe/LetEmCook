@@ -300,9 +300,21 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleLogout() {
+    setUpdating(true);
+    try {
+      await supabase.auth.signOut();
+      router.replace("/auth");
+    } catch (error: any) {
+      Alert.alert("Error", error.message || "Failed to log out.");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={["top"]}>
+      <SafeAreaView style={styles.loadingSafeArea} edges={["top"]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.palette.darkest} />
         </View>
@@ -316,34 +328,9 @@ export default function ProfileScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => {
-              // Navigate back to the tab the user came from
-              if (fromTab === "challenges") {
-                router.replace("/(tabs)/challenges");
-              } else if (fromTab === "fridge") {
-                router.replace("/(tabs)/fridge");
-              } else if (fromTab === "friends") {
-                router.replace("/(tabs)/friends");
-              } else {
-                // Fallback to router.back() if no from parameter
-                router.back();
-              }
-            }}
-            style={styles.backButton}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={24}
-              color={Colors.palette.darkest}
-            />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <View style={styles.backButton} />
+          <Text style={styles.settingsHeader}>Settings</Text>
         </View>
-
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -382,6 +369,27 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
+          {/* Log Out Button */}
+          <TouchableOpacity
+            style={[styles.section, styles.logoutSection]}
+            onPress={handleLogout}
+            disabled={updating}
+          >
+            <View style={styles.sectionContent}>
+              <Text style={[styles.sectionTitle, styles.logoutTitle]}>
+                Log Out
+              </Text>
+              <Text style={[styles.sectionSubtitle, styles.logoutSubtitle]}>
+                Sign out of Let 'em Cook
+              </Text>
+            </View>
+            <Ionicons
+              name="log-out-outline"
+              size={24}
+              color={Colors.palette.dark}
+            />
+          </TouchableOpacity>
+
           {/* Delete Account Section */}
           <TouchableOpacity
             style={[styles.section, styles.deleteSection]}
@@ -403,7 +411,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </ScrollView>
 
-        {/* Change Name Modal */}
+        {/* Change Usern    ame Modal */}
         <Modal
           visible={showChangeNameModal}
           transparent={true}
@@ -413,7 +421,7 @@ export default function ProfileScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Change Name</Text>
+                <Text style={styles.modalTitle}>Change Username</Text>
                 <TouchableOpacity
                   onPress={() => setShowChangeNameModal(false)}
                   style={styles.modalCloseButton}
@@ -580,12 +588,12 @@ export default function ProfileScreen() {
               </Text>
 
               <Text style={styles.deleteConfirmLabel}>
-                Type "delete" to confirm:
+                Type 'delete' to confirm:
               </Text>
 
               <TextInput
                 style={styles.modalInput}
-                placeholder="Type 'delete'"
+                placeholder="Type 'delete' to confirm"
                 placeholderTextColor={Colors.palette.dark}
                 value={deleteConfirmText}
                 onChangeText={setDeleteConfirmText}
@@ -629,33 +637,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.accent,
   },
+  loadingSafeArea: {
+    flex: 1,
+    backgroundColor: Colors.palette.light,
+  },
   keyboardView: {
     flex: 1,
+  },
+  header: {
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 8,
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: Colors.palette.accent,
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 28,
-    color: Colors.palette.darkest,
   },
   scrollView: {
     flex: 1,
@@ -663,6 +660,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+  },
+  settingsHeader: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 24,
+    color: Colors.palette.darkest,
+    marginBottom: 16,
+    textAlign: "center",
   },
   section: {
     flexDirection: "row",
@@ -698,6 +702,15 @@ const styles = StyleSheet.create({
   },
   deleteSubtitle: {
     color: "#cc0000",
+  },
+  logoutSection: {
+    marginTop: 8,
+  },
+  logoutTitle: {
+    color: Colors.palette.darkest,
+  },
+  logoutSubtitle: {
+    color: Colors.palette.dark,
   },
   modalOverlay: {
     flex: 1,
