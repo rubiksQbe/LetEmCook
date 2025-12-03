@@ -353,25 +353,6 @@ export default function ChallengeDetailScreen() {
   const [isFriendsLoading, setIsFriendsLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
 
-  // Placeholder friends for share functionality
-  const placeholderFriends = [
-    {
-      id: "a",
-      username: "A",
-      avatar: require("@/assets/images/placeholder.jpg"),
-    },
-    {
-      id: "b",
-      username: "B",
-      avatar: require("@/assets/images/placeholder.jpg"),
-    },
-    {
-      id: "c",
-      username: "C",
-      avatar: require("@/assets/images/placeholder.jpg"),
-    },
-  ];
-
   // Check if challenge is pinned when component mounts or currentUserId changes
   useEffect(() => {
     async function checkPinned() {
@@ -418,9 +399,73 @@ export default function ChallengeDetailScreen() {
     setShowShareModal(true);
   };
 
-  const handleFriendTap = (friendId: string) => {
-    // TODO: Implement what happens when a friend is tapped
-    console.log(`Share challenge with friend: ${friendId}`);
+  const handleFriendTap = async (friendId: string) => {
+    if (!currentUserId || !displayChallenge) return;
+
+    // 1. Get the friend's current challenge status
+    setIsFriendsLoading(true);
+
+    try {
+      const { data: friendProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("curr_chal, username")
+        .eq("id", friendId)
+        .single();
+
+      if (profileError || !friendProfile) {
+        Alert.alert("Error", "Could not find friend profile.");
+        return;
+      }
+
+      const friendUsername = friendProfile.username || "Your friend";
+
+      // 2. CHECK 1: If friend already has a current challenge (curr_chal is populated)
+      if (friendProfile.curr_chal) {
+        Alert.alert(
+          "Invite Unsuccessful",
+          `${friendUsername} already has a pinned challenge! Invite unsuccessful.`
+        );
+        return;
+      }
+
+      // 3. INVITE: Update the friendship row with the new challenge invitation.
+      // The query finds the directional relationship where the current user (inviter) is user_id1.
+      const { error: updateError } = await supabase
+        .from("friendships")
+        .update({
+          invited_challenge_id: displayChallenge.id,
+          invitation_status: "sent", // Set the new status to 'sent'
+        })
+        .eq("user_id1", currentUserId)
+        .eq("user_id2", friendId)
+        .single();
+
+      if (updateError) {
+        Alert.alert(
+          "Error",
+          `Failed to send invite to ${friendUsername}. Relationship not found.`
+        );
+        console.error("Invite update failed:", updateError);
+        return;
+      }
+
+      // 4. Success Confirmation
+      Alert.alert(
+        "Invite Sent!",
+        `Successfully invited ${friendUsername} to the ${displayChallenge.title} challenge.`
+      );
+
+      // Close the share modal
+      setShowShareModal(false);
+    } catch (error) {
+      console.error("Handle friend tap failed:", error);
+      Alert.alert(
+        "Error",
+        "An unexpected error occurred during the invitation process."
+      );
+    } finally {
+      setIsFriendsLoading(false);
+    }
   };
 
   const handlePickImage = async () => {

@@ -39,6 +39,9 @@ type FriendProfile = {
   avatar: string | null; // Renamed from avatar_url to match your table column 'avatar'
   // curr_chal will now be the full Challenge object via the join, or null
   curr_chal: Challenge | null;
+  invited_challenge_id: string | null;
+  invitation_status: string | null; // Tracks 'none', 'sent', 'accepted', etc.
+  invited_challenge_title: string | null;
 };
 
 type Friend = FriendProfile & {
@@ -59,6 +62,9 @@ export default function FriendScreen() {
     ...profile,
     current_challenge_name: profile.curr_chal?.title ?? "None",
     current_challenge_image: profile.curr_chal?.image_url ?? null,
+    invited_challenge_id: profile.invited_challenge_id,
+    invitation_status: profile.invitation_status,
+    invited_challenge_title: profile.invited_challenge_title,
   });
 
   const loadData = useCallback(async () => {
@@ -70,48 +76,56 @@ export default function FriendScreen() {
         await supabase.auth.getUser();
       if (userError) throw userError;
       const myUserId = userData?.user?.id;
-
-      const username =
-        userData?.user?.user_metadata?.username ??
-        userData?.user?.email ??
-        null;
-      if (username) setUserName(username);
+      // ... (username setup unchanged) ...
       if (!myUserId) return;
 
       // 2. Fetch friend relationships from the 'friendships' table
-      // We select the profiles joined via both foreign key relationships.
+      // CRITICAL CHANGE: Filter ONLY where the current user is user_id1
       const { data: friendshipData, error: friendsError } = await supabase
         .from("friendships")
         .select(
           `
-            user_id1:profiles!friendships_user_id1_fkey (
+            -- Friend is now ALWAYS in user_id2
+            friendProfile:profiles!friendships_user_id2_fkey (
                 id,
                 username,
                 avatar,
                 curr_chal:challenges (id, title, image_url)
             ),
-            user_id2:profiles!friendships_user_id2_fkey (
-                id,
-                username,
-                avatar,
-                curr_chal:challenges (id, title, image_url)
+            invitation_status,
+            invited_challenge_id,
+            invited_challenge:challenges!friendships_invited_challenge_id_fkey (
+                title
             )
           `
         )
-        // Filter to find rows where the current user is involved
-        .or(`user_id1.eq.${myUserId},user_id2.eq.${myUserId}`);
+        // CRITICAL FILTER: ONLY select rows where I am the inviter/initiator
+        .eq("user_id1", myUserId);
 
       if (friendsError) throw friendsError;
 
       // 3. Process the results
       const friendProfiles: Friend[] = (friendshipData ?? []).map((row) => {
-        // Determine which column (user_id1 or user_id2) holds the FRIEND's data
-        // We use the ID to figure out which nested profile object belongs to the FRIEND.
-        const friendProfile =
-          row.user_id1.id === myUserId ? row.user_id2 : row.user_id1;
+        // Renamed to friendProfile to match the query alias
+        const friendProfileData = row.friendProfile;
 
-        // Map the joined profile data to the Friend type for rendering
-        return mapToFriend(friendProfile as FriendProfile);
+        // CRITICAL: Construct the object using the friend's profile data
+        // combined with the invitation status from the parent row.
+        const friendDataWithInvite = {
+          // Essential Profile Properties
+          id: friendProfileData.id,
+          username: friendProfileData.username,
+          avatar: friendProfileData.avatar,
+          curr_chal: friendProfileData.curr_chal,
+
+          // Invitation Properties (From the parent row, which belongs to this relationship)
+          invited_challenge_id: row.invited_challenge_id,
+          invitation_status: row.invitation_status,
+          invited_challenge_title: row.invited_challenge?.title ?? null,
+        };
+
+        // Map the combined data to the final Friend type
+        return mapToFriend(friendDataWithInvite as FriendProfile);
       });
 
       setFriends(friendProfiles);
@@ -207,7 +221,34 @@ export default function FriendScreen() {
       : require("../../assets/images/placeholder.jpg");
 
     const challengeIsPresent = !!item.curr_chal?.id; // Check if a challenge ID exists
+    // Determine if the friend has a pending invitation
+    const isInvited =
+      item.invitation_status === "sent" && item.invited_challenge_title;
 
+    // Determine the label text and image source based on status
+    let labelText = "No current challenge...";
+    let imageSource = require("../../assets/images/placeholder.jpg");
+    let imageOpacity = 1.0;
+    let isDisabled = !challengeIsPresent; // Only clickable if they have a pinned challenge
+
+    if (isInvited) {
+      // PRIORITY 1: Display Invitation Status
+      labelText = `Invited to: ${item.invited_challenge_title}`;
+      imageOpacity = 0.7;
+      isDisabled = true; // Invites are not clickable to view the challenge
+    } else if (challengeIsPresent) {
+      // PRIORITY 2: Display Pinned Challenge
+      labelText = `Current challenge: ${item.current_challenge_name}`;
+      imageSource = challengeImageSource;
+      imageOpacity = 1.0;
+      isDisabled = false; // Is clickable
+    } else {
+      // PRIORITY 3: No current challenge/invite
+      labelText = "No current challenge...";
+      imageSource = require("../../assets/images/placeholder.jpg");
+      imageOpacity = 0.5;
+      isDisabled = true;
+    }
     // Function to handle the press event
     const handleCardPress = () => {
       if (!challengeIsPresent || !item.curr_chal) {
