@@ -247,9 +247,11 @@ export default function FriendScreen() {
         activeOpacity={challengeIsPresent ? 0.8 : 1.0} // Change opacity only if clickable
         style={styles.friendRow} // Apply the row style to the TouchableOpacity
       >
-        <View style={styles.friendAvatarColumn}>
-          <Image source={avatarSource} style={styles.avatar} />
-          <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
+        <View style={{ justifyContent: "center", flex: 1, marginRight: 20 }}>
+          <View style={styles.friendAvatarColumn}>
+            <Image source={avatarSource} style={styles.avatar} />
+            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
+          </View>
         </View>
         <View style={styles.challengeCard}>
           <Image
@@ -358,7 +360,7 @@ const styles = StyleSheet.create({
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    //justifyContent: "space-between",
     paddingVertical: 10,
     marginBottom: 10,
     marginHorizontal: 5,
@@ -367,9 +369,10 @@ const styles = StyleSheet.create({
   },
   friendAvatarColumn: {
     alignItems: "center",
-    paddingHorizontal: 10,
+    //paddingHorizontal: 10,
   },
   challengeCard: {
+    flex: 2,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -389,17 +392,19 @@ const styles = StyleSheet.create({
     fontFamily: "Poppins_400Regular",
   },
   avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    padding: 5,
     backgroundColor: Colors.palette.lightest,
   },
   friendName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
     marginTop: 8,
     textAlign: "center",
     color: Colors.palette.darkest,
+    fontFamily: "Poppins_600SemiBold",
   },
   emptyList: {
     flex: 1,
