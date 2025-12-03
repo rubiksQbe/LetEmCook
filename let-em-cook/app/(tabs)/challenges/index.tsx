@@ -929,7 +929,7 @@ export default function ChallengeScreen() {
         contentContainerStyle={{
           paddingHorizontal: 20,
           paddingTop: 15,
-          paddingBottom: 10,
+          paddingBottom: 100,
         }}
         ListHeaderComponent={null}
         ListEmptyComponent={
@@ -1069,7 +1069,7 @@ const styles = StyleSheet.create({
   },
   floatingAddButton: {
     position: "absolute",
-    bottom: 12,
+    bottom: 100,
     right: 20,
     width: 56,
     height: 56,

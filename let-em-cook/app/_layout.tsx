@@ -1,3 +1,4 @@
+import { Fredoka_700Bold } from "@expo-google-fonts/fredoka";
 import {
   Poppins_400Regular,
   Poppins_500Medium,
@@ -33,6 +34,7 @@ export default function RootLayout() {
     Poppins_500Medium,
     Poppins_600SemiBold,
     Poppins_700Bold,
+    Fredoka_700Bold,
     ...FontAwesome.font,
   });
 

@@ -1,8 +1,8 @@
+import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Image, StyleSheet } from "react-native";
 
-import { useClientOnlyValue } from "@/components/useClientOnlyValue";
 import Colors from "@/constants/Colors";
 
 // Custom TabBarIcon component that uses images
@@ -44,15 +44,26 @@ export default function TabLayout() {
       screenOptions={{
         headerTitleAlign: "center",
         tabBarActiveTintColor: Colors.palette.darkest,
-        tabBarInactiveTintColor: "#676767ff",
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
+        tabBarInactiveTintColor: Colors.palette.darkest,
         tabBarIconStyle: { marginTop: 7 },
         tabBarLabelStyle: {
           fontSize: 14,
-          fontFamily: "Poppins_600SemiBold",
+          fontFamily: "Poppins_500Medium",
         },
+        // key part: transparent background
+        tabBarStyle: {
+          backgroundColor: "transparent",
+          borderTopWidth: 0,
+          position: "absolute", // floats above content
+          elevation: 0,
+        },
+        tabBarBackground: () => (
+          <BlurView
+            tint="light"
+            intensity={80}
+            style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.3)" }}
+          />
+        ),
       }}
     >
       <Tabs.Screen
@@ -88,7 +99,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          href: null, // Hide from tab bar
+          href: null,
           headerShown: false,
         }}
       />

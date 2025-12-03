@@ -215,17 +215,14 @@ export default function FridgeScreen() {
               {/* HISTORY LABEL */}
               <View style={styles.historyLabelRow}>
                 {["H", "I", "S", "T", "O", "R", "Y"].map((char, i) => (
-                  <Text
+                  <View
                     key={i}
-                    style={[
-                      styles.magnetLetter,
-                      {
-                        transform: [{ rotate: i % 2 === 0 ? "-6deg" : "7deg" }],
-                      },
-                    ]}
+                    style={{
+                      transform: [{ rotate: i % 2 === 0 ? "-6deg" : "7deg" }],
+                    }}
                   >
-                    {char}
-                  </Text>
+                    <Text style={styles.magnetLetter}>{char}</Text>
+                  </View>
                 ))}
               </View>
 
@@ -275,7 +272,7 @@ export default function FridgeScreen() {
               />
             </View>
 
-            <View style={{ height: 200 }} />
+            <View style={{ height: 300 }} />
           </View>
         </ScrollView>
       </View>
@@ -362,17 +359,17 @@ const styles = StyleSheet.create({
   historyLabelRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 15,
-    marginTop: 18,
-    marginBottom: 15,
+    marginTop: 25,
+    marginBottom: 20,
   },
   magnetLetter: {
+    fontFamily: "Fredoka_700Bold",
     fontSize: 36,
-    fontWeight: "900",
     color: Colors.palette.accent,
     textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 4,
+    marginHorizontal: 8,
   },
   historySection: { minHeight: 400, justifyContent: "flex-start" },
 });
