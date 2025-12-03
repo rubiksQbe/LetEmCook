@@ -86,7 +86,7 @@ export default function FriendScreen() {
         .from("friendships")
         .select(
           `
-            -- Friend is now ALWAYS in user_id2
+           
             friendProfile:profiles!friendships_user_id2_fkey (
                 id,
                 username,
