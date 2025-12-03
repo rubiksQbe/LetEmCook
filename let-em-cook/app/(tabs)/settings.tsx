@@ -4,24 +4,24 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfileScreen() {
   const params = useLocalSearchParams();
   const fromTab = params.from as string | undefined;
-  
+
   const [username, setUsername] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -45,7 +45,7 @@ export default function ProfileScreen() {
       if (user) {
         // Ensure profile exists (creates if missing)
         await ensureUserProfile(user.id);
-        
+
         // Load username from profiles table
         const { data: profile } = await supabase
           .from("profiles")
@@ -95,7 +95,10 @@ export default function ProfileScreen() {
         .eq("id", user.id)
         .single();
 
-      const currentUsername = currentProfile?.username?.toLowerCase() || user.user_metadata?.username?.toLowerCase() || "";
+      const currentUsername =
+        currentProfile?.username?.toLowerCase() ||
+        user.user_metadata?.username?.toLowerCase() ||
+        "";
 
       // Check if username is the same (no change needed)
       if (trimmedUsername === currentUsername) {
@@ -120,7 +123,10 @@ export default function ProfileScreen() {
 
       // Log all matching usernames for comparison
       if (existingProfiles && existingProfiles.length > 0) {
-        Alert.alert("Error", "This username is already taken. Please choose another.");
+        Alert.alert(
+          "Error",
+          "This username is already taken. Please choose another."
+        );
         setUpdating(false);
         return;
       }
@@ -133,7 +139,10 @@ export default function ProfileScreen() {
 
       if (profileError) {
         console.error("Error updating profile:", profileError);
-        Alert.alert("Error", profileError.message || "Failed to update username.");
+        Alert.alert(
+          "Error",
+          profileError.message || "Failed to update username."
+        );
         setUpdating(false);
         return;
       }
@@ -152,7 +161,7 @@ export default function ProfileScreen() {
 
       Alert.alert("Success", "Name updated successfully!");
       setShowChangeNameModal(false);
-      
+
       // Reload user data to reflect changes
       await loadUserData();
     } catch (error: any) {
@@ -191,7 +200,9 @@ export default function ProfileScreen() {
       }
 
       // Try to sign in with current password to verify
-      const aliasEmail = `${user.user_metadata?.username || "user"}@example.local`;
+      const aliasEmail = `${
+        user.user_metadata?.username || "user"
+      }@example.local`;
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: aliasEmail,
         password: currentPassword,
@@ -247,28 +258,28 @@ export default function ProfileScreen() {
       // 1. Delete votes (challenge_votes and submission_votes)
       await supabase.from("challenge_votes").delete().eq("user_id", userId);
       await supabase.from("submission_votes").delete().eq("user_id", userId);
-      
+
       // 2. Delete submissions
       await supabase.from("submissions").delete().eq("user_id", userId);
-      
+
       // 3. Delete challenges created by user
       await supabase.from("challenges").delete().eq("created_by", userId);
-      
+
       // 4. Delete profile
       await supabase.from("profiles").delete().eq("id", userId);
 
       // 5. Delete auth user via Edge Function (requires admin privileges)
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session?.access_token) {
-          const { data: functionData, error: functionError } = await supabase.functions.invoke(
-            "delete-user",
-            {
+          const { data: functionData, error: functionError } =
+            await supabase.functions.invoke("delete-user", {
               headers: {
                 Authorization: `Bearer ${session.access_token}`,
               },
-            }
-          );
+            });
 
           if (functionError) {
             console.error("Error calling delete-user function:", functionError);
@@ -328,9 +339,9 @@ export default function ProfileScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
-        <View style={styles.header}>
+        {/* <View style={styles.header}>
           <Text style={styles.settingsHeader}>Settings</Text>
-        </View>
+        </View> */}
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -615,7 +626,9 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonDelete]}
                   onPress={handleDeleteAccount}
-                  disabled={updating || deleteConfirmText.toLowerCase() !== "delete"}
+                  disabled={
+                    updating || deleteConfirmText.toLowerCase() !== "delete"
+                  }
                 >
                   {updating ? (
                     <ActivityIndicator color="white" />
@@ -662,6 +675,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    marginTop: 30,
   },
   settingsHeader: {
     fontFamily: "Poppins_600SemiBold",
@@ -809,4 +823,3 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
-

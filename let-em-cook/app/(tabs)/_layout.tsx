@@ -49,9 +49,9 @@ export default function TabLayout() {
         headerTitleAlign: "center",
         tabBarActiveTintColor: Colors.palette.darkest,
         tabBarInactiveTintColor: Colors.palette.darkest,
-        tabBarIconStyle: { marginTop: 7 },
+        tabBarIconStyle: { marginTop: 7, aspectRatio: 1 },
         tabBarLabelStyle: {
-          fontSize: 14,
+          fontSize: 12,
           fontFamily: "Poppins_500Medium",
         },
         tabBarItemStyle: {
@@ -101,6 +101,10 @@ export default function TabLayout() {
           tabBarIcon: ({ focused }) => (
             <TabBarIcon focused={focused} iconName="fridge" />
           ),
+          tabBarItemStyle: {
+            flex: 1,
+            marginLeft: 4,
+          },
         }}
       />
       <Tabs.Screen
@@ -119,8 +123,8 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabIcon: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     marginBottom: 1,
   },
 });

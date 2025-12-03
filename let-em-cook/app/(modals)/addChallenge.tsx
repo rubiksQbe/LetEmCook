@@ -46,7 +46,9 @@ export default function AddChallengeScreen() {
 
   // Basic fields
   const [title, setTitle] = useState("");
-  const [difficulty, setDifficulty] = useState("Easy");
+  const [difficulty, setDifficulty] = useState<"Easy" | "Medium" | "Hard">(
+    "Easy"
+  );
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [isPosting, setIsPosting] = useState(false);
@@ -110,6 +112,28 @@ export default function AddChallengeScreen() {
 
   const toggleSection = (section: string) => {
     setExpandedSection(expandedSection === section ? null : section);
+  };
+
+  const handleDiscardDraft = () => {
+    Alert.alert(
+      "Discard Challenge",
+      "Are you sure you want to discard this challenge? All changes will be lost.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem(STORAGE_KEY);
+            } catch (e) {
+              console.error("Failed to clear challenge draft", e);
+            }
+            router.back();
+          },
+        },
+      ]
+    );
   };
 
   const removeImage = () => setImageUri(null);
@@ -187,8 +211,8 @@ export default function AddChallengeScreen() {
 
     if (!hasTimeLimit && !hasIngredients && !hasDietaryRestrictions) {
       Alert.alert(
-        "Missing Filters",
-        "Please select at least one filter: Time Limit, Ingredients, or Dietary Restrictions."
+        "Missing Tags",
+        "Please select at least one tag: Time Limit, Ingredients, or Dietary Restrictions."
       );
       return;
     }
@@ -242,13 +266,22 @@ export default function AddChallengeScreen() {
   return (
     <View style={styles.modalContainer}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 40, paddingTop: 10 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---------------- TITLE ---------------- */}
-        <View style={styles.labelRow}>
-          <Text style={styles.label}>Title</Text>
-          <Text style={styles.required}>*</Text>
+        {/* ---------------- TITLE + DISCARD ---------------- */}
+        <View style={styles.titleHeaderRow}>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>Title</Text>
+            <Text style={styles.required}>*</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleDiscardDraft}
+            accessibilityRole="button"
+            accessibilityLabel="Discard challenge draft"
+          >
+            <Ionicons name="trash" size={24} color="red" />
+          </TouchableOpacity>
         </View>
         <TextInput
           placeholder="Challenge Title"
@@ -269,7 +302,7 @@ export default function AddChallengeScreen() {
             <TouchableOpacity
               key={d}
               style={[styles.chip, difficulty === d && styles.chipSelected]}
-              onPress={() => setDifficulty(d)}
+              onPress={() => setDifficulty(d as "Easy" | "Medium" | "Hard")}
             >
               <Text
                 style={[
@@ -285,7 +318,7 @@ export default function AddChallengeScreen() {
 
         {/* ---------------- FILTERS ---------------- */}
         <View style={[styles.labelRow, { marginTop: 6 }]}>
-          <Text style={styles.label}>Filters</Text>
+          <Text style={styles.label}>Tags</Text>
           <Text style={styles.optional}>(Select at least 1)</Text>
         </View>
 
@@ -676,6 +709,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.palette.light,
     paddingHorizontal: 20,
+  },
+  titleHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+    marginBottom: 8,
   },
   labelRow: {
     flexDirection: "row",
