@@ -685,7 +685,7 @@ export default function AddChallengeScreen() {
           style={styles.saveButton}
           disabled={isPosting}
         >
-          <Text style={styles.saveButtonText}>Save</Text>
+          <Text style={styles.saveButtonText}>SAVE</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -696,7 +696,7 @@ export default function AddChallengeScreen() {
           {isPosting ? (
             <ActivityIndicator color={Colors.palette.darkest} size="small" />
           ) : (
-            <Text style={styles.postButtonText}>Post</Text>
+            <Text style={styles.postButtonText}>POST</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: "row",
     gap: 12,
-    marginTop: 24,
+    marginTop: 14,
     marginBottom: 20,
   },
   saveButton: {
