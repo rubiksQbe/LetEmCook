@@ -20,7 +20,7 @@ const baseMouse = require("@/assets/images/mouse-assets/defaultmouse.png");
 const hatImages: Record<string, any> = {
   "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
   "jester.png": require("@/assets/images/mouse-assets/jester.png"),
-  "party hat.png": require("@/assets/images/mouse-assets/party hat.png"),
+  "party_hat.png": require("@/assets/images/mouse-assets/party_hat.png"),
   "chef.png": require("@/assets/images/mouse-assets/chef.png"),
 };
 
@@ -51,39 +51,54 @@ export default function CustomizeMouse() {
   const [selectedItem, setSelectedItem] = useState("none");
   const [hatOptions, setHatOptions] = useState(defaultHats);
   const [itemOptions, setItemOptions] = useState(defaultItems);
+  const [isReady, setIsReady] = useState(false);
+  const [userId, setUserId] = useState<string | undefined>();
 
   const router = useRouter();
 
-  // --- Load user's additional hats/items ---
+  // --- Get current user ID ---
+
+  // --- Load user accessories and equipped items ---
   useEffect(() => {
-    const loadUserAccessories = async () => {
-      const { data, error } = await supabase
-        .from("pal-accessory")
-        .select("allHats, allItems")
-        .single();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
 
-      if (error || !data) return;
+      setUserId(user.id);
 
-      // Map filenames to images using the static mapping
-      const userHats = (data.allHats || [])
-        .map((fileName: string) => ({
-          id: fileName,
-          img: hatImages[fileName] || null,
-        }))
-        .filter((h) => h.img);
+      const loadData = async () => {
+        try {
+          // Fetch user accessories
+          const { data: accessoryData } = await supabase
+            .from("pal-accessory")
+            .select("*")
+            .eq("user_id", user.id)
+            .single();
 
-      const userItems = (data.allItems || [])
-        .map((fileName: string) => ({
-          id: fileName,
-          img: itemImages[fileName] || null,
-        }))
-        .filter((i) => i.img);
+          if (accessoryData) {
+            const userHats = (accessoryData.allHats || [])
+              .map((name: string) => ({ id: name, img: hatImages[name] }))
+              .filter((h) => h.img);
 
-      setHatOptions([...defaultHats, ...userHats]);
-      setItemOptions([...defaultItems, ...userItems]);
-    };
+            const userItems = (accessoryData.allItems || [])
+              .map((name: string) => ({ id: name, img: itemImages[name] }))
+              .filter((i) => i.img);
 
-    loadUserAccessories();
+            setHatOptions([...defaultHats, ...userHats]);
+            setItemOptions([...defaultItems, ...userItems]);
+
+            // Equip the current hat/item
+            setSelectedHat(accessoryData.hat ?? "none");
+            setSelectedItem(accessoryData.item ?? "none");
+          }
+        } catch (err) {
+          console.error("Error loading accessories:", err);
+        } finally {
+          setIsReady(true);
+        }
+      };
+
+      loadData();
+    });
   }, []);
 
   // --- Conditional positions ---
@@ -91,7 +106,7 @@ export default function CustomizeMouse() {
     switch (id) {
       case "gamerhat.png":
         return { top: 14, right: 73, width: 65, height: 65 };
-      case "party hat.png":
+      case "party_hat.png":
         return { top: -15, right: 60, width: 90, height: 90 };
       case "chef.png":
         return { top: -10, right: 60, width: 90, height: 90 };
@@ -117,12 +132,27 @@ export default function CustomizeMouse() {
     }
   };
 
+  if (!isReady) return null; // render nothing until user data is loaded
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* BACK BUTTON */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={async () => {
+          if (!userId) return;
+          await supabase
+            .from("pal-accessory")
+            .update({ hat: selectedHat, item: selectedItem })
+            .eq("user_id", userId)
+            .select()
+            .single();
+
+          router.back();
+        }}
+      >
         <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
       </TouchableOpacity>
 
@@ -157,13 +187,10 @@ export default function CustomizeMouse() {
 
         {/* Bottom blue fridge section */}
         <View style={styles.bottomHalf}>
+          {/* Hats */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Choose a Hat</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.scrollRow}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {hatOptions.map((hat) => (
                 <TouchableOpacity
                   key={hat.id}
@@ -176,24 +203,17 @@ export default function CustomizeMouse() {
                   {hat.img ? (
                     <Image source={hat.img} style={styles.optionImage} />
                   ) : (
-                    <Text
-                      style={{ fontFamily: "Poppins400_Regular", fontSize: 14 }}
-                    >
-                      None
-                    </Text>
+                    <Text>None</Text>
                   )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
 
+          {/* Items */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Choose an Item</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.scrollRow}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {itemOptions.map((item) => (
                 <TouchableOpacity
                   key={item.id}
@@ -264,10 +284,6 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     transform: [{ rotate: "-3deg" }],
-    // shadowOpacity: 0.3,
-    // shadowRadius: 7,
-    // elevation: 5,
-    // shadowOffset: { width: 0, height: 10 },
   },
   hatOverlay: { position: "absolute" },
   itemOverlay: { position: "absolute" },
@@ -278,7 +294,6 @@ const styles = StyleSheet.create({
     color: Colors.palette.lightest,
     marginBottom: 10,
   },
-  scrollRow: { paddingVertical: 10 },
   optionWrapper: {
     width: 100,
     height: 100,

@@ -23,6 +23,13 @@ export default function FridgeLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="customize"
+        options={{
+          title: "",
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }
