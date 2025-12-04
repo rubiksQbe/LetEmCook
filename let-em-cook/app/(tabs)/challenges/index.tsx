@@ -68,6 +68,7 @@ export default function ChallengeScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [invitations, setInvitations] = useState<ChallengeInvitation[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [dismissedInviteKeys, setDismissedInviteKeys] = useState<Set<string>>(new Set());
 
   // Filter states
   const [unifiedSearch, setUnifiedSearch] = useState("");
@@ -127,14 +128,16 @@ export default function ChallengeScreen() {
           challenge_title: row.challenge?.title || "Unknown Challenge",
         }))
         // Filter out any rows where challenge data failed to load
-        .filter((invite) => invite.challenge_id && invite.challenge_title);
+        .filter((invite) => invite.challenge_id && invite.challenge_title)
+        // Filter out invites that have already been dismissed this session
+        .filter((invite) => !dismissedInviteKeys.has(invite.key));
 
       setInvitations(pendingInvites);
       if (pendingInvites.length > 0) {
         setShowInviteModal(true);
       }
     }
-  }, []);
+  }, [dismissedInviteKeys]);
 
   // Function to load challenges
   const loadChallenges = useCallback(async () => {
@@ -167,7 +170,7 @@ export default function ChallengeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [fetchInvitations]);
 
   const handleAcceptInvite = async (invite: ChallengeInvitation) => {
     // 1. Mark the invitation as accepted/resolved in the friendships table
@@ -1251,7 +1254,13 @@ export default function ChallengeScreen() {
 
             <TouchableOpacity
               style={styles.inviteModalCloseButton}
-              onPress={() => setShowInviteModal(false)}
+              onPress={() => {
+                // Mark all current invitations as dismissed so they won't show again this session
+                const newDismissed = new Set(dismissedInviteKeys);
+                invitations.forEach((invite) => newDismissed.add(invite.key));
+                setDismissedInviteKeys(newDismissed);
+                setShowInviteModal(false);
+              }}
             >
               <Text style={styles.inviteModalCloseText}>Close</Text>
             </TouchableOpacity>
@@ -1770,7 +1779,7 @@ const styles = StyleSheet.create({
   inviteCardButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.blue,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1785,6 +1794,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 12,
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.palette.darkest,
+    borderRadius: 8,
   },
   inviteModalCloseText: {
     fontFamily: "Poppins_600SemiBold",

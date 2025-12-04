@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: -120,
+    marginBottom: -180,
   },
   mouseImage: {
     width: 200,

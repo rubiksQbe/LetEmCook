@@ -110,6 +110,10 @@ export default function ChallengeDetailScreen() {
   const [challengeData, setChallengeData] = useState<Challenge | null>(
     initialChallenge
   );
+  const [isPinned, setIsPinned] = useState(false);
+  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
+  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -117,10 +121,11 @@ export default function ChallengeDetailScreen() {
 
   // Function to load challenge data from database
   const loadChallengeData = useCallback(async () => {
-    if (!challenge?.id) return;
+    const idToFetch = challenge?.id || challengeIdFromParams;
+    if (!idToFetch) return;
 
     try {
-      const { data, error } = await fetchChallenge(challenge.id);
+      const { data, error } = await fetchChallenge(idToFetch);
       if (data && !error) {
         const {
           data: { user },
@@ -135,7 +140,7 @@ export default function ChallengeDetailScreen() {
     } catch (error) {
       console.error("Error loading challenge data:", error);
     }
-  }, [challenge?.id]);
+  }, [challenge?.id, challengeIdFromParams]);
 
   const loadFriendsForShare = useCallback(async () => {
     if (!currentUserId) return;
@@ -180,7 +185,8 @@ export default function ChallengeDetailScreen() {
 
   useEffect(() => {
     async function init() {
-      if (!challenge) return;
+      const idToUse = challenge?.id || challengeIdFromParams;
+      if (!idToUse) return;
 
       // Get current user
       const {
@@ -190,7 +196,7 @@ export default function ChallengeDetailScreen() {
 
       // Load user's challenge vote status
       if (user) {
-        const vote = await getUserChallengeVote(challenge.id);
+        const vote = await getUserChallengeVote(idToUse);
         setUserChallengeVote(vote);
       }
 
@@ -198,28 +204,29 @@ export default function ChallengeDetailScreen() {
       await Promise.all([
         loadChallengeData(),
         user
-          ? hasUserSubmitted(challenge.id).then(setHasSubmitted)
+          ? hasUserSubmitted(idToUse).then(setHasSubmitted)
           : Promise.resolve(),
-        loadSubmissions(),
+        loadSubmissionsById(idToUse),
       ]);
     }
 
     init();
-  }, [challenge?.id, loadChallengeData]);
+  }, [challenge?.id, challengeIdFromParams, loadChallengeData]);
 
   // Refetch challenge data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       async function refreshData() {
-        if (!challenge) return;
+        const idToUse = challenge?.id || challengeIdFromParams;
+        if (!idToUse) return;
         // Refresh user's challenge vote status
-        const vote = await getUserChallengeVote(challenge.id);
+        const vote = await getUserChallengeVote(idToUse);
         setUserChallengeVote(vote);
         // Then load challenge data
         await loadChallengeData();
       }
       refreshData();
-    }, [loadChallengeData, challenge?.id])
+    }, [loadChallengeData, challenge?.id, challengeIdFromParams])
   );
 
   // Load friends when currentUserId is available
@@ -231,17 +238,18 @@ export default function ChallengeDetailScreen() {
 
   // Real-time subscription for submissions
   useEffect(() => {
-    if (!challenge) return;
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
 
     const submissionsChannel = supabase
-      .channel(`submissions-${challenge.id}`)
+      .channel(`submissions-${idToUse}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "submissions",
-          filter: `challenge_id=eq.${challenge.id}`,
+          filter: `challenge_id=eq.${idToUse}`,
         },
         async (payload) => {
           if (payload.eventType === "INSERT") {
@@ -276,21 +284,22 @@ export default function ChallengeDetailScreen() {
     return () => {
       supabase.removeChannel(submissionsChannel);
     };
-  }, [challenge?.id]);
+  }, [challenge?.id, challengeIdFromParams]);
 
   // Real-time subscription for challenge updates (image changes, vote counts)
   useEffect(() => {
-    if (!challenge) return;
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
 
     const challengeChannel = supabase
-      .channel(`challenge-${challenge.id}`)
+      .channel(`challenge-${idToUse}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "challenges",
-          filter: `id=eq.${challenge.id}`,
+          filter: `id=eq.${idToUse}`,
         },
         async (payload) => {
           const updatedChallenge = payload.new as any;
@@ -316,13 +325,28 @@ export default function ChallengeDetailScreen() {
     return () => {
       supabase.removeChannel(challengeChannel);
     };
-  }, [challenge?.id, loadChallengeData, currentUserId]);
+  }, [challenge?.id, challengeIdFromParams, loadChallengeData, currentUserId]);
 
-  async function loadSubmissions() {
-    if (!challenge) return;
+  // Check if challenge is pinned when component mounts or currentUserId changes
+  useEffect(() => {
+    async function checkPinned() {
+      if (!currentUserId || !challengeData) return;
+
+      const pinned = await isChallengePinned(
+        challengeData.id,
+        currentUserId
+      );
+      setIsPinned(pinned);
+    }
+
+    checkPinned();
+  }, [currentUserId, challengeData]);
+
+  async function loadSubmissionsById(challengeId: string) {
+    if (!challengeId) return;
 
     setIsLoadingSubmissions(true);
-    const { data, error } = await fetchSubmissions(challenge.id);
+    const { data, error } = await fetchSubmissions(challengeId);
     if (data) {
       // Load user's vote for each submission
       const submissionsWithVotes = await Promise.all(
@@ -337,6 +361,12 @@ export default function ChallengeDetailScreen() {
       setSubmissions(submissionsWithVotes);
     }
     setIsLoadingSubmissions(false);
+  }
+
+  async function loadSubmissions() {
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
+    await loadSubmissionsById(idToUse);
   }
 
   // Use challengeData for real-time updates, fallback to challenge
@@ -367,27 +397,6 @@ export default function ChallengeDetailScreen() {
   const userSubmission = submissions.find(
     (sub) => sub.user_id === currentUserId
   );
-
-  const [isPinned, setIsPinned] = useState(false);
-
-  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
-  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-
-  // Check if challenge is pinned when component mounts or currentUserId changes
-  useEffect(() => {
-    async function checkPinned() {
-      if (!currentUserId || !displayChallenge) return;
-
-      const pinned = await isChallengePinned(
-        displayChallenge.id,
-        currentUserId
-      );
-      setIsPinned(pinned);
-    }
-
-    checkPinned();
-  }, [currentUserId, displayChallenge]);
 
   const handlePin = async () => {
     if (!currentUserId || !displayChallenge) return;
@@ -473,7 +482,7 @@ export default function ChallengeDetailScreen() {
       // 4. Success Confirmation
       Alert.alert(
         "Invite Sent!",
-        `Successfully invited ${friendUsername} to the ${displayChallenge.title} challenge.`
+        `Successfully invited ${friendUsername} to "${displayChallenge.title}"`
       );
 
       // Close the share modal

@@ -3,15 +3,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -207,9 +207,9 @@ export default function FriendScreen() {
         throw insertError;
       }
 
-      // 3. Success: Clear input, show message, and refresh list
+      // 3. Success: Clear input, show alert, and refresh list
       setSearchUsername("");
-      setAddFriendMessage(`Successfully added ${searchUsername}!`);
+      Alert.alert("Success", `Successfully added ${searchUsername}!`);
       loadData();
     } catch (error) {
       console.error("Add friend failed:", error);
@@ -287,7 +287,7 @@ export default function FriendScreen() {
         style={styles.friendRow}
       >
         {/* ... (friendAvatarColumn unchanged) ... */}
-        <View style={{ justifyContent: "center", flex: 1, marginRight: 20 }}>
+        <View style={styles.friendAvatarContainer}>
           <View style={styles.friendAvatarColumn}>
             <Image source={avatarSource} style={styles.avatar} />
             <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
@@ -303,17 +303,19 @@ export default function FriendScreen() {
           <View style={styles.challengeTextContainer}>
             {/* NEW WRAPPER */}
             {/* Main Label: Always present, reflects current state */}
-            <Text style={styles.challengeLabel}>{labelText}</Text>
+            <Text style={styles.challengeLabel} numberOfLines={2} ellipsizeMode="tail">
+              {labelText}
+            </Text>
             {/* Conditional Invitation Sub-Label */}
             {isInvited && (
               <View style={styles.inviteSubTextRow}>
                 <MaterialCommunityIcons
                   name="invoice-text-send-outline"
                   size={12}
-                  color={Colors.palette.accent}
+                  color={Colors.palette.blue}
                   style={{ marginRight: 4 }}
                 />
-                <Text style={styles.inviteSubText}>
+                <Text style={styles.inviteSubText} numberOfLines={1} ellipsizeMode="tail">
                   Invited to: {item.invited_challenge_title}!
                 </Text>
               </View>
@@ -360,19 +362,21 @@ export default function FriendScreen() {
       </View>
 
       {/* Friends List */}
-      <View style={styles.content}>
-        <FlatList
-          data={friends}
-          keyExtractor={(item) => item.id}
-          renderItem={renderFriend}
-          contentContainerStyle={
-            friends.length === 0 ? styles.emptyList : styles.listContent
-          }
-          ListEmptyComponent={() => (
-            <Text style={styles.emptyText}>You have no friends yet.</Text>
-          )}
-        />
-      </View>
+      <FlatList
+        data={friends}
+        keyExtractor={(item) => item.id}
+        renderItem={renderFriend}
+        style={styles.content}
+        contentContainerStyle={
+          friends.length === 0 ? styles.emptyList : styles.listContent
+        }
+        ListEmptyComponent={() => (
+          <Text style={styles.emptyText}>You have no friends yet.</Text>
+        )}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+      />
     </SafeAreaView>
   );
 }
@@ -408,32 +412,43 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   friendRow: {
     flexDirection: "row",
     alignItems: "center",
-    //justifyContent: "space-between",
+    justifyContent: "flex-start",
     paddingVertical: 10,
     marginBottom: 10,
     marginHorizontal: 5,
-    // borderBottomWidth: 0.5,
-    // borderBottomColor: Colors.palette.lightest,
+    minHeight: 180,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(52, 52, 50, 0.2)", // Colors.palette.dark with 20% opacity
   },
   friendAvatarColumn: {
     alignItems: "center",
     //paddingHorizontal: 10,
   },
+  friendAvatarContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 20,
+    flexShrink: 0,
+  },
   challengeCard: {
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    flex: 1,
+    minWidth: 0,
   },
   challengeImage: {
+    width: "100%",
     height: 120,
-    aspectRatio: 2,
     borderRadius: 12,
     backgroundColor: Colors.palette.lightest,
     //opacity: 0.35,
     resizeMode: "cover",
+    alignSelf: "center",
   },
   challengeLabel: {
     //marginTop: 8,
@@ -441,6 +456,8 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     textAlign: "center",
     fontFamily: "Poppins_400Regular",
+    width: "100%",
+    alignSelf: "center",
   },
   avatar: {
     width: 80,
@@ -515,16 +532,22 @@ const styles = StyleSheet.create({
   challengeTextContainer: {
     // Aligns the two lines of text
     alignItems: "center",
+    justifyContent: "center",
     marginTop: 8,
+    width: "100%",
+    paddingHorizontal: 4,
   },
   inviteSubTextRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 4, // Small gap between main label and invite text
+    width: "100%",
+    justifyContent: "center",
   },
   inviteSubText: {
     fontSize: 12, // Smaller font
     fontFamily: "Poppins_600SemiBold",
-    color: Colors.palette.accent, // Accent color
+    color: Colors.palette.blue, // Navy blue color
+    flexShrink: 1,
   },
 });
