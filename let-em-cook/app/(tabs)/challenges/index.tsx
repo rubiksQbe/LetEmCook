@@ -1254,7 +1254,20 @@ export default function ChallengeScreen() {
 
             <TouchableOpacity
               style={styles.inviteModalCloseButton}
-              onPress={() => {
+              onPress={async () => {
+                // Mark all current invitations as dismissed in the database
+                // This will update the sender's view to remove "Invited to..." text
+                for (const invite of invitations) {
+                  await supabase
+                    .from("friendships")
+                    .update({
+                      invited_challenge_id: null,
+                      invitation_status: "none",
+                    })
+                    .eq("user_id1", invite.sender_id)
+                    .eq("user_id2", invite.recipient_id);
+                }
+
                 // Mark all current invitations as dismissed so they won't show again this session
                 const newDismissed = new Set(dismissedInviteKeys);
                 invitations.forEach((invite) => newDismissed.add(invite.key));

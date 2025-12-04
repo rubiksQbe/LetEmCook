@@ -1,17 +1,17 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -153,6 +153,43 @@ export default function FriendScreen() {
       loadData();
     }, [loadData])
   );
+
+  // Subscribe to real-time updates for friendships
+  useEffect(() => {
+    let channel: any;
+
+    const setupSubscription = async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      const myUserId = userData?.user?.id;
+      if (!myUserId) return;
+
+      channel = supabase
+        .channel(`friendships-updates-${myUserId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "friendships",
+            filter: `user_id1=eq.${myUserId}`,
+          },
+          () => {
+            // Reload data when any friendship is updated
+            // This will update the "Invited to..." text when recipient views/closes invite
+            loadData();
+          }
+        )
+        .subscribe();
+    };
+
+    setupSubscription();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [loadData]);
 
   // NEW FUNCTION: Handles searching for a user and inserting the friendship
   const handleAddFriend = async () => {

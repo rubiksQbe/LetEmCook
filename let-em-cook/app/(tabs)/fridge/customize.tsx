@@ -77,11 +77,11 @@ export default function CustomizeMouse() {
           if (accessoryData) {
             const userHats = (accessoryData.allHats || [])
               .map((name: string) => ({ id: name, img: hatImages[name] }))
-              .filter((h) => h.img);
+              .filter((h: { id: string; img: any }) => h.img);
 
             const userItems = (accessoryData.allItems || [])
               .map((name: string) => ({ id: name, img: itemImages[name] }))
-              .filter((i) => i.img);
+              .filter((i: { id: string; img: any }) => i.img);
 
             setHatOptions([...defaultHats, ...userHats]);
             setItemOptions([...defaultItems, ...userItems]);
@@ -141,19 +141,42 @@ export default function CustomizeMouse() {
       {/* BACK BUTTON */}
       <TouchableOpacity
         style={styles.backButton}
-        onPress={async () => {
-          if (!userId) return;
-          await supabase
-            .from("pal-accessory")
-            .update({ hat: selectedHat, item: selectedItem })
-            .eq("user_id", userId)
-            .select()
-            .single();
-
-          router.back();
-        }}
+        onPress={() => router.back()}
       >
         <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
+      </TouchableOpacity>
+
+      {/* SAVE BUTTON */}
+      <TouchableOpacity
+        style={styles.saveButton}
+        onPress={async () => {
+          if (!userId) return;
+
+          try {
+            const { error } = await supabase
+              .from("pal-accessory")
+              .upsert(
+                {
+                  user_id: userId,
+                  hat: selectedHat,
+                  item: selectedItem,
+                },
+                {
+                  onConflict: "user_id",
+                }
+              )
+              .select()
+              .single();
+
+            if (error) return;
+
+            router.back();
+          } catch (err) {
+            // Silent error handling
+          }
+        }}
+      >
+        <Ionicons name="checkmark" size={24} color={Colors.palette.lightest} />
       </TouchableOpacity>
 
       {/* MAIN CONTENT */}
@@ -258,6 +281,23 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1001,
   },
+  saveButton: {
+    position: "absolute",
+    top: 70,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.palette.accent,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1001,
+  },
   container: { flex: 1 },
   topHalf: {
     flex: 3,
@@ -278,7 +318,7 @@ const styles = StyleSheet.create({
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: -180,
+    marginBottom: -160,
   },
   mouseImage: {
     width: 200,

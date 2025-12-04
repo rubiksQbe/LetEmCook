@@ -1,4 +1,3 @@
-import { BlurView } from "expo-blur";
 import { Tabs } from "expo-router";
 import React from "react";
 import { Image, StyleSheet } from "react-native";
@@ -57,20 +56,13 @@ export default function TabLayout() {
         tabBarItemStyle: {
           flex: 1,
         },
-        // Blur effect for tab bar
+        // Baby blue background for tab bar
         tabBarStyle: {
-          backgroundColor: "transparent",
+          backgroundColor: Colors.palette.light,
           borderTopWidth: 0,
           position: "absolute",
           elevation: 0,
         },
-        tabBarBackground: () => (
-          <BlurView
-            tint="light"
-            intensity={80}
-            style={{ flex: 1, backgroundColor: "rgba(255,255,255,0.3)" }}
-          />
-        ),
       }}
     >
       <Tabs.Screen
