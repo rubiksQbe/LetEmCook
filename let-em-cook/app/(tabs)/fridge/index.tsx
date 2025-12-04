@@ -143,11 +143,16 @@ export default function FridgeScreen() {
   // --- Real-time subscriptions ---
   useEffect(() => {
     let accessoriesChannel: any;
+    let pinnedChannel: any;
+    let submissionsChannel: any;
+
+    // Initial load
     loadFridgeData();
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
 
+      // --- Accessories realtime ---
       accessoriesChannel = supabase
         .channel(`realtime-accessories-${user.id}`)
         .on(
@@ -158,16 +163,48 @@ export default function FridgeScreen() {
             table: "pal-accessory",
             filter: `user_id=eq.${user.id}`,
           },
-          (payload: { new: PalAccessoryRow }) => {
+          (payload: { new: PalAccessoryRow | null }) => {
+            if (!payload.new) return;
             setEquippedHat(payload.new.hat);
             setEquippedItem(payload.new.item);
           }
+        )
+        .subscribe();
+
+      // --- Pinned realtime ---
+      pinnedChannel = supabase
+        .channel(`realtime-pinned-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "pinned",
+          },
+          () => loadFridgeData()
+        )
+        .subscribe();
+
+      // --- Submissions realtime ---
+      submissionsChannel = supabase
+        .channel(`realtime-submissions-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "submissions",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => loadFridgeData()
         )
         .subscribe();
     });
 
     return () => {
       if (accessoriesChannel) supabase.removeChannel(accessoriesChannel);
+      if (pinnedChannel) supabase.removeChannel(pinnedChannel);
+      if (submissionsChannel) supabase.removeChannel(submissionsChannel);
     };
   }, []);
 

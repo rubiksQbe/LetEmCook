@@ -531,12 +531,11 @@ export default function ChallengeDetailScreen() {
     setIsSubmitting(true);
 
     try {
-      // Check if user has any submissions for this challenge
+      // Check if user has any submissions
       const { data: existingSubmissions, error: fetchError } = await supabase
         .from("submissions")
         .select("id")
-        .eq("user_id", currentUserId)
-        .eq("challenge_id", displayChallenge.id);
+        .eq("user_id", currentUserId);
 
       if (fetchError) throw fetchError;
 
