@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
+  addHatToUser,
   fetchChallenge,
   fetchSubmissions,
   getUserChallengeVote,
@@ -528,32 +529,69 @@ export default function ChallengeDetailScreen() {
     }
 
     setIsSubmitting(true);
-    const { data, error } = await submitToChallenge(
-      displayChallenge.id,
-      selectedImage,
-      isCreator
-    );
 
-    if (error) {
-      Alert.alert("Error", "Failed to submit. Please try again.");
-      console.error(error);
-    } else {
-      Alert.alert(
-        "Success!",
+    try {
+      // Check if user has any submissions for this challenge
+      const { data: existingSubmissions, error: fetchError } = await supabase
+        .from("submissions")
+        .select("id")
+        .eq("user_id", currentUserId)
+        .eq("challenge_id", displayChallenge.id);
+
+      if (fetchError) throw fetchError;
+
+      const isFirstSubmission = existingSubmissions?.length === 0;
+
+      // Submit the entry
+      const { data, error: submitError } = await submitToChallenge(
+        displayChallenge.id,
+        selectedImage,
         isCreator
-          ? "Challenge image updated!"
-          : hasSubmitted
-          ? "Your submission has been updated!"
-          : "Your submission has been posted!"
       );
+
+      if (submitError) throw submitError;
+
       setHasSubmitted(true);
       setSelectedImage(null);
       setShowSubmissionModal(false);
 
       // Reload submissions
       loadSubmissions();
+
+      // Show success alert
+      if (!isFirstSubmission) {
+        Alert.alert(
+          "Success!",
+          isCreator
+            ? "Challenge image updated!"
+            : hasSubmitted
+            ? "Your submission has been updated!"
+            : "Your submission has been posted!"
+        );
+      }
+
+      // --- Reward new accessory if first submission ---
+      if (!isCreator && isFirstSubmission) {
+        const { data: hatData, error: hatError } = await addHatToUser(
+          currentUserId!,
+          "party_hat.png"
+        );
+
+        if (!hatError) {
+          Alert.alert(
+            "New Accessory Unlocked!",
+            "Congratulations on your first submission! You've unlocked the Party Hat for your mouse 🎉 "
+          );
+        } else {
+          console.error("Error adding new hat:", hatError);
+        }
+      }
+    } catch (err) {
+      console.error("Error submitting:", err);
+      Alert.alert("Error", "Failed to submit. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleChallengeVote = async (voteType: "up" | "down") => {
