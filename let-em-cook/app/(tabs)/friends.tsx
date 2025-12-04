@@ -424,7 +424,6 @@ const styles = StyleSheet.create({
     //paddingHorizontal: 10,
   },
   challengeCard: {
-    flex: 2,
     alignItems: "center",
     justifyContent: "center",
   },

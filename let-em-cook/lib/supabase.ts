@@ -39,18 +39,24 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export async function signUpWithUsername(username: string, password: string) {
   // First, check if username already exists in profiles table
   const trimmedUsername = username.trim().toLowerCase();
-  
+
   const { data: existingProfiles, error: checkError } = await supabase
     .from("profiles")
     .select("username")
     .ilike("username", trimmedUsername);
 
   if (checkError) {
-    return { data: null, error: new Error("Failed to check username availability.") };
+    return {
+      data: null,
+      error: new Error("Failed to check username availability."),
+    };
   }
 
   if (existingProfiles && existingProfiles.length > 0) {
-    return { data: null, error: new Error("Username already taken. Please choose another.") };
+    return {
+      data: null,
+      error: new Error("Username already taken. Please choose another."),
+    };
   }
 
   // Supabase requires an email or phone as the primary identifier.
@@ -71,15 +77,16 @@ export async function signUpWithUsername(username: string, password: string) {
   if (data?.user && !error) {
     // Use upsert to handle case where profile might already exist
     // (e.g., if auth user was deleted but profile wasn't)
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert({
+    const { error: profileError } = await supabase.from("profiles").upsert(
+      {
         id: data.user.id,
         username: trimmedUsername,
         avatar: null, // Default avatar
-      }, {
-        onConflict: 'id'
-      });
+      },
+      {
+        onConflict: "id",
+      }
+    );
 
     if (profileError) {
       console.error("Error creating/updating profile:", profileError);
@@ -97,12 +104,12 @@ export async function signInWithUsername(username: string, password: string) {
     email: aliasEmail,
     password,
   });
-  
+
   // Ensure profile exists after sign in
   if (data?.user && !error) {
     await ensureUserProfile(data.user.id);
   }
-  
+
   return { data, error };
 }
 
@@ -128,25 +135,21 @@ export async function ensureUserProfile(userId: string) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    
+
     if (!user || user.id !== userId) {
       return { success: false, error: "User not found" };
     }
 
     // Get username from metadata or email
     const username =
-      user.user_metadata?.username ||
-      user.email?.split("@")[0] ||
-      "user";
+      user.user_metadata?.username || user.email?.split("@")[0] || "user";
 
     // Create profile entry
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .insert({
-        id: userId,
-        username: username.toLowerCase(),
-        avatar: null,
-      });
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: userId,
+      username: username.toLowerCase(),
+      avatar: null,
+    });
 
     if (profileError) {
       console.error("Error creating profile:", profileError);
@@ -314,10 +317,12 @@ export async function fetchChallenge(challengeId: string) {
   try {
     const { data, error } = await supabase
       .from("challenges")
-      .select(`
+      .select(
+        `
         *,
         submissions(id)
-      `)
+      `
+      )
       .eq("id", challengeId)
       .single();
 
@@ -593,11 +598,13 @@ export async function voteOnChallenge(
     }
 
     // Create new vote
-    const { error: insertError } = await supabase.from("challenge_votes").insert({
-      challenge_id: challengeId,
-      user_id: user.id,
-      vote_type: voteType,
-    });
+    const { error: insertError } = await supabase
+      .from("challenge_votes")
+      .insert({
+        challenge_id: challengeId,
+        user_id: user.id,
+        vote_type: voteType,
+      });
 
     if (insertError) {
       console.error("Error inserting vote:", insertError);
@@ -910,4 +917,102 @@ export async function togglePinChallenge(
     console.error("Unexpected error in togglePinChallenge:", err);
     return null;
   }
+}
+
+export async function getUserAccessories(userId: string) {
+  const { data, error } = await supabase
+    .from("pal-accessory")
+    .select("*")
+    .eq("user_id", userId)
+    .single();
+
+  return { data, error };
+}
+
+export async function getEquippedHat(userId: string) {
+  const { data, error } = await supabase
+    .from("pal-accessory")
+    .select("hat")
+    .eq("user_id", userId)
+    .single();
+
+  return { hat: data?.hat ?? null, error };
+}
+
+export async function getEquippedItem(userId: string) {
+  const { data, error } = await supabase
+    .from("pal-accessory")
+    .select("item")
+    .eq("user_id", userId)
+    .single();
+
+  return { item: data?.item ?? null, error };
+}
+
+export async function addHatToUser(userId: string, hatName: string) {
+  // 1. Load current hats
+  const { data: userData, error: fetchError } = await supabase
+    .from("pal-accessory")
+    .select("allHats")
+    .eq("user_id", userId)
+    .single();
+
+  if (fetchError) return { data: null, error: fetchError };
+
+  // Prevent duplicates
+  const updated = Array.from(new Set([...(userData?.allHats || []), hatName]));
+
+  // 2. Save updated array
+  const { data, error } = await supabase
+    .from("pal-accessory")
+    .update({ allHats: updated })
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+export async function addItemToUser(userId: string, itemName: string) {
+  // 1. Load current items
+  const { data: userData, error: fetchError } = await supabase
+    .from("pal-accessory")
+    .select("allItems")
+    .eq("user_id", userId)
+    .single();
+
+  if (fetchError) return { data: null, error: fetchError };
+
+  // Prevent duplicates
+  const updated = Array.from(
+    new Set([...(userData?.allItems || []), itemName])
+  );
+
+  // 2. Save updated array
+  const { data, error } = await supabase
+    .from("pal-accessory")
+    .update({ allItems: updated })
+    .eq("user_id", userId)
+    .select()
+    .single();
+
+  return { data, error };
+}
+
+export async function equipHat(userId: string, hatName: string) {
+  return supabase
+    .from("pal-accessory")
+    .update({ hat: hatName })
+    .eq("user_id", userId)
+    .select()
+    .single();
+}
+
+export async function equipItem(userId: string, itemName: string) {
+  return supabase
+    .from("pal-accessory")
+    .update({ item: itemName })
+    .eq("user_id", userId)
+    .select()
+    .single();
 }

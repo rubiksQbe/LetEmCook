@@ -173,11 +173,16 @@ export default function FridgeScreen() {
                 justifyContent: "flex-end",
               }}
             >
-              <Image
-                source={require("@/assets/images/mouse-assets/macaroni.png")}
-                style={styles.inlineMouse}
-                resizeMode="contain"
-              />
+              <TouchableOpacity
+                onPress={() => router.push("/fridge/customize")}
+                activeOpacity={0.8}
+              >
+                <Image
+                  source={require("@/assets/images/mouse-assets/defaultmouse.png")}
+                  style={styles.inlineMouse}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
             </View>
             {!pinnedChallenge && (
               <View style={styles.speechBubble}>
@@ -401,16 +406,16 @@ const styles = StyleSheet.create({
   },
   historySection: { minHeight: 400, justifyContent: "flex-start" },
   inlineMouse: {
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
     marginLeft: 18,
     shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 5,
-    shadowOffset: { width: 3, height: 5 },
+    // shadowOpacity: 0.3,
+    // shadowRadius: 5,
+    // elevation: 5,
+    // shadowOffset: { width: 0, height: 5 },
     transform: [{ rotate: "-3deg" }],
-    marginBottom: -18,
+    marginBottom: -8,
   },
   speechBubble: {
     flex: 1,

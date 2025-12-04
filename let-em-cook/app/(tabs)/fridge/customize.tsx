@@ -1,0 +1,293 @@
+import Colors from "@/constants/Colors";
+import { supabase } from "@/lib/supabase";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+// --- Base mouse ---
+const baseMouse = require("@/assets/images/mouse-assets/defaultmouse.png");
+
+// --- Static mapping of filenames to images ---
+const hatImages: Record<string, any> = {
+  "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
+  "jester.png": require("@/assets/images/mouse-assets/jester.png"),
+  "party hat.png": require("@/assets/images/mouse-assets/party hat.png"),
+  "chef.png": require("@/assets/images/mouse-assets/chef.png"),
+};
+
+const itemImages: Record<string, any> = {
+  "wand.png": require("@/assets/images/mouse-assets/wand.png"),
+  "spatula.png": require("@/assets/images/mouse-assets/spatula.png"),
+  "SNES_controller.svg.png": require("@/assets/images/mouse-assets/SNES_controller.svg.png"),
+  "balloon.png": require("@/assets/images/mouse-assets/balloon.png"),
+};
+
+// --- Default options ---
+const defaultHats = [
+  { id: "none", img: null },
+  { id: "gamerhat.png", img: hatImages["gamerhat.png"] },
+  { id: "jester.png", img: hatImages["jester.png"] },
+  { id: "chef.png", img: hatImages["chef.png"] },
+];
+
+const defaultItems = [
+  { id: "none", img: null },
+  { id: "wand.png", img: itemImages["wand.png"] },
+  { id: "spatula.png", img: itemImages["spatula.png"] },
+  { id: "SNES_controller.svg.png", img: itemImages["SNES_controller.svg.png"] },
+];
+
+export default function CustomizeMouse() {
+  const [selectedHat, setSelectedHat] = useState("none");
+  const [selectedItem, setSelectedItem] = useState("none");
+  const [hatOptions, setHatOptions] = useState(defaultHats);
+  const [itemOptions, setItemOptions] = useState(defaultItems);
+
+  const router = useRouter();
+
+  // --- Load user's additional hats/items ---
+  useEffect(() => {
+    const loadUserAccessories = async () => {
+      const { data, error } = await supabase
+        .from("pal-accessory")
+        .select("allHats, allItems")
+        .single();
+
+      if (error || !data) return;
+
+      // Map filenames to images using the static mapping
+      const userHats = (data.allHats || [])
+        .map((fileName: string) => ({
+          id: fileName,
+          img: hatImages[fileName] || null,
+        }))
+        .filter((h) => h.img);
+
+      const userItems = (data.allItems || [])
+        .map((fileName: string) => ({
+          id: fileName,
+          img: itemImages[fileName] || null,
+        }))
+        .filter((i) => i.img);
+
+      setHatOptions([...defaultHats, ...userHats]);
+      setItemOptions([...defaultItems, ...userItems]);
+    };
+
+    loadUserAccessories();
+  }, []);
+
+  // --- Conditional positions ---
+  const hatPosition = (id: string) => {
+    switch (id) {
+      case "gamerhat.png":
+        return { top: 14, right: 73, width: 65, height: 65 };
+      case "party hat.png":
+        return { top: -15, right: 60, width: 90, height: 90 };
+      case "chef.png":
+        return { top: -10, right: 60, width: 90, height: 90 };
+      case "jester.png":
+        return { top: -15, right: 48, width: 110, height: 110 };
+      default:
+        return { top: -10, right: 60, width: 90, height: 90 };
+    }
+  };
+
+  const itemPosition = (id: string) => {
+    switch (id) {
+      case "SNES_controller.svg.png":
+        return { bottom: 50, right: -10, width: 75, height: 75 };
+      case "spatula.png":
+        return { bottom: 70, right: 3, width: 70, height: 70 };
+      case "wand.png":
+        return { bottom: 80, right: 3, width: 70, height: 70 };
+      case "balloon.png":
+        return { bottom: 80, right: 20, width: 80, height: 80 };
+      default:
+        return { bottom: 80, right: 3, width: 70, height: 70 };
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* BACK BUTTON */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
+      </TouchableOpacity>
+
+      {/* MAIN CONTENT */}
+      <View style={styles.container}>
+        {/* Top light section */}
+        <View style={styles.topHalf}>
+          <View style={styles.mouseWrapper}>
+            <Image source={baseMouse} style={styles.mouseImage} />
+
+            {selectedHat !== "none" && (
+              <Image
+                source={
+                  hatOptions.find((h) => h.id === selectedHat)?.img ?? null
+                }
+                style={[styles.hatOverlay, hatPosition(selectedHat)]}
+                resizeMode="contain"
+              />
+            )}
+
+            {selectedItem !== "none" && (
+              <Image
+                source={
+                  itemOptions.find((i) => i.id === selectedItem)?.img ?? null
+                }
+                style={[styles.itemOverlay, itemPosition(selectedItem)]}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </View>
+
+        {/* Bottom blue fridge section */}
+        <View style={styles.bottomHalf}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Choose a Hat</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.scrollRow}
+            >
+              {hatOptions.map((hat) => (
+                <TouchableOpacity
+                  key={hat.id}
+                  onPress={() => setSelectedHat(hat.id)}
+                  style={[
+                    styles.optionWrapper,
+                    selectedHat === hat.id && styles.selectedOption,
+                  ]}
+                >
+                  {hat.img ? (
+                    <Image source={hat.img} style={styles.optionImage} />
+                  ) : (
+                    <Text
+                      style={{ fontFamily: "Poppins400_Regular", fontSize: 14 }}
+                    >
+                      None
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Choose an Item</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.scrollRow}
+            >
+              {itemOptions.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => setSelectedItem(item.id)}
+                  style={[
+                    styles.optionWrapper,
+                    selectedItem === item.id && styles.selectedOption,
+                  ]}
+                >
+                  {item.img ? (
+                    <Image source={item.img} style={styles.optionImage} />
+                  ) : (
+                    <Text>None</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// --- STYLES ---
+const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: Colors.palette.light },
+  backButton: {
+    position: "absolute",
+    top: 70,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1001,
+  },
+  container: { flex: 1 },
+  topHalf: {
+    flex: 3,
+    backgroundColor: Colors.palette.light,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  bottomHalf: {
+    flex: 4,
+    backgroundColor: Colors.palette.blue,
+    paddingTop: 20,
+    borderTopWidth: 5,
+    borderColor: Colors.palette.darkest,
+  },
+  mouseWrapper: {
+    width: 200,
+    height: 200,
+    position: "relative",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: -120,
+  },
+  mouseImage: {
+    width: 200,
+    height: 200,
+    transform: [{ rotate: "-3deg" }],
+    // shadowOpacity: 0.3,
+    // shadowRadius: 7,
+    // elevation: 5,
+    // shadowOffset: { width: 0, height: 10 },
+  },
+  hatOverlay: { position: "absolute" },
+  itemOverlay: { position: "absolute" },
+  section: { marginBottom: 20, paddingHorizontal: 20 },
+  sectionTitle: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 18,
+    color: Colors.palette.lightest,
+    marginBottom: 10,
+  },
+  scrollRow: { paddingVertical: 10 },
+  optionWrapper: {
+    width: 100,
+    height: 100,
+    marginRight: 16,
+    borderRadius: 12,
+    backgroundColor: Colors.palette.lightest,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  optionImage: { width: 70, height: 70, resizeMode: "contain" },
+  selectedOption: { borderWidth: 5, borderColor: Colors.palette.accent },
+});
