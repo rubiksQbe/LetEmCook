@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
+  addHatToUser,
   fetchChallenge,
   fetchSubmissions,
   getUserChallengeVote,
@@ -64,9 +65,27 @@ function convertToChallenge(
   };
 }
 
+type FriendForShare = {
+  id: string;
+  username: string;
+  avatar: string | null;
+};
+
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const challengeIdFromParams = params.id as string | undefined;
+  // Attempt to parse the challenge object if it exists (for optimistic UI)
+  let initialChallenge: Challenge | null = null;
+  try {
+    // If we only passed 'id' (as in the invite scenario), this will be null
+    initialChallenge = params.challenge
+      ? JSON.parse(params.challenge as string)
+      : null;
+  } catch {
+    initialChallenge = null;
+  }
+
   let challenge: Challenge | null = null;
   try {
     challenge = params.challenge
@@ -90,7 +109,7 @@ export default function ChallengeDetailScreen() {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   const [challengeData, setChallengeData] = useState<Challenge | null>(
-    challenge
+    initialChallenge
   );
 
   const handleBack = () => {
@@ -118,6 +137,47 @@ export default function ChallengeDetailScreen() {
       console.error("Error loading challenge data:", error);
     }
   }, [challenge?.id]);
+
+  const loadFriendsForShare = useCallback(async () => {
+    if (!currentUserId) return;
+
+    setIsFriendsLoading(true);
+
+    try {
+      // Query friendships where the current user is user_id1
+      const { data: friendshipData, error } = await supabase
+        .from("friendships")
+        .select(
+          `
+            
+            friend:profiles!friendships_user_id2_fkey (
+                id,
+                username,
+                avatar
+            )
+          `
+        )
+        // Filter: user_id1 must match the current user
+        .eq("user_id1", currentUserId);
+
+      if (error) throw error;
+
+      if (friendshipData) {
+        // Map the results to the FriendForShare type
+        const friendsList = friendshipData.map((row) => ({
+          id: row.friend.id,
+          username: row.friend.username || "Unknown User",
+          avatar: row.friend.avatar,
+        }));
+        setFriendsForShare(friendsList);
+      }
+    } catch (error) {
+      console.error("Error loading friends for share:", error);
+      Alert.alert("Error", "Could not load friend list.");
+    } finally {
+      setIsFriendsLoading(false);
+    }
+  }, [currentUserId]); // Rerun when currentUserId changes
 
   useEffect(() => {
     async function init() {
@@ -162,6 +222,13 @@ export default function ChallengeDetailScreen() {
       refreshData();
     }, [loadChallengeData, challenge?.id])
   );
+
+  // Load friends when currentUserId is available
+  useEffect(() => {
+    if (currentUserId) {
+      loadFriendsForShare();
+    }
+  }, [currentUserId, loadFriendsForShare]);
 
   // Real-time subscription for submissions
   useEffect(() => {
@@ -274,12 +341,21 @@ export default function ChallengeDetailScreen() {
   }
 
   // Use challengeData for real-time updates, fallback to challenge
-  const displayChallenge = challengeData || challenge;
+  const displayChallenge = challengeData || initialChallenge;
 
-  if (!displayChallenge) {
+  if (!displayChallenge && !challengeIdFromParams) {
     return (
       <View style={styles.container}>
         <Text>Challenge not found.</Text>
+      </View>
+    );
+  }
+
+  if (!displayChallenge) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.palette.darkest} />
+        <Text style={styles.loadingText}>Loading challenge details...</Text>
       </View>
     );
   }
@@ -294,6 +370,10 @@ export default function ChallengeDetailScreen() {
   );
 
   const [isPinned, setIsPinned] = useState(false);
+
+  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
+  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Check if challenge is pinned when component mounts or currentUserId changes
   useEffect(() => {
@@ -338,8 +418,76 @@ export default function ChallengeDetailScreen() {
   };
 
   const handleShare = () => {
-    // TODO: Implement share functionality
-    console.log("Share challenge");
+    setShowShareModal(true);
+  };
+
+  const handleFriendTap = async (friendId: string) => {
+    if (!currentUserId || !displayChallenge) return;
+
+    // 1. Get the friend's current challenge status
+    setIsFriendsLoading(true);
+
+    try {
+      const { data: friendProfile, error: profileError } = await supabase
+        .from("profiles")
+        .select("curr_chal, username")
+        .eq("id", friendId)
+        .single();
+
+      if (profileError || !friendProfile) {
+        Alert.alert("Error", "Could not find friend profile.");
+        return;
+      }
+
+      const friendUsername = friendProfile.username || "Your friend";
+
+      // 2. CHECK 1: If friend already has a current challenge (curr_chal is populated)
+      if (friendProfile.curr_chal) {
+        Alert.alert(
+          "Invite Unsuccessful",
+          `${friendUsername} already has a pinned challenge! Invite unsuccessful.`
+        );
+        return;
+      }
+
+      // 3. INVITE: Update the friendship row with the new challenge invitation.
+      // The query finds the directional relationship where the current user (inviter) is user_id1.
+      const { error: updateError } = await supabase
+        .from("friendships")
+        .update({
+          invited_challenge_id: displayChallenge.id,
+          invitation_status: "sent", // Set the new status to 'sent'
+        })
+        .eq("user_id1", currentUserId)
+        .eq("user_id2", friendId)
+        .single();
+
+      if (updateError) {
+        Alert.alert(
+          "Error",
+          `Failed to send invite to ${friendUsername}. Relationship not found.`
+        );
+        console.error("Invite update failed:", updateError);
+        return;
+      }
+
+      // 4. Success Confirmation
+      Alert.alert(
+        "Invite Sent!",
+        `Successfully invited ${friendUsername} to the ${displayChallenge.title} challenge.`
+      );
+
+      // Close the share modal
+      setShowShareModal(false);
+    } catch (error) {
+      console.error("Handle friend tap failed:", error);
+      Alert.alert(
+        "Error",
+        "An unexpected error occurred during the invitation process."
+      );
+    } finally {
+      setIsFriendsLoading(false);
+    }
   };
 
   const handlePickImage = async () => {
@@ -372,32 +520,69 @@ export default function ChallengeDetailScreen() {
     }
 
     setIsSubmitting(true);
-    const { data, error } = await submitToChallenge(
-      displayChallenge.id,
-      selectedImage,
-      isCreator
-    );
 
-    if (error) {
-      Alert.alert("Error", "Failed to submit. Please try again.");
-      console.error(error);
-    } else {
-      Alert.alert(
-        "Success!",
+    try {
+      // Check if user has any submissions for this challenge
+      const { data: existingSubmissions, error: fetchError } = await supabase
+        .from("submissions")
+        .select("id")
+        .eq("user_id", currentUserId)
+        .eq("challenge_id", displayChallenge.id);
+
+      if (fetchError) throw fetchError;
+
+      const isFirstSubmission = existingSubmissions?.length === 0;
+
+      // Submit the entry
+      const { data, error: submitError } = await submitToChallenge(
+        displayChallenge.id,
+        selectedImage,
         isCreator
-          ? "Challenge image updated!"
-          : hasSubmitted
-          ? "Your submission has been updated!"
-          : "Your submission has been posted!"
       );
+
+      if (submitError) throw submitError;
+
       setHasSubmitted(true);
       setSelectedImage(null);
       setShowSubmissionModal(false);
 
       // Reload submissions
       loadSubmissions();
+
+      // Show success alert
+      if (!isFirstSubmission) {
+        Alert.alert(
+          "Success!",
+          isCreator
+            ? "Challenge image updated!"
+            : hasSubmitted
+            ? "Your submission has been updated!"
+            : "Your submission has been posted!"
+        );
+      }
+
+      // --- Reward new accessory if first submission ---
+      if (!isCreator && isFirstSubmission) {
+        const { data: hatData, error: hatError } = await addHatToUser(
+          currentUserId!,
+          "party_hat.png"
+        );
+
+        if (!hatError) {
+          Alert.alert(
+            "New Accessory Unlocked!",
+            "Congratulations on your first submission! You've unlocked the Party Hat for your mouse 🎉 "
+          );
+        } else {
+          console.error("Error adding new hat:", hatError);
+        }
+      }
+    } catch (err) {
+      console.error("Error submitting:", err);
+      Alert.alert("Error", "Failed to submit. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   const handleChallengeVote = async (voteType: "up" | "down") => {
@@ -653,25 +838,30 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Time Limit */}
-          <Text
-            style={[
-              styles.label,
-              !displayChallenge.description && { marginTop: 0 },
-            ]}
-          >
-            TIME LIMIT:{" "}
-            <Text style={styles.value}>
-              {displayChallenge.timeLimit} (not including prep time)
+          {displayChallenge.timeLimit && (
+            <Text
+              style={[
+                styles.label,
+                !displayChallenge.description && { marginTop: 0 },
+              ]}
+            >
+              TIME LIMIT:{" "}
+              <Text style={styles.value}>
+                {displayChallenge.timeLimit} (not including prep time)
+              </Text>
             </Text>
-          </Text>
+          )}
 
           {/* Ingredients */}
-          <Text style={styles.label}>
-            INGREDIENTS:{" "}
-            <Text style={styles.value}>
-              {displayChallenge.ingredients.join(", ")}
-            </Text>
-          </Text>
+          {displayChallenge.ingredients &&
+            displayChallenge.ingredients.length > 0 && (
+              <Text style={styles.label}>
+                INGREDIENTS:{" "}
+                <Text style={styles.value}>
+                  {displayChallenge.ingredients.join(", ")}
+                </Text>
+              </Text>
+            )}
 
           {/* Dietary Restrictions */}
           {displayChallenge.dietary_restrictions &&
@@ -884,6 +1074,68 @@ export default function ChallengeDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Share Modal */}
+      <Modal
+        visible={showShareModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowShareModal(false)}
+      >
+        <View style={styles.shareModalOverlay}>
+          <View style={styles.shareModalContent}>
+            <View style={styles.shareModalHeader}>
+              <Text style={styles.shareModalTitle}>Share Challenge</Text>
+              <TouchableOpacity onPress={() => setShowShareModal(false)}>
+                <Ionicons
+                  name="close"
+                  size={28}
+                  color={Colors.palette.darkest}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {isFriendsLoading ? (
+              <ActivityIndicator
+                size="large"
+                color={Colors.palette.blue}
+                style={{ marginVertical: 30 }}
+              />
+            ) : friendsForShare.length === 0 ? (
+              <Text style={styles.noFriendsText}>
+                You need to add friends first!
+              </Text>
+            ) : (
+              <View style={styles.friendsGrid}>
+                {friendsForShare.map(
+                  (
+                    friend // <-- Use friendsForShare here
+                  ) => (
+                    <TouchableOpacity
+                      key={friend.id}
+                      style={styles.friendCard}
+                      onPress={() => handleFriendTap(friend.id)}
+                    >
+                      {/* AVATAR LOGIC (Assuming local/remote logic from friends.tsx is adapted here) */}
+                      <Image
+                        source={
+                          friend.avatar
+                            ? { uri: friend.avatar }
+                            : require("@/assets/images/placeholder.jpg")
+                        }
+                        style={styles.friendCardImage}
+                      />
+                      <Text style={styles.friendCardName}>
+                        {friend.username}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Submission Modal */}
       <Modal
@@ -1486,5 +1738,82 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 24,
     paddingBottom: 40,
+  },
+
+  // Share Modal Styles
+  shareModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  shareModalContent: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    width: "100%",
+    maxWidth: 400,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  shareModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.palette.lightest,
+  },
+  shareModalTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 20,
+    color: Colors.palette.darkest,
+  },
+  friendsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    padding: 20,
+    justifyContent: "space-around",
+    gap: 16,
+  },
+  friendCard: {
+    alignItems: "center",
+    width: "30%",
+  },
+  friendCardImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginBottom: 8,
+    backgroundColor: Colors.palette.lightest,
+  },
+  friendCardName: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+    textAlign: "center",
+  },
+  noFriendsText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.dark,
+    textAlign: "center",
+    padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.palette.light,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: Colors.palette.darkest,
   },
 });
