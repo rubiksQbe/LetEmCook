@@ -128,7 +128,7 @@ export default function CustomizeMouse() {
       case "balloon.png":
         return { bottom: 80, right: 20, width: 80, height: 80 };
       default:
-        return { bottom: 80, right: 3, width: 70, height: 70 };
+        return { bottom: 70, right: 3, width: 70, height: 70 };
     }
   };
 

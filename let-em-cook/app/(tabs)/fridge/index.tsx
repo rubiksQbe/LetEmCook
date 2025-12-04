@@ -15,6 +15,24 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
 
+// --- Static mapping of filenames to images ---
+const hatImages: Record<string, any> = {
+  "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
+  "jester.png": require("@/assets/images/mouse-assets/jester.png"),
+  "party_hat.png": require("@/assets/images/mouse-assets/party_hat.png"),
+  "chef.png": require("@/assets/images/mouse-assets/chef.png"),
+};
+
+const itemImages: Record<string, any> = {
+  "wand.png": require("@/assets/images/mouse-assets/wand.png"),
+  "spatula.png": require("@/assets/images/mouse-assets/spatula.png"),
+  "SNES_controller.svg.png": require("@/assets/images/mouse-assets/SNES_controller.svg.png"),
+  "balloon.png": require("@/assets/images/mouse-assets/balloon.png"),
+};
+
+// --- Base mouse ---
+const baseMouse = require("@/assets/images/mouse-assets/defaultmouse.png");
+
 interface Challenge {
   id: string;
   title: string;
@@ -23,6 +41,14 @@ interface Challenge {
 
 interface ChallengeWithSubmission extends Challenge {
   submissionImage: string;
+}
+
+interface PalAccessoryRow {
+  user_id: string;
+  hat: string | null;
+  item: string | null;
+  allHats?: string[];
+  allItems?: string[];
 }
 
 interface PinnedRow {
@@ -46,9 +72,12 @@ export default function FridgeScreen() {
     ChallengeWithSubmission[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [equippedHat, setEquippedHat] = useState<string | null>(null);
+  const [equippedItem, setEquippedItem] = useState<string | null>(null);
+
   const router = useRouter();
 
-  // --- Load fridge data ---
+  // --- Load all fridge data including accessories ---
   async function loadFridgeData() {
     setLoading(true);
     try {
@@ -66,7 +95,6 @@ export default function FridgeScreen() {
         .select("challenge_id")
         .eq("user_id", user.id)
         .single();
-
       const pinnedId = pinnedData?.challenge_id || null;
       const pinned = pinnedId
         ? allChallenges.find((c) => c.id === pinnedId) || null
@@ -94,8 +122,17 @@ export default function FridgeScreen() {
         )
       ).filter(Boolean) as ChallengeWithSubmission[];
 
+      // --- Equipped accessories ---
+      const { data: accessoryData } = await supabase
+        .from<PalAccessoryRow>("pal-accessory")
+        .select("hat, item")
+        .eq("user_id", user.id)
+        .single();
+
       setPinnedChallenge(pinned);
       setHistoryChallenges(historyWithSubmission);
+      setEquippedHat(accessoryData?.hat ?? null);
+      setEquippedItem(accessoryData?.item ?? null);
     } catch (err) {
       console.error("Error loading fridge data:", err);
     } finally {
@@ -105,47 +142,64 @@ export default function FridgeScreen() {
 
   // --- Real-time subscriptions ---
   useEffect(() => {
-    let pinnedChannel: any;
-    let submissionsChannel: any;
-
-    // initial load
+    let accessoriesChannel: any;
     loadFridgeData();
 
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
 
-      // Pinned table
-      pinnedChannel = supabase
-        .channel(`realtime-pinned-${user.id}`)
-        .on(
-          "postgres_changes",
-          { event: "*", schema: "public", table: "pinned" },
-          () => loadFridgeData()
-        )
-        .subscribe();
-
-      // Submissions table
-      submissionsChannel = supabase
-        .channel(`realtime-submissions-${user.id}`)
+      accessoriesChannel = supabase
+        .channel(`realtime-accessories-${user.id}`)
         .on(
           "postgres_changes",
           {
             event: "*",
             schema: "public",
-            table: "submissions",
+            table: "pal-accessory",
             filter: `user_id=eq.${user.id}`,
           },
-          () => loadFridgeData()
+          (payload: { new: PalAccessoryRow }) => {
+            setEquippedHat(payload.new.hat);
+            setEquippedItem(payload.new.item);
+          }
         )
         .subscribe();
     });
 
-    // cleanup
     return () => {
-      if (pinnedChannel) supabase.removeChannel(pinnedChannel);
-      if (submissionsChannel) supabase.removeChannel(submissionsChannel);
+      if (accessoriesChannel) supabase.removeChannel(accessoriesChannel);
     };
   }, []);
+
+  const hatPosition = (id: string) => {
+    switch (id) {
+      case "gamerhat.png":
+        return { top: 8, right: 36, width: 32, height: 32 };
+      case "party_hat.png":
+        return { top: -8, right: 30, width: 45, height: 45 };
+      case "chef.png":
+        return { top: -5, right: 30, width: 45, height: 45 };
+      case "jester.png":
+        return { top: -7, right: 25, width: 55, height: 55 };
+      default:
+        return { top: -5, right: 30, width: 45, height: 45 };
+    }
+  };
+
+  const itemPosition = (id: string) => {
+    switch (id) {
+      case "SNES_controller.svg.png":
+        return { bottom: 15, right: -5, width: 38, height: 38 };
+      case "spatula.png":
+        return { bottom: 25, right: 0, width: 35, height: 35 };
+      case "wand.png":
+        return { bottom: 30, right: 0, width: 35, height: 35 };
+      case "balloon.png":
+        return { bottom: 30, right: 8, width: 40, height: 40 };
+      default:
+        return { bottom: 25, right: 0, width: 35, height: 35 };
+    }
+  };
 
   if (loading) {
     return (
@@ -177,11 +231,27 @@ export default function FridgeScreen() {
                 onPress={() => router.push("/fridge/customize")}
                 activeOpacity={0.8}
               >
-                <Image
-                  source={require("@/assets/images/mouse-assets/defaultmouse.png")}
-                  style={styles.inlineMouse}
-                  resizeMode="contain"
-                />
+                <View>
+                  <Image
+                    source={baseMouse}
+                    style={styles.inlineMouse}
+                    resizeMode="contain"
+                  />
+                  {equippedHat && hatImages[equippedHat] && (
+                    <Image
+                      source={hatImages[equippedHat]}
+                      style={[styles.hatOverlay, hatPosition(equippedHat)]}
+                      resizeMode="contain"
+                    />
+                  )}
+                  {equippedItem && itemImages[equippedItem] && (
+                    <Image
+                      source={itemImages[equippedItem]}
+                      style={[styles.itemOverlay, itemPosition(equippedItem)]}
+                      resizeMode="contain"
+                    />
+                  )}
+                </View>
               </TouchableOpacity>
             </View>
             {!pinnedChallenge && (
@@ -409,13 +479,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     marginLeft: 18,
-    shadowColor: "#000",
-    // shadowOpacity: 0.3,
-    // shadowRadius: 5,
-    // elevation: 5,
-    // shadowOffset: { width: 0, height: 5 },
     transform: [{ rotate: "-3deg" }],
-    marginBottom: -8,
+    marginBottom: -10,
+    position: "relative",
   },
   speechBubble: {
     flex: 1,
@@ -442,4 +508,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 8,
     borderRightColor: Colors.palette.lightest,
   },
+  hatOverlay: { position: "absolute" },
+  itemOverlay: { position: "absolute" },
 });
