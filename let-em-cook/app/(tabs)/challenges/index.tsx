@@ -175,12 +175,11 @@ export default function ChallengeScreen() {
   const handleAcceptInvite = async (invite: ChallengeInvitation) => {
     // 1. Mark the invitation as accepted/resolved in the friendships table
     // We update the row where we are the recipient (user_id2)
+    // Keep the challenge_id so it can be shown in invite history
     const { error } = await supabase
       .from("friendships")
       .update({
-        // You might want to remove the challenge ID and set status to 'accepted'/'none'
-        invited_challenge_id: null,
-        invitation_status: "none", // Remove the sent status
+        invitation_status: "viewed", // Mark as viewed but keep challenge_id for history
       })
       .eq("user_id1", invite.sender_id)
       .eq("user_id2", invite.recipient_id);
@@ -1257,12 +1256,12 @@ export default function ChallengeScreen() {
               onPress={async () => {
                 // Mark all current invitations as dismissed in the database
                 // This will update the sender's view to remove "Invited to..." text
+                // Keep the challenge_id so it can be shown in invite history
                 for (const invite of invitations) {
                   await supabase
                     .from("friendships")
                     .update({
-                      invited_challenge_id: null,
-                      invitation_status: "none",
+                      invitation_status: "closed", // Mark as closed but keep challenge_id for history
                     })
                     .eq("user_id1", invite.sender_id)
                     .eq("user_id2", invite.recipient_id);

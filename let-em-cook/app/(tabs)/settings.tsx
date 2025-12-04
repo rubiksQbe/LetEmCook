@@ -32,6 +32,9 @@ export default function ProfileScreen() {
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showInviteHistoryModal, setShowInviteHistoryModal] = useState(false);
+  const [inviteHistory, setInviteHistory] = useState<any[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -323,6 +326,91 @@ export default function ProfileScreen() {
     }
   }
 
+  async function loadInviteHistory() {
+    setLoadingInvites(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch all friendships where user is sender (user_id1)
+      const { data: allSentFriendships, error: sentError } = await supabase
+        .from("friendships")
+        .select(
+          `
+          user_id1,
+          user_id2,
+          invitation_status,
+          invited_challenge_id,
+          invited_challenge:challenges!friendships_invited_challenge_id_fkey (id, title, image_url),
+          recipient:profiles!friendships_user_id2_fkey (username)
+        `
+        )
+        .eq("user_id1", user.id);
+
+      // Fetch all friendships where user is recipient (user_id2)
+      const { data: allReceivedFriendships, error: receivedError } = await supabase
+        .from("friendships")
+        .select(
+          `
+          user_id1,
+          user_id2,
+          invitation_status,
+          invited_challenge_id,
+          invited_challenge:challenges!friendships_invited_challenge_id_fkey (id, title, image_url),
+          sender:profiles!friendships_user_id1_fkey (username)
+        `
+        )
+        .eq("user_id2", user.id);
+
+      if (sentError || receivedError) {
+        console.error("Error loading invite history:", sentError || receivedError);
+        return;
+      }
+
+      // Filter to only show friendships that have invite history
+      // (must have a challenge_id to show in history)
+      const sentInvites = (allSentFriendships || []).filter(
+        (f) => f.invited_challenge_id !== null
+      );
+      const receivedInvites = (allReceivedFriendships || []).filter(
+        (f) => f.invited_challenge_id !== null
+      );
+
+      const formattedInvites = [
+        ...sentInvites.map((invite) => ({
+          id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
+          type: "sent" as const,
+          status: invite.invitation_status,
+          challenge: invite.invited_challenge,
+          otherUser: invite.recipient?.username || "Unknown",
+          date: null, // You can add a timestamp field if needed
+        })),
+        ...receivedInvites.map((invite) => ({
+          id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
+          type: "received" as const,
+          status: invite.invitation_status,
+          challenge: invite.invited_challenge,
+          otherUser: invite.sender?.username || "Unknown",
+          date: null,
+        })),
+      ];
+
+      // Sort by most recent first (if you add timestamps later)
+      setInviteHistory(formattedInvites);
+    } catch (error) {
+      console.error("Error loading invite history:", error);
+    } finally {
+      setLoadingInvites(false);
+    }
+  }
+
+  async function handleOpenInviteHistory() {
+    setShowInviteHistoryModal(true);
+    await loadInviteHistory();
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.loadingSafeArea} edges={["top"]}>
@@ -372,6 +460,24 @@ export default function ProfileScreen() {
             <View style={styles.sectionContent}>
               <Text style={styles.sectionTitle}>Change Password</Text>
               <Text style={styles.sectionSubtitle}>Update your password</Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={Colors.palette.dark}
+            />
+          </TouchableOpacity>
+
+          {/* Invite History Section */}
+          <TouchableOpacity
+            style={styles.section}
+            onPress={handleOpenInviteHistory}
+          >
+            <View style={styles.sectionContent}>
+              <Text style={styles.sectionTitle}>Invite History</Text>
+              <Text style={styles.sectionSubtitle}>
+                View all past invite requests
+              </Text>
             </View>
             <Ionicons
               name="chevron-forward"
@@ -566,6 +672,126 @@ export default function ProfileScreen() {
                   )}
                 </TouchableOpacity>
               </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Invite History Modal */}
+        <Modal
+          visible={showInviteHistoryModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowInviteHistoryModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Invite History</Text>
+                <TouchableOpacity
+                  onPress={() => setShowInviteHistoryModal(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons
+                    name="close"
+                    size={24}
+                    color={Colors.palette.darkest}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {loadingInvites ? (
+                <View style={styles.inviteHistoryLoading}>
+                  <ActivityIndicator
+                    size="large"
+                    color={Colors.palette.darkest}
+                  />
+                </View>
+              ) : inviteHistory.length === 0 ? (
+                <View style={styles.inviteHistoryEmpty}>
+                  <Text style={styles.inviteHistoryEmptyText}>
+                    No invite history found
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.inviteHistorySummary}>
+                    <Text style={styles.inviteHistorySummaryText}>
+                      Total: {inviteHistory.length} invite
+                      {inviteHistory.length !== 1 ? "s" : ""} • Sent:{" "}
+                      {inviteHistory.filter((i) => i.type === "sent").length}{" "}
+                      • Received:{" "}
+                      {inviteHistory.filter((i) => i.type === "received").length}
+                    </Text>
+                  </View>
+                  <ScrollView
+                    style={styles.inviteHistoryScroll}
+                    contentContainerStyle={styles.inviteHistoryContent}
+                  >
+                    {inviteHistory.map((invite) => (
+                      <View
+                        key={invite.id}
+                        style={[
+                          styles.inviteHistoryItem,
+                          invite.type === "sent"
+                            ? styles.inviteHistoryItemSent
+                            : styles.inviteHistoryItemReceived,
+                        ]}
+                      >
+                        <View style={styles.inviteHistoryItemHeader}>
+                          <View style={styles.inviteHistoryItemTypeContainer}>
+                            <Ionicons
+                              name={
+                                invite.type === "sent"
+                                  ? "arrow-up-outline"
+                                  : "arrow-down-outline"
+                              }
+                              size={16}
+                              color={
+                                invite.type === "sent"
+                                  ? Colors.palette.blue
+                                  : Colors.palette.accent
+                              }
+                              style={styles.inviteHistoryItemIcon}
+                            />
+                            <Text style={styles.inviteHistoryItemType}>
+                              {invite.type === "sent" ? "Sent to" : "Received from"}
+                            </Text>
+                          </View>
+                          <Text style={styles.inviteHistoryItemUser}>
+                            {invite.otherUser}
+                          </Text>
+                        </View>
+                        {invite.challenge ? (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setShowInviteHistoryModal(false);
+                              router.push({
+                                pathname: "/challenges/[id]",
+                                params: {
+                                  id: invite.challenge.id,
+                                  challenge: JSON.stringify({
+                                    id: invite.challenge.id,
+                                    title: invite.challenge.title,
+                                    image_url: invite.challenge.image_url,
+                                  }),
+                                },
+                              });
+                            }}
+                          >
+                            <Text style={styles.inviteHistoryItemChallenge}>
+                              {invite.challenge.title}
+                            </Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.inviteHistoryItemChallenge}>
+                            Challenge no longer available
+                          </Text>
+                        )}
+                      </View>
+                    ))}
+                  </ScrollView>
+                </>
+              )}
             </View>
           </View>
         </Modal>
@@ -821,5 +1047,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.palette.darkest,
     marginBottom: 8,
+  },
+  inviteHistoryLoading: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteHistoryEmpty: {
+    padding: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inviteHistoryEmptyText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 16,
+    color: Colors.palette.dark,
+  },
+  inviteHistorySummary: {
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.palette.dark,
+  },
+  inviteHistorySummaryText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: Colors.palette.dark,
+  },
+  inviteHistoryScroll: {
+    maxHeight: 400,
+  },
+  inviteHistoryContent: {
+    paddingBottom: 20,
+  },
+  inviteHistoryItem: {
+    backgroundColor: Colors.palette.light,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderWidth: 1.5,
+  },
+  inviteHistoryItemSent: {
+    borderColor: Colors.palette.blue,
+    borderLeftWidth: 4,
+  },
+  inviteHistoryItemReceived: {
+    borderColor: Colors.palette.accent,
+    borderLeftWidth: 4,
+  },
+  inviteHistoryItemHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  inviteHistoryItemTypeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  inviteHistoryItemIcon: {
+    marginRight: 6,
+  },
+  inviteHistoryItemType: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: Colors.palette.dark,
+  },
+  inviteHistoryItemUser: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+  },
+  inviteHistoryItemChallenge: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.blue,
+    marginTop: 8,
+    textDecorationLine: "underline",
   },
 });

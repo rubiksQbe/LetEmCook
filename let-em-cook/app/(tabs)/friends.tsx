@@ -256,7 +256,7 @@ export default function FriendScreen() {
     }
   };
 
-  function renderFriend({ item }: { item: Friend }) {
+  const renderFriend = React.useCallback(({ item }: { item: Friend }) => {
     const isLocalKey = item.avatar && LocalAvatars.hasOwnProperty(item.avatar);
 
     const avatarSource = isLocalKey
@@ -326,7 +326,12 @@ export default function FriendScreen() {
         {/* ... (friendAvatarColumn unchanged) ... */}
         <View style={styles.friendAvatarContainer}>
           <View style={styles.friendAvatarColumn}>
-            <Image source={avatarSource} style={styles.avatar} />
+            <Image
+              source={avatarSource}
+              style={styles.avatar}
+              resizeMode="contain"
+              defaultSource={require("../../assets/images/mouse-assets/defaultmouse.png")}
+            />
             <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
           </View>
         </View>
@@ -361,7 +366,7 @@ export default function FriendScreen() {
         </View>
       </TouchableOpacity>
     );
-  }
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -413,6 +418,11 @@ export default function FriendScreen() {
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
         bounces={true}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
       />
     </SafeAreaView>
   );
