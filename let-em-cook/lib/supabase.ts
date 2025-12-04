@@ -36,6 +36,46 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   },
 });
 
+export async function createDefaultAccessories(userId: string) {
+  try {
+    // Check if already exists
+    const { data: existing, error: fetchError } = await supabase
+      .from("pal-accessory")
+      .select("user_id")
+      .eq("user_id", userId)
+      .single();
+
+    if (fetchError && fetchError.code !== "PGRST116") {
+      console.error("Error checking pal-accessory:", fetchError);
+      return { success: false, error: fetchError.message };
+    }
+
+    if (existing) {
+      // Already exists
+      return { success: true, created: false };
+    }
+
+    // Insert default row
+    const { error: insertError } = await supabase.from("pal-accessory").insert({
+      user_id: userId,
+      hat: null,
+      item: null,
+      allHats: [],
+      allItems: [],
+    });
+
+    if (insertError) {
+      console.error("Error creating pal-accessory row:", insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    return { success: true, created: true };
+  } catch (err: any) {
+    console.error("Error in createDefaultAccessories:", err);
+    return { success: false, error: err.message };
+  }
+}
+
 export async function signUpWithUsername(username: string, password: string) {
   // First, check if username already exists in profiles table
   const trimmedUsername = username.trim().toLowerCase();
@@ -93,6 +133,8 @@ export async function signUpWithUsername(username: string, password: string) {
       // Note: User is created but profile isn't - they can still use the app
       // but might need to update their profile later
     }
+
+    await createDefaultAccessories(data.user.id);
   }
 
   return { data, error };
@@ -155,6 +197,8 @@ export async function ensureUserProfile(userId: string) {
       console.error("Error creating profile:", profileError);
       return { success: false, error: profileError.message };
     }
+
+    await createDefaultAccessories(userId);
 
     return { success: true, created: true };
   } catch (error: any) {
