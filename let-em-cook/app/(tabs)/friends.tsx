@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -110,7 +111,16 @@ export default function FriendScreen() {
         // Renamed to friendProfile to match the query alias
         const friendProfileData = row.friendProfile;
 
-        // CRITICAL: Construct the object using the friend's profile data
+        if (!friendProfileData) {
+          console.warn(
+            `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
+              row
+            )}`
+          );
+          return null;
+        }
+
+        // Construct the object using the friend's profile data
         // combined with the invitation status from the parent row.
         const friendDataWithInvite = {
           // Essential Profile Properties
@@ -138,9 +148,11 @@ export default function FriendScreen() {
   }, []);
 
   // Call loadData on mount
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
 
   // NEW FUNCTION: Handles searching for a user and inserting the friendship
   const handleAddFriend = async () => {
@@ -227,28 +239,23 @@ export default function FriendScreen() {
       item.invitation_status === "sent" && item.invited_challenge_title;
 
     // Determine the label text and image source based on status
-    let labelText = "No current challenge...";
-    let imageSource = require("../../assets/images/placeholder.jpg");
-    let imageOpacity = 1.0;
-    let isDisabled = !challengeIsPresent; // Only clickable if they have a pinned challenge
+    let labelText: string;
+    let imageSource: any;
+    let imageOpacity: number;
+    let isDisabled: boolean; // Only clickable if they have a pinned challenge
 
-    if (isInvited) {
-      // PRIORITY 1: Display Invitation Status
-      labelText = `Invited to: ${item.invited_challenge_title}`;
-      imageOpacity = 0.7;
-      isDisabled = true; // Invites are not clickable to view the challenge
-    } else if (challengeIsPresent) {
-      // PRIORITY 2: Display Pinned Challenge
-      labelText = `Current challenge: ${item.current_challenge_name}`;
+    if (challengeIsPresent) {
+      // PRIORITY 1: Display Pinned Challenge
+      labelText = `Pinned challenge: ${item.current_challenge_name}`;
       imageSource = challengeImageSource;
       imageOpacity = 1.0;
       isDisabled = false; // Is clickable
     } else {
-      // PRIORITY 3: No current challenge/invite
-      labelText = "No current challenge...";
+      // PRIORITY 2: No Pinned Challenge (This covers invited and truly empty states)
+      labelText = "No pinned challenge...";
       imageSource = require("../../assets/images/placeholder.jpg");
-      imageOpacity = 0.5;
-      isDisabled = true;
+      imageOpacity = isInvited ? 0.7 : 0.5; // Dim slightly if invited/empty
+      isDisabled = true; // Not clickable
     }
     // Function to handle the press event
     const handleCardPress = () => {
@@ -262,52 +269,56 @@ export default function FriendScreen() {
         pathname: "/challenges/[id]",
         params: {
           id: item.curr_chal.id,
-          // Since the ChallengeDetailScreen expects a full 'challenge' object in params,
-          // we must construct it or rely on the detail screen to fetch it.
-          // For now, let's use the ID and assume the detail screen can fetch the rest.
-          // The other Challenge screen ([id].tsx) seems to rely on JSON.parse(params.challenge)
-          // so we'll pass the friend's simplified challenge data.
+
           challenge: JSON.stringify({
             id: item.curr_chal.id,
             title: item.current_challenge_name,
             image_url: item.current_challenge_image,
-            // NOTE: The ChallengeDetailScreen ([id].tsx) needs more fields (timeLimit, ingredients, etc.)
-            // which are NOT available in the 'Friend' type. You will need to update the
-            // ChallengeDetailScreen to fetch the full challenge data by ID if it's missing.
-            // For now, this is the best we can do with available data.
           }),
         },
       });
     };
 
     return (
-      // 2. Wrap the whole row with TouchableOpacity
       <TouchableOpacity
         onPress={handleCardPress}
-        disabled={!challengeIsPresent} // Disable press if no challenge is set
-        activeOpacity={challengeIsPresent ? 0.8 : 1.0} // Change opacity only if clickable
-        style={styles.friendRow} // Apply the row style to the TouchableOpacity
+        disabled={isDisabled}
+        activeOpacity={isDisabled ? 1.0 : 0.8}
+        style={styles.friendRow}
       >
+        {/* ... (friendAvatarColumn unchanged) ... */}
         <View style={{ justifyContent: "center", flex: 1, marginRight: 20 }}>
           <View style={styles.friendAvatarColumn}>
             <Image source={avatarSource} style={styles.avatar} />
             <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
           </View>
         </View>
+
+        {/* CRITICAL: Update the Challenge Card JSX */}
         <View style={styles.challengeCard}>
           <Image
-            source={challengeImageSource}
-            style={[
-              styles.challengeImage,
-              // Dim the image slightly if it's not clickable/no challenge is set
-              !challengeIsPresent && { opacity: 0.5 },
-            ]}
+            source={imageSource}
+            style={[styles.challengeImage, { opacity: imageOpacity }]}
           />
-          <Text style={styles.challengeLabel}>
-            {challengeIsPresent
-              ? `Current challenge: ${item.current_challenge_name}`
-              : "No current challenge..."}
-          </Text>
+          <View style={styles.challengeTextContainer}>
+            {/* NEW WRAPPER */}
+            {/* Main Label: Always present, reflects current state */}
+            <Text style={styles.challengeLabel}>{labelText}</Text>
+            {/* Conditional Invitation Sub-Label */}
+            {isInvited && (
+              <View style={styles.inviteSubTextRow}>
+                <MaterialCommunityIcons
+                  name="invoice-text-send-outline"
+                  size={12}
+                  color={Colors.palette.accent}
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.inviteSubText}>
+                  Invited to: {item.invited_challenge_title}!
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -425,7 +436,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   challengeLabel: {
-    marginTop: 8,
+    //marginTop: 8,
     fontSize: 14,
     color: Colors.palette.darkest,
     textAlign: "center",
@@ -500,5 +511,20 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     marginTop: 20,
+  },
+  challengeTextContainer: {
+    // Aligns the two lines of text
+    alignItems: "center",
+    marginTop: 8,
+  },
+  inviteSubTextRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4, // Small gap between main label and invite text
+  },
+  inviteSubText: {
+    fontSize: 12, // Smaller font
+    fontFamily: "Poppins_600SemiBold",
+    color: Colors.palette.accent, // Accent color
   },
 });

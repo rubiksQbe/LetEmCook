@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -52,10 +53,21 @@ function convertToChallenge(
   };
 }
 
+type ChallengeInvitation = {
+  key: string;
+  sender_id: string;
+  recipient_id: string;
+  sender_username: string;
+  challenge_id: string;
+  challenge_title: string;
+};
+
 export default function ChallengeScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
+  const [invitations, setInvitations] = useState<ChallengeInvitation[]>([]);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Filter states
   const [unifiedSearch, setUnifiedSearch] = useState("");
@@ -68,7 +80,9 @@ export default function ChallengeScreen() {
     useState<string[]>([]);
 
   // Sort state
-  const [sortBy, setSortBy] = useState<"recent" | "submissions" | "likes">("recent");
+  const [sortBy, setSortBy] = useState<"recent" | "submissions" | "likes">(
+    "recent"
+  );
 
   // Modal states
   const [modalVisible, setModalVisible] = useState<
@@ -77,6 +91,51 @@ export default function ChallengeScreen() {
   const [ingredientInput, setIngredientInput] = useState("");
   const [dietaryInput, setDietaryInput] = useState("");
 
+  // Function to fetch invitations
+  const fetchInvitations = useCallback(async (myUserId: string) => {
+    if (!myUserId) return;
+
+    const { data, error } = await supabase
+      .from("friendships")
+      .select(
+        `
+          user_id1,        
+          user_id2,        
+          invitation_status,
+          sender:profiles!friendships_user_id1_fkey (username),
+          challenge:challenges!friendships_invited_challenge_id_fkey (id, title)
+        `
+      )
+      // Filter for invites sent TO me (I am user_id2)
+      .eq("user_id2", myUserId)
+      // Filter for active invites
+      .eq("invitation_status", "sent");
+
+    if (error) {
+      console.error("Error fetching invites:", error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const pendingInvites: ChallengeInvitation[] = data
+        .map((row) => ({
+          key: `${row.user_id1}-${row.user_id2}-${row.challenge?.id}`,
+          sender_id: row.user_id1,
+          recipient_id: row.user_id2,
+          sender_username: row.sender?.username || "A Friend",
+          challenge_id: row.challenge?.id,
+          challenge_title: row.challenge?.title || "Unknown Challenge",
+        }))
+        // Filter out any rows where challenge data failed to load
+        .filter((invite) => invite.challenge_id && invite.challenge_title);
+
+      setInvitations(pendingInvites);
+      if (pendingInvites.length > 0) {
+        setShowInviteModal(true);
+      }
+    }
+  }, []);
+
   // Function to load challenges
   const loadChallenges = useCallback(async () => {
     try {
@@ -84,7 +143,8 @@ export default function ChallengeScreen() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      setCurrentUserId(user?.id);
+      const userId = user?.id;
+      setCurrentUserId(userId);
 
       // Fetch challenges
       const { data, error } = await fetchChallenges();
@@ -95,9 +155,12 @@ export default function ChallengeScreen() {
 
       if (data) {
         const convertedChallenges = data.map((row: ChallengeRow) =>
-          convertToChallenge(row, user?.id)
+          convertToChallenge(row, userId)
         );
         setChallenges(convertedChallenges);
+      }
+      if (userId) {
+        await fetchInvitations(userId);
       }
     } catch (error) {
       console.error("Error loading challenges:", error);
@@ -105,6 +168,42 @@ export default function ChallengeScreen() {
       setIsLoading(false);
     }
   }, []);
+
+  const handleAcceptInvite = async (invite: ChallengeInvitation) => {
+    // 1. Mark the invitation as accepted/resolved in the friendships table
+    // We update the row where we are the recipient (user_id2)
+    const { error } = await supabase
+      .from("friendships")
+      .update({
+        // You might want to remove the challenge ID and set status to 'accepted'/'none'
+        invited_challenge_id: null,
+        invitation_status: "none", // Remove the sent status
+      })
+      .eq("user_id1", invite.sender_id)
+      .eq("user_id2", invite.recipient_id);
+
+    if (error) {
+      console.error("Failed to update invite status:", error);
+      Alert.alert("Error", "Could not mark invite as seen.");
+      // Continue navigation even if status update fails
+    }
+    console.log(`DEBUG: Navigating to Challenge ID: ${invite.challenge_id}`);
+
+    if (!invite.challenge_id) {
+      Alert.alert("Error", "Challenge ID is missing from the invite object.");
+      setShowInviteModal(false);
+      return;
+    }
+    // 2. Navigate to the challenge
+    router.push({
+      pathname: "/challenges/[id]",
+      params: { id: invite.challenge_id },
+    });
+
+    // 3. Close the modal and clear invitations state for immediate UI update
+    setShowInviteModal(false);
+    setInvitations([]);
+  };
 
   // Fetch challenges on mount
   useEffect(() => {
@@ -315,7 +414,9 @@ export default function ChallengeScreen() {
     const sorted = [...filteredChallenges];
     switch (sortBy) {
       case "submissions":
-        return sorted.sort((a, b) => (b.submission_count || 0) - (a.submission_count || 0));
+        return sorted.sort(
+          (a, b) => (b.submission_count || 0) - (a.submission_count || 0)
+        );
       case "likes":
         return sorted.sort((a, b) => {
           const aLikes = (a.upvotes || 0) - (a.downvotes || 0);
@@ -458,10 +559,7 @@ export default function ChallengeScreen() {
         >
           {/* Sort By */}
           <TouchableOpacity
-            style={[
-              styles.filterChip,
-              styles.filterChipActive,
-            ]}
+            style={[styles.filterChip, styles.filterChipActive]}
             onPress={() => setModalVisible("sort")}
           >
             <Ionicons
@@ -470,7 +568,7 @@ export default function ChallengeScreen() {
               color={Colors.palette.darkest}
             />
             <Text style={styles.filterChipText} numberOfLines={1}>
-              {sortOptions.find(opt => opt.value === sortBy)?.label || "Sort"}
+              {sortOptions.find((opt) => opt.value === sortBy)?.label || "Sort"}
             </Text>
             <Ionicons
               name="chevron-down"
@@ -1110,6 +1208,57 @@ export default function ChallengeScreen() {
         }}
       />
 
+      {/* Invitation Modal */}
+      <Modal
+        visible={showInviteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowInviteModal(false)}
+      >
+        <View style={styles.inviteModalOverlay}>
+          <View style={styles.inviteModalContent}>
+            <Text style={styles.inviteModalTitle}>
+              New Challenge Invitations!
+            </Text>
+            <Text style={styles.inviteModalSubtitle}>
+              You have {invitations.length} challenges waiting for you.
+            </Text>
+
+            <ScrollView style={styles.inviteModalScrollView}>
+              {invitations.map((invite) => (
+                <View key={invite.key} style={styles.inviteCard}>
+                  <View style={styles.inviteCardText}>
+                    <Text style={styles.inviteCardMessage}>
+                      <Text style={styles.inviteCardSender}>
+                        {invite.sender_username}
+                      </Text>{" "}
+                      invited you to a challenge:
+                    </Text>
+                    <Text style={styles.inviteCardChallenge}>
+                      "{invite.challenge_title}"
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.inviteCardButton}
+                    onPress={() => handleAcceptInvite(invite)}
+                  >
+                    <Text style={styles.inviteCardButtonText}>View</Text>
+                    <Ionicons name="arrow-forward" size={16} color="white" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.inviteModalCloseButton}
+              onPress={() => setShowInviteModal(false)}
+            >
+              <Text style={styles.inviteModalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Floating Add Button */}
       <TouchableOpacity
         style={styles.floatingAddButton}
@@ -1557,5 +1706,89 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  inviteModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  inviteModalContent: {
+    backgroundColor: Colors.palette.lightest,
+    borderRadius: 20,
+    width: "100%",
+    maxWidth: 380,
+    padding: 25,
+  },
+  inviteModalTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 22,
+    color: Colors.palette.darkest,
+    marginBottom: 8,
+  },
+  inviteModalSubtitle: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.dark,
+    marginBottom: 15,
+  },
+  inviteModalScrollView: {
+    maxHeight: 300,
+  },
+  inviteCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: Colors.palette.blue,
+  },
+  inviteCardText: {
+    flex: 1,
+    marginRight: 10,
+  },
+  inviteCardMessage: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+    marginBottom: 4,
+  },
+  inviteCardSender: {
+    fontFamily: "Poppins_700Bold",
+    color: Colors.palette.blue,
+  },
+  inviteCardChallenge: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 15,
+    color: Colors.palette.darkest,
+    fontStyle: "italic",
+  },
+  inviteCardButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  inviteCardButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "white",
+  },
+  inviteModalCloseButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  inviteModalCloseText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: Colors.palette.dark,
   },
 });

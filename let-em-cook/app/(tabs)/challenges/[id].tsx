@@ -73,6 +73,18 @@ type FriendForShare = {
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
+  const challengeIdFromParams = params.id as string | undefined;
+  // Attempt to parse the challenge object if it exists (for optimistic UI)
+  let initialChallenge: Challenge | null = null;
+  try {
+    // If we only passed 'id' (as in the invite scenario), this will be null
+    initialChallenge = params.challenge
+      ? JSON.parse(params.challenge as string)
+      : null;
+  } catch {
+    initialChallenge = null;
+  }
+
   let challenge: Challenge | null = null;
   try {
     challenge = params.challenge
@@ -96,7 +108,7 @@ export default function ChallengeDetailScreen() {
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
   const [challengeData, setChallengeData] = useState<Challenge | null>(
-    challenge
+    initialChallenge
   );
 
   const handleBack = () => {
@@ -328,12 +340,21 @@ export default function ChallengeDetailScreen() {
   }
 
   // Use challengeData for real-time updates, fallback to challenge
-  const displayChallenge = challengeData || challenge;
+  const displayChallenge = challengeData || initialChallenge;
 
-  if (!displayChallenge) {
+  if (!displayChallenge && !challengeIdFromParams) {
     return (
       <View style={styles.container}>
         <Text>Challenge not found.</Text>
+      </View>
+    );
+  }
+
+  if (!displayChallenge) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.palette.darkest} />
+        <Text style={styles.loadingText}>Loading challenge details...</Text>
       </View>
     );
   }
@@ -1745,5 +1766,16 @@ const styles = StyleSheet.create({
     color: Colors.palette.dark,
     textAlign: "center",
     padding: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.palette.light,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: Colors.palette.darkest,
   },
 });
