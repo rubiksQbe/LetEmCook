@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect } from "react";
 import { View } from "react-native";
 import "react-native-reanimated";
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -49,10 +50,12 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
+    <OnboardingProvider>
     <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <StatusBar style="dark" />
       <RootLayoutNav />
     </View>
+    </OnboardingProvider>
   );
 }
 

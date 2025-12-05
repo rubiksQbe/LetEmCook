@@ -1,9 +1,10 @@
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { BlurView } from "expo-blur";
 import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -13,13 +14,15 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
   addHatToUser,
+  deleteChallenge,
+  deleteSubmission,
   fetchChallenge,
   fetchSubmissions,
   getUserChallengeVote,
@@ -115,6 +118,17 @@ export default function ChallengeDetailScreen() {
   const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
   const [isFriendsLoading, setIsFriendsLoading] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteSubmissionModal, setShowDeleteSubmissionModal] = useState(false);
+  const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
+  const [isDeletingSubmission, setIsDeletingSubmission] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const submissionsSectionRef = useRef<View>(null);
+  const submissionsHeaderRef = useRef<View>(null);
+  const [submissionsSectionY, setSubmissionsSectionY] = useState<number | null>(null);
+  const [submissionsHeaderY, setSubmissionsHeaderY] = useState<number | null>(null);
+  const { currentStep } = useOnboarding();
 
   const handleBack = () => {
     router.back();
@@ -169,10 +183,10 @@ export default function ChallengeDetailScreen() {
 
       if (friendshipData) {
         // Map the results to the FriendForShare type
-        const friendsList = friendshipData.map((row) => ({
-          id: row.friend.id,
-          username: row.friend.username || "Unknown User",
-          avatar: row.friend.avatar,
+        const friendsList = friendshipData.map((row: any) => ({
+          id: Array.isArray(row.friend) ? row.friend[0]?.id : row.friend?.id,
+          username: Array.isArray(row.friend) ? row.friend[0]?.username || "Unknown User" : row.friend?.username || "Unknown User",
+          avatar: Array.isArray(row.friend) ? row.friend[0]?.avatar : row.friend?.avatar,
         }));
         setFriendsForShare(friendsList);
       }
@@ -261,6 +275,12 @@ export default function ChallengeDetailScreen() {
               { ...newSubmission, user_vote: userVote },
               ...prev,
             ]);
+            // Update submission count
+            setChallengeData((prev) =>
+              prev
+                ? { ...prev, submission_count: (prev.submission_count || 0) + 1 }
+                : prev
+            );
           } else if (payload.eventType === "UPDATE") {
             // Submission updated (image or votes)
             const updatedSubmission = payload.new as any;
@@ -274,8 +294,22 @@ export default function ChallengeDetailScreen() {
             );
           } else if (payload.eventType === "DELETE") {
             // Submission deleted
+            const deletedId = payload.old.id;
             setSubmissions((prev) =>
-              prev.filter((sub) => sub.id !== payload.old.id)
+              prev.filter((sub) => sub.id !== deletedId)
+            );
+            // If it was the user's submission, update hasSubmitted state
+            if (currentUserId && payload.old.user_id === currentUserId) {
+              setHasSubmitted(false);
+            }
+            // Update submission count
+            setChallengeData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    submission_count: Math.max((prev.submission_count || 0) - 1, 0),
+                  }
+                : prev
             );
           }
         }
@@ -285,7 +319,7 @@ export default function ChallengeDetailScreen() {
     return () => {
       supabase.removeChannel(submissionsChannel);
     };
-  }, [challenge?.id, challengeIdFromParams]);
+  }, [challenge?.id, challengeIdFromParams, currentUserId]);
 
   // Real-time subscription for challenge updates (image changes, vote counts)
   useEffect(() => {
@@ -342,6 +376,54 @@ export default function ChallengeDetailScreen() {
 
     checkPinned();
   }, [currentUserId, challengeData]);
+
+  // Scroll to submissions section when onboarding step is "challenge-detail-submissions"
+  useEffect(() => {
+    if (currentStep === "challenge-detail-submissions" && scrollViewRef.current) {
+      // Delay to ensure the page is fully rendered
+      const timer = setTimeout(() => {
+        // Use header position if available, otherwise use section position
+        let targetY = 0;
+        if (submissionsHeaderY !== null) {
+          targetY = submissionsHeaderY - insets.top;
+        } else if (submissionsSectionY !== null) {
+          targetY = submissionsSectionY - insets.top;
+        } else {
+          // Fallback: estimate position
+          targetY = 800;
+        }
+        
+        // Slow scroll animation using requestAnimationFrame for smoother, slower scrolling
+        let startY = 0;
+        const startTime = Date.now();
+        const duration = 1200; // 1.2 seconds for slower scroll
+        
+        const animateScroll = () => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          
+          // Easing function for smooth deceleration
+          const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+          const currentY = startY + (targetY - startY) * easeOutCubic;
+          
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({ y: currentY, animated: false });
+          }
+          
+          if (progress < 1) {
+            requestAnimationFrame(animateScroll);
+          }
+        };
+        
+        // Start animation
+        requestAnimationFrame(animateScroll);
+        
+        // Also ensure submissions are shown
+        setShowSubmissions(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStep, submissionsHeaderY, submissionsSectionY, insets.top]);
 
   async function loadSubmissionsById(challengeId: string) {
     if (!challengeId) return;
@@ -428,6 +510,51 @@ export default function ChallengeDetailScreen() {
 
   const handleShare = () => {
     setShowShareModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!displayChallenge || !isCreator) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await deleteChallenge(displayChallenge.id);
+      if (error) {
+        Alert.alert("Error", `Failed to delete challenge: ${error instanceof Error ? error.message : String(error)}`);
+        setIsDeleting(false);
+        return;
+      }
+
+      // Success - navigate back to challenges list
+      Alert.alert("Success", "Challenge and all submissions have been deleted.");
+      router.replace("/(tabs)/challenges");
+    } catch (error: any) {
+      Alert.alert("Error", `Failed to delete challenge: ${error.message}`);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteSubmission = async () => {
+    if (!submissionToDelete) return;
+
+    setIsDeletingSubmission(true);
+    try {
+      const { error } = await deleteSubmission(submissionToDelete);
+      if (error) {
+        Alert.alert("Error", `Failed to delete submission: ${error instanceof Error ? error.message : String(error)}`);
+        setIsDeletingSubmission(false);
+        return;
+      }
+
+      // Success - close modal
+      // Real-time subscription will handle removing it from the list automatically
+      setShowDeleteSubmissionModal(false);
+      setSubmissionToDelete(null);
+      setHasSubmitted(false);
+      Alert.alert("Success", "Submission has been deleted.");
+    } catch (error: any) {
+      Alert.alert("Error", `Failed to delete submission: ${error.message}`);
+      setIsDeletingSubmission(false);
+    }
   };
 
   const handleFriendTap = async (friendId: string) => {
@@ -725,6 +852,7 @@ export default function ChallengeDetailScreen() {
       </TouchableOpacity>
 
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         bounces={false}
@@ -732,7 +860,26 @@ export default function ChallengeDetailScreen() {
       >
         {/* Hero Image with Challenge Vote Buttons */}
         <View style={styles.heroContainer}>
-          <Image source={displayChallenge.image} style={styles.heroImage} />
+          <View style={styles.imageContainer}>
+            <Image source={displayChallenge.image} style={styles.heroImage} />
+            {/* Delete Button (only for creator) */}
+            {isCreator && (
+              <TouchableOpacity
+                style={styles.deleteButtonOverlay}
+                onPress={() => {
+                  console.log("Delete button pressed");
+                  setShowDeleteModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={24}
+                  color="#FF3B30"
+                />
+              </TouchableOpacity>
+            )}
+          </View>
           {/* Challenge Vote Buttons - Always visible */}
           <View style={styles.creatorSubmissionVoteOverlay}>
             <TouchableOpacity
@@ -975,8 +1122,46 @@ export default function ChallengeDetailScreen() {
           </Text>
         </TouchableOpacity>
 
+        {/* Delete Submission Button (only shown if user has submitted) */}
+        {hasSubmitted && !isCreator && userSubmission && (
+          <TouchableOpacity
+            style={styles.deleteSubmissionBarButton}
+            onPress={() => {
+              setSubmissionToDelete(userSubmission.id);
+              setShowDeleteSubmissionModal(true);
+            }}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={20}
+              color="#FF3B30"
+              style={{ marginRight: 8 }}
+            />
+            <Text style={styles.deleteSubmissionBarButtonText}>
+              DELETE ENTRY
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Submissions Section */}
-        <View style={styles.submissionsSection}>
+        <View
+          ref={submissionsSectionRef}
+          style={styles.submissionsSection}
+          onLayout={(event) => {
+            const { y } = event.nativeEvent.layout;
+            setSubmissionsSectionY(y);
+          }}
+        >
+          <View
+            ref={submissionsHeaderRef}
+            onLayout={(event) => {
+              const { y } = event.nativeEvent.layout;
+              // Calculate absolute position: section Y + header Y within section
+              if (submissionsSectionY !== null) {
+                setSubmissionsHeaderY(submissionsSectionY + y);
+              }
+            }}
+          >
           <TouchableOpacity
             style={styles.submissionsHeader}
             onPress={() => setShowSubmissions(!showSubmissions)}
@@ -990,6 +1175,7 @@ export default function ChallengeDetailScreen() {
               color={Colors.palette.darkest}
             />
           </TouchableOpacity>
+          </View>
 
           {showSubmissions && (
             <View style={styles.submissionsList}>
@@ -1129,7 +1315,7 @@ export default function ChallengeDetailScreen() {
                         source={
                           friend.avatar
                             ? { uri: friend.avatar }
-                            : require("@/assets/images/placeholder.jpg")
+                            : require("@/assets/images/mouse-assets/defaultmouse.png")
                         }
                         style={styles.friendCardImage}
                       />
@@ -1229,6 +1415,134 @@ export default function ChallengeDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => !isDeleting && setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalHeader}>
+              <Ionicons
+                name="warning"
+                size={32}
+                color="#FF3B30"
+              />
+              <Text style={styles.deleteModalTitle}>Delete Challenge?</Text>
+            </View>
+
+            <Text style={styles.deleteModalWarning}>
+              This action cannot be undone. Deleting this challenge will:
+            </Text>
+
+            <View style={styles.deleteModalList}>
+              <View style={styles.deleteModalListItem}>
+                <Text style={styles.deleteModalBullet}>•</Text>
+                <Text style={styles.deleteModalText}>
+                  Permanently remove the challenge from the app
+                </Text>
+              </View>
+              <View style={styles.deleteModalListItem}>
+                <Text style={styles.deleteModalBullet}>•</Text>
+                <Text style={styles.deleteModalText}>
+                  Delete all {submissions.length} submission{submissions.length !== 1 ? "s" : ""} associated with this challenge
+                </Text>
+              </View>
+              <View style={styles.deleteModalListItem}>
+                <Text style={styles.deleteModalBullet}>•</Text>
+                <Text style={styles.deleteModalText}>
+                  Remove the challenge from all users' pinned fridges
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalCancelButton, isDeleting && styles.deleteModalButtonDisabled]}
+                onPress={() => !isDeleting && setShowDeleteModal(false)}
+                disabled={isDeleting}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalConfirmButton, isDeleting && styles.deleteModalButtonDisabled]}
+                onPress={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.deleteModalConfirmText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Submission Confirmation Modal */}
+      <Modal
+        visible={showDeleteSubmissionModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => !isDeletingSubmission && setShowDeleteSubmissionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalHeader}>
+              <Ionicons
+                name="warning"
+                size={32}
+                color="#FF3B30"
+              />
+              <Text style={styles.deleteModalTitle}>Delete Submission?</Text>
+            </View>
+
+            <Text style={styles.deleteModalWarning}>
+              This action cannot be undone. Deleting this submission will:
+            </Text>
+
+            <View style={styles.deleteModalList}>
+              <View style={styles.deleteModalListItem}>
+                <Text style={styles.deleteModalBullet}>•</Text>
+                <Text style={styles.deleteModalText}>
+                  Permanently remove your submission from this challenge
+                </Text>
+              </View>
+              <View style={styles.deleteModalListItem}>
+                <Text style={styles.deleteModalBullet}>•</Text>
+                <Text style={styles.deleteModalText}>
+                  Remove all votes on your submission
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={[styles.deleteModalCancelButton, isDeletingSubmission && styles.deleteModalButtonDisabled]}
+                onPress={() => !isDeletingSubmission && setShowDeleteSubmissionModal(false)}
+                disabled={isDeletingSubmission}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteModalConfirmButton, isDeletingSubmission && styles.deleteModalButtonDisabled]}
+                onPress={handleDeleteSubmission}
+                disabled={isDeletingSubmission}
+              >
+                {isDeletingSubmission ? (
+                  <ActivityIndicator color="white" />
+                ) : (
+                  <Text style={styles.deleteModalConfirmText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1256,6 +1570,9 @@ const styles = StyleSheet.create({
     position: "relative",
     width: "100%",
     height: 400,
+  },
+  imageContainer: {
+    position: "relative",
   },
   heroImage: {
     width: "100%",
@@ -1618,6 +1935,25 @@ const styles = StyleSheet.create({
     color: "white",
     letterSpacing: 0.5,
   },
+  deleteSubmissionBarButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.palette.lightest,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#FF3B30",
+    marginTop: 12,
+    marginHorizontal: 20,
+  },
+  deleteSubmissionBarButtonText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: "#FF3B30",
+    letterSpacing: 0.5,
+  },
 
   // Submissions Section
   submissionsSection: {
@@ -1823,5 +2159,114 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     color: Colors.palette.darkest,
+  },
+
+  // Delete Button Styles
+  deleteButtonOverlay: {
+    position: "absolute",
+    top: 70,
+    right: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 1)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 1002,
+  },
+
+  // Delete Modal Styles
+  deleteModalContent: {
+    backgroundColor: "white",
+    borderRadius: 24,
+    padding: 24,
+    marginHorizontal: 20,
+    maxWidth: 400,
+    alignSelf: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  deleteModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 12,
+  },
+  deleteModalTitle: {
+    fontFamily: "Poppins_700Bold",
+    fontSize: 24,
+    color: Colors.palette.darkest,
+  },
+  deleteModalWarning: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.dark,
+    marginBottom: 16,
+    lineHeight: 24,
+  },
+  deleteModalList: {
+    marginBottom: 24,
+  },
+  deleteModalListItem: {
+    flexDirection: "row",
+    marginBottom: 12,
+    alignItems: "flex-start",
+  },
+  deleteModalBullet: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 16,
+    color: Colors.palette.dark,
+    marginRight: 12,
+    marginTop: 2,
+  },
+  deleteModalText: {
+    fontFamily: "Poppins_400Regular",
+    fontSize: 15,
+    color: Colors.palette.dark,
+    flex: 1,
+    lineHeight: 22,
+  },
+  deleteModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.palette.lightest,
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteModalCancelText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: Colors.palette.darkest,
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#FF3B30",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteModalConfirmText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 16,
+    color: "white",
+  },
+  deleteModalButtonDisabled: {
+    opacity: 0.6,
   },
 });

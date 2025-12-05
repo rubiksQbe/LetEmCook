@@ -119,13 +119,13 @@ export default function ChallengeScreen() {
 
     if (data && data.length > 0) {
       const pendingInvites: ChallengeInvitation[] = data
-        .map((row) => ({
-          key: `${row.user_id1}-${row.user_id2}-${row.challenge?.id}`,
+        .map((row: any) => ({
+          key: `${row.user_id1}-${row.user_id2}-${Array.isArray(row.challenge) ? row.challenge[0]?.id : row.challenge?.id}`,
           sender_id: row.user_id1,
           recipient_id: row.user_id2,
-          sender_username: row.sender?.username || "A Friend",
-          challenge_id: row.challenge?.id,
-          challenge_title: row.challenge?.title || "Unknown Challenge",
+          sender_username: Array.isArray(row.sender) ? row.sender[0]?.username || "A Friend" : row.sender?.username || "A Friend",
+          challenge_id: Array.isArray(row.challenge) ? row.challenge[0]?.id : row.challenge?.id,
+          challenge_title: Array.isArray(row.challenge) ? row.challenge[0]?.title || "Unknown Challenge" : row.challenge?.title || "Unknown Challenge",
         }))
         // Filter out any rows where challenge data failed to load
         .filter((invite) => invite.challenge_id && invite.challenge_title)
@@ -273,10 +273,9 @@ export default function ChallengeScreen() {
               )
             );
           } else if (payload.eventType === "DELETE") {
-            // Challenge deleted
-            setChallenges((prev) =>
-              prev.filter((c) => c.id !== payload.old.id)
-            );
+            // Challenge deleted - remove it from the list
+            const deletedId = (payload.old as any).id;
+            setChallenges((prev) => prev.filter((c) => c.id !== deletedId));
           }
         }
       )
