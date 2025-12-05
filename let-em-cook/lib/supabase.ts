@@ -388,7 +388,7 @@ export async function fetchChallenge(challengeId: string) {
 }
 
 /**
- * Delete a challenge from the database
+ * Delete a challenge from the database and all its submissions
  */
 export async function deleteChallenge(challengeId: string) {
   try {
@@ -398,6 +398,32 @@ export async function deleteChallenge(challengeId: string) {
     } = await supabase.auth.getUser();
     if (!user) {
       return { error: new Error("No authenticated user") };
+    }
+
+    // First, verify the user is the creator
+    const { data: challenge, error: fetchError } = await supabase
+      .from("challenges")
+      .select("created_by")
+      .eq("id", challengeId)
+      .single();
+
+    if (fetchError || !challenge) {
+      return { error: new Error("Challenge not found") };
+    }
+
+    if (challenge.created_by !== user.id) {
+      return { error: new Error("Only the creator can delete this challenge") };
+    }
+
+    // Delete all submissions for this challenge first
+    const { error: submissionsError } = await supabase
+      .from("submissions")
+      .delete()
+      .eq("challenge_id", challengeId);
+
+    if (submissionsError) {
+      console.error("Error deleting submissions:", submissionsError);
+      return { error: submissionsError };
     }
 
     // Delete the challenge (RLS policy ensures only creator can delete)
@@ -415,6 +441,48 @@ export async function deleteChallenge(challengeId: string) {
 }
 
 // ============= SUBMISSION FUNCTIONS =============
+
+/**
+ * Delete a submission from the database
+ */
+export async function deleteSubmission(submissionId: string) {
+  try {
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { error: new Error("No authenticated user") };
+    }
+
+    // First, verify the user owns this submission
+    const { data: submission, error: fetchError } = await supabase
+      .from("submissions")
+      .select("user_id")
+      .eq("id", submissionId)
+      .single();
+
+    if (fetchError || !submission) {
+      return { error: new Error("Submission not found") };
+    }
+
+    if (submission.user_id !== user.id) {
+      return { error: new Error("Only the owner can delete this submission") };
+    }
+
+    // Delete the submission (RLS policy ensures only owner can delete)
+    const { error } = await supabase
+      .from("submissions")
+      .delete()
+      .eq("id", submissionId)
+      .eq("user_id", user.id);
+
+    return { error };
+  } catch (error) {
+    console.error("Error deleting submission:", error);
+    return { error };
+  }
+}
 
 /**
  * Upload a submission image to Supabase Storage

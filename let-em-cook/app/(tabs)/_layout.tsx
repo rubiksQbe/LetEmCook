@@ -2,6 +2,7 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Image, StyleSheet } from "react-native";
 
+import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import Colors from "@/constants/Colors";
 
 // Custom TabBarIcon component that uses images
@@ -41,7 +42,11 @@ function TabBarIcon({
 }
 
 export default function TabLayout() {
+  // Onboarding is now automatically checked and started in OnboardingContext
+  // No need to manually trigger it here
+
   return (
+    <>
     <Tabs
       initialRouteName="challenges"
       screenOptions={{
@@ -56,25 +61,15 @@ export default function TabLayout() {
         tabBarItemStyle: {
           flex: 1,
         },
-        // Baby blue background for tab bar
+        // Off-white background for tab bar
         tabBarStyle: {
-          backgroundColor: Colors.palette.light,
+          backgroundColor: "#FAFAFA",
           borderTopWidth: 0,
           position: "absolute",
           elevation: 0,
         },
       }}
     >
-      <Tabs.Screen
-        name="friends"
-        options={{
-          title: "Friends",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} iconName="friends" />
-          ),
-        }}
-      />
       <Tabs.Screen
         name="challenges"
         options={{
@@ -100,6 +95,16 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="friends"
+        options={{
+          title: "Friends",
+          headerShown: false,
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon focused={focused} iconName="friends" />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: "Settings",
@@ -110,6 +115,8 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <OnboardingOverlay />
+    </>
   );
 }
 

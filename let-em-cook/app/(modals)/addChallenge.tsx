@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -55,6 +58,7 @@ export default function AddChallengeScreen() {
 
   // Filters - Time Limit
   const [timeLimit, setTimeLimit] = useState("");
+  const [customTimeOptions, setCustomTimeOptions] = useState<string[]>([]);
   const [isCustomTime, setIsCustomTime] = useState(false);
   const [customTimeValue, setCustomTimeValue] = useState("");
   const [customTimeUnit, setCustomTimeUnit] = useState("min");
@@ -80,6 +84,7 @@ export default function AddChallengeScreen() {
       setTitle(draft.title || "");
       setDifficulty(draft.difficulty || "Easy");
       setTimeLimit(draft.timeLimit || "");
+      setCustomTimeOptions(draft.customTimeOptions || []);
       setIngredients(draft.ingredients || []);
       setDietaryRestrictions(draft.dietaryRestrictions || []);
       setImageUri(draft.imageUri || null);
@@ -94,6 +99,7 @@ export default function AddChallengeScreen() {
       title,
       difficulty,
       timeLimit,
+      customTimeOptions,
       ingredients,
       dietaryRestrictions,
       imageUri,
@@ -104,6 +110,7 @@ export default function AddChallengeScreen() {
     title,
     difficulty,
     timeLimit,
+    customTimeOptions,
     ingredients,
     dietaryRestrictions,
     imageUri,
@@ -169,7 +176,12 @@ export default function AddChallengeScreen() {
       Alert.alert("Invalid Time", "Please enter a time value.");
       return;
     }
-    setTimeLimit(`${customTimeValue} ${customTimeUnit}`);
+    const customTimeString = `${customTimeValue} ${customTimeUnit}`;
+    // Add to custom time options if not already there
+    if (!customTimeOptions.includes(customTimeString)) {
+      setCustomTimeOptions((prev) => [...prev, customTimeString]);
+    }
+    setTimeLimit(customTimeString);
     setIsCustomTime(false);
     setCustomTimeValue("");
   };
@@ -264,10 +276,15 @@ export default function AddChallengeScreen() {
   };
 
   return (
-    <View style={styles.modalContainer}>
+    <KeyboardAvoidingView
+      style={styles.modalContainer}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+    >
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 4 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* ---------------- TITLE + DISCARD ---------------- */}
         <View style={styles.titleHeaderRow}>
@@ -360,6 +377,28 @@ export default function AddChallengeScreen() {
                         ]}
                       >
                         {t}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  {/* Show custom time options as chips too */}
+                  {customTimeOptions.map((customTime) => (
+                    <TouchableOpacity
+                      key={customTime}
+                      style={[
+                        styles.chip,
+                        timeLimit === customTime && styles.chipSelected,
+                      ]}
+                      onPress={() => setTimeLimit(customTime)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          timeLimit === customTime && {
+                            color: Colors.palette.darkest,
+                          },
+                        ]}
+                      >
+                        {customTime}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -675,6 +714,9 @@ export default function AddChallengeScreen() {
           multiline
           textAlignVertical="top"
           autoCorrect={false}
+          blurOnSubmit={true}
+          returnKeyType="done"
+          onSubmitEditing={() => Keyboard.dismiss()}
         />
       </ScrollView>
 
@@ -700,7 +742,7 @@ export default function AddChallengeScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

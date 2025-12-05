@@ -49,12 +49,17 @@ const defaultItems = [
 export default function CustomizeMouse() {
   const [selectedHat, setSelectedHat] = useState("none");
   const [selectedItem, setSelectedItem] = useState("none");
+  const [originalHat, setOriginalHat] = useState("none");
+  const [originalItem, setOriginalItem] = useState("none");
   const [hatOptions, setHatOptions] = useState(defaultHats);
   const [itemOptions, setItemOptions] = useState(defaultItems);
   const [isReady, setIsReady] = useState(false);
   const [userId, setUserId] = useState<string | undefined>();
 
   const router = useRouter();
+
+  // Check if any changes have been made
+  const hasChanges = selectedHat !== originalHat || selectedItem !== originalItem;
 
   // --- Get current user ID ---
 
@@ -87,8 +92,12 @@ export default function CustomizeMouse() {
             setItemOptions([...defaultItems, ...userItems]);
 
             // Equip the current hat/item
-            setSelectedHat(accessoryData.hat ?? "none");
-            setSelectedItem(accessoryData.item ?? "none");
+            const currentHat = accessoryData.hat ?? "none";
+            const currentItem = accessoryData.item ?? "none";
+            setSelectedHat(currentHat);
+            setSelectedItem(currentItem);
+            setOriginalHat(currentHat);
+            setOriginalItem(currentItem);
           }
         } catch (err) {
           console.error("Error loading accessories:", err);
@@ -143,44 +152,41 @@ export default function CustomizeMouse() {
         <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
       </TouchableOpacity>
 
-      {/* SAVE BUTTON */}
-      <TouchableOpacity
-        style={styles.saveButton}
-        onPress={async () => {
-          if (!userId) return;
+      {/* SAVE BUTTON - only show when changes have been made */}
+      {hasChanges && (
+        <TouchableOpacity
+          style={styles.saveButton}
+          onPress={async () => {
+            if (!userId) return;
 
-          try {
-            // 1. Update pal-accessory
-            const { error: accessoryError } = await supabase
-              .from("pal-accessory")
-              .upsert(
-                {
-                  user_id: userId,
-                  hat: selectedHat,
-                  item: selectedItem,
-                },
-                {
-                  onConflict: "user_id",
-                }
-              );
+            try {
+              const { error: accessoryError } = await supabase
+                .from("pal-accessory")
+                .upsert(
+                  {
+                    user_id: userId,
+                    hat: selectedHat,
+                    item: selectedItem,
+                  },
+                  {
+                    onConflict: "user_id",
+                  }
+                );
 
-            if (accessoryError) {
-              console.error("Accessory update failed:", accessoryError);
-              return;
+              if (accessoryError) {
+                console.error("Accessory update failed:", accessoryError);
+                return;
+              }
+
+              router.back();
+            } catch (err) {
+              console.error("Unexpected error:", err);
             }
-
-            router.back();
-          } catch (err) {
-            console.error("Unexpected error:", err);
-          }
-        }}
-      >
-        <Ionicons
-          name="checkmark-sharp"
-          size={24}
-          color={Colors.palette.darkest}
-        />
-      </TouchableOpacity>
+          }}
+        >
+          <Ionicons name="checkmark" size={24} color={Colors.palette.darkest} />
+        </TouchableOpacity>
+      )}
 
       {/* MAIN CONTENT */}
       <View style={styles.container}>
@@ -291,7 +297,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.palette.accent,
+    backgroundColor: Colors.palette.accent, // Yellow
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",

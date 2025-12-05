@@ -379,20 +379,20 @@ export default function ProfileScreen() {
       );
 
       const formattedInvites = [
-        ...sentInvites.map((invite) => ({
+        ...sentInvites.map((invite: any) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "sent" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: invite.recipient?.username || "Unknown",
+          otherUser: Array.isArray(invite.recipient) ? invite.recipient[0]?.username || "Unknown" : invite.recipient?.username || "Unknown",
           date: null, // You can add a timestamp field if needed
         })),
-        ...receivedInvites.map((invite) => ({
+        ...receivedInvites.map((invite: any) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "received" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: invite.sender?.username || "Unknown",
+          otherUser: Array.isArray(invite.sender) ? invite.sender[0]?.username || "Unknown" : invite.sender?.username || "Unknown",
           date: null,
         })),
       ];

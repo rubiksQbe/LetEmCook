@@ -91,7 +91,7 @@ export default function FridgeScreen() {
 
       // --- Pinned challenge ---
       const { data: pinnedData } = await supabase
-        .from<PinnedRow>("pinned")
+        .from("pinned")
         .select("challenge_id")
         .eq("user_id", user.id)
         .single();
@@ -105,7 +105,7 @@ export default function FridgeScreen() {
         await Promise.all(
           allChallenges.map(async (challenge) => {
             const { data: submissions } = await supabase
-              .from<SubmissionRow>("submissions")
+              .from("submissions")
               .select("image_url")
               .eq("challenge_id", challenge.id)
               .eq("user_id", user.id)
@@ -124,7 +124,7 @@ export default function FridgeScreen() {
 
       // --- Equipped accessories ---
       const { data: accessoryData } = await supabase
-        .from<PalAccessoryRow>("pal-accessory")
+        .from("pal-accessory")
         .select("hat, item")
         .eq("user_id", user.id)
         .single();
@@ -145,6 +145,7 @@ export default function FridgeScreen() {
     let accessoriesChannel: any;
     let pinnedChannel: any;
     let submissionsChannel: any;
+    let challengesChannel: any;
 
     // Initial load
     loadFridgeData();
@@ -156,14 +157,14 @@ export default function FridgeScreen() {
       accessoriesChannel = supabase
         .channel(`realtime-accessories-${user.id}`)
         .on(
-          "postgres_changes",
+          "postgres_changes" as any,
           {
             event: "*",
             schema: "public",
             table: "pal-accessory",
             filter: `user_id=eq.${user.id}`,
           },
-          (payload: { new: PalAccessoryRow | null }) => {
+          (payload: any) => {
             if (!payload.new) return;
             setEquippedHat(payload.new.hat);
             setEquippedItem(payload.new.item);
@@ -199,12 +200,42 @@ export default function FridgeScreen() {
           () => loadFridgeData()
         )
         .subscribe();
+
+      // --- Challenges realtime (for deletions) ---
+      challengesChannel = supabase
+        .channel(`realtime-challenges-fridge-${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "challenges",
+          },
+          async (payload: any) => {
+            if (payload.eventType === "DELETE") {
+              const deletedId = payload.old.id;
+              // If the deleted challenge was pinned, unpin it
+              setPinnedChallenge((prev) => {
+                if (prev && prev.id === deletedId) {
+                  return null;
+                }
+                return prev;
+              });
+              // Remove from history if it was there
+              setHistoryChallenges((prev) =>
+                prev.filter((c) => c.id !== deletedId)
+              );
+            }
+          }
+        )
+        .subscribe();
     });
 
     return () => {
       if (accessoriesChannel) supabase.removeChannel(accessoriesChannel);
       if (pinnedChannel) supabase.removeChannel(pinnedChannel);
       if (submissionsChannel) supabase.removeChannel(submissionsChannel);
+      if (challengesChannel) supabase.removeChannel(challengesChannel);
     };
   }, []);
 
@@ -300,7 +331,7 @@ export default function FridgeScreen() {
                     color: Colors.palette.darkest,
                   }}
                 >
-                  Your pinned challenge will appear here!
+                  Your pinned challenge will appear down below!
                 </Text>
                 <View style={styles.speechBubbleTail} />
               </View>
@@ -330,13 +361,15 @@ export default function FridgeScreen() {
                       color={Colors.palette.darkest}
                     />
                   </View>
-                  {pinnedChallenge.image_url && (
-                    <Image
-                      source={{ uri: pinnedChallenge.image_url }}
-                      style={{ width: 130, height: 100, marginBottom: 5 }}
-                      resizeMode="cover"
-                    />
-                  )}
+                  <Image
+                    source={
+                      pinnedChallenge.image_url
+                        ? { uri: pinnedChallenge.image_url }
+                        : require("@/assets/images/placeholder.jpg")
+                    }
+                    style={{ width: 130, height: 100, marginBottom: 5 }}
+                    resizeMode="cover"
+                  />
                   <View style={styles.polaroidBody}>
                     <Text
                       style={styles.polaroidCaption}
