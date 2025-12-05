@@ -139,10 +139,7 @@ export default function CustomizeMouse() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* BACK BUTTON */}
-      <TouchableOpacity
-        style={styles.backButton}
-        onPress={() => router.back()}
-      >
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
         <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
       </TouchableOpacity>
 
@@ -153,7 +150,8 @@ export default function CustomizeMouse() {
           if (!userId) return;
 
           try {
-            const { error } = await supabase
+            // 1. Update pal-accessory
+            const { error: accessoryError } = await supabase
               .from("pal-accessory")
               .upsert(
                 {
@@ -164,19 +162,24 @@ export default function CustomizeMouse() {
                 {
                   onConflict: "user_id",
                 }
-              )
-              .select()
-              .single();
+              );
 
-            if (error) return;
+            if (accessoryError) {
+              console.error("Accessory update failed:", accessoryError);
+              return;
+            }
 
             router.back();
           } catch (err) {
-            // Silent error handling
+            console.error("Unexpected error:", err);
           }
         }}
       >
-        <Ionicons name="checkmark" size={24} color={Colors.palette.lightest} />
+        <Ionicons
+          name="checkmark-sharp"
+          size={24}
+          color={Colors.palette.darkest}
+        />
       </TouchableOpacity>
 
       {/* MAIN CONTENT */}

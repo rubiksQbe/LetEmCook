@@ -26,6 +26,52 @@ const LocalAvatars: { [key: string]: any } = {
   macaroni: require("../../assets/images/mouse-assets/macaroni.png"),
 };
 
+const HatAssets: Record<string, any> = {
+  "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
+  "jester.png": require("@/assets/images/mouse-assets/jester.png"),
+  "party_hat.png": require("@/assets/images/mouse-assets/party_hat.png"),
+  "chef.png": require("@/assets/images/mouse-assets/chef.png"),
+};
+
+const ItemAssets: Record<string, any> = {
+  "wand.png": require("@/assets/images/mouse-assets/wand.png"),
+  "spatula.png": require("@/assets/images/mouse-assets/spatula.png"),
+  "SNES_controller.svg.png": require("@/assets/images/mouse-assets/SNES_controller.svg.png"),
+  "balloon.png": require("@/assets/images/mouse-assets/balloon.png"),
+};
+
+// --- Conditional Hat Positions ---
+const hatPosition = (id: string) => {
+  switch (id) {
+    case "gamerhat.png":
+      return { top: 10, right: 31, width: 21, height: 21 };
+    case "party_hat.png":
+      return { top: 1, right: 26, width: 30, height: 30 };
+    case "chef.png":
+      return { top: 2, right: 27, width: 30, height: 30 };
+    case "jester.png":
+      return { top: 1, right: 23, width: 37, height: 37 };
+    default:
+      return { top: -5, right: 30, width: 30, height: 30 };
+  }
+};
+
+// --- Conditional Item Positions ---
+const itemPosition = (id: string) => {
+  switch (id) {
+    case "SNES_controller.svg.png":
+      return { bottom: 22, right: 3, width: 25, height: 25 };
+    case "spatula.png":
+      return { bottom: 29, right: 6, width: 24, height: 24 };
+    case "wand.png":
+      return { bottom: 32, right: 6, width: 24, height: 24 };
+    case "balloon.png":
+      return { bottom: 32, right: 11, width: 27, height: 27 };
+    default:
+      return { bottom: 25, right: 0, width: 24, height: 24 };
+  }
+};
+
 // Define the shape of a single challenge row from the 'challenges' table
 type Challenge = {
   id: string;
@@ -49,6 +95,8 @@ type FriendProfile = {
 type Friend = FriendProfile & {
   current_challenge_name: string | null;
   current_challenge_image: string | null;
+  hat?: string | null;
+  item?: string | null;
 };
 
 export default function FriendScreen() {
@@ -139,7 +187,23 @@ export default function FriendScreen() {
         return mapToFriend(friendDataWithInvite as FriendProfile);
       });
 
-      setFriends(friendProfiles);
+      const enriched = await Promise.all(
+        friendProfiles.map(async (f) => {
+          const { data: accessories } = await supabase
+            .from("pal-accessory")
+            .select("hat, item")
+            .eq("user_id", f.id)
+            .single();
+
+          return {
+            ...f,
+            hat: accessories?.hat ?? null,
+            item: accessories?.item ?? null,
+          };
+        })
+      );
+
+      setFriends(enriched);
     } catch (e) {
       console.error("Error fetching data:", e);
     } finally {
@@ -326,13 +390,52 @@ export default function FriendScreen() {
         {/* ... (friendAvatarColumn unchanged) ... */}
         <View style={styles.friendAvatarContainer}>
           <View style={styles.friendAvatarColumn}>
-            <Image
+            <View style={{ width: 80, height: 80 }}>
+              {/* base mouse */}
+              <Image
+                source={avatarSource}
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+
+              {/* hat overlay */}
+              {item.hat && HatAssets[item.hat] && (
+                <Image
+                  source={HatAssets[item.hat]}
+                  style={[
+                    {
+                      position: "absolute",
+                      resizeMode: "contain",
+                    },
+                    hatPosition(item.hat), // ⭐ apply custom coordinates
+                  ]}
+                />
+              )}
+
+              {/* item overlay */}
+              {item.item && ItemAssets[item.item] && (
+                <Image
+                  source={ItemAssets[item.item]}
+                  style={[
+                    {
+                      position: "absolute",
+                      resizeMode: "contain",
+                    },
+                    itemPosition(item.item), // ⭐ apply custom coordinates
+                  ]}
+                />
+              )}
+            </View>
+
+            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
+
+            {/* <Image
               source={avatarSource}
               style={styles.avatar}
               resizeMode="contain"
               defaultSource={require("../../assets/images/mouse-assets/defaultmouse.png")}
             />
-            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
+            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text> */}
           </View>
         </View>
 
@@ -345,7 +448,11 @@ export default function FriendScreen() {
           <View style={styles.challengeTextContainer}>
             {/* NEW WRAPPER */}
             {/* Main Label: Always present, reflects current state */}
-            <Text style={styles.challengeLabel} numberOfLines={2} ellipsizeMode="tail">
+            <Text
+              style={styles.challengeLabel}
+              numberOfLines={2}
+              ellipsizeMode="tail"
+            >
               {labelText}
             </Text>
             {/* Conditional Invitation Sub-Label */}
@@ -357,7 +464,11 @@ export default function FriendScreen() {
                   color={Colors.palette.blue}
                   style={{ marginRight: 4 }}
                 />
-                <Text style={styles.inviteSubText} numberOfLines={1} ellipsizeMode="tail">
+                <Text
+                  style={styles.inviteSubText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   Invited to: {item.invited_challenge_title}!
                 </Text>
               </View>
@@ -474,6 +585,7 @@ const styles = StyleSheet.create({
   },
   friendAvatarColumn: {
     alignItems: "center",
+    width: 80,
     //paddingHorizontal: 10,
   },
   friendAvatarContainer: {
