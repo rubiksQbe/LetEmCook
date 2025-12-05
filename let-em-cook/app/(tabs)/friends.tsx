@@ -52,7 +52,7 @@ const hatPosition = (id: string) => {
     case "jester.png":
       return { top: 1, right: 23, width: 37, height: 37 };
     default:
-      return { top: -5, right: 30, width: 30, height: 30 };
+      return { top: 2, right: 27, width: 30, height: 30 };
   }
 };
 
@@ -68,7 +68,7 @@ const itemPosition = (id: string) => {
     case "balloon.png":
       return { bottom: 32, right: 11, width: 27, height: 27 };
     default:
-      return { bottom: 25, right: 0, width: 24, height: 24 };
+      return { bottom: 29, right: 6, width: 24, height: 24 };
   }
 };
 
