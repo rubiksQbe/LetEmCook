@@ -1,3 +1,5 @@
+import Colors from "@/constants/Colors";
+import { supabase } from "@/lib/supabase";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
@@ -14,17 +16,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import Colors from "@/constants/Colors";
-import { supabase } from "@/lib/supabase";
-
-// Define your local image assets map
-const LocalAvatars: { [key: string]: any } = {
-  dipsy: require("../../assets/images/mouse-assets/dipsy.png"),
-  laalaa: require("../../assets/images/mouse-assets/laalaa.png"),
-  po: require("../../assets/images/mouse-assets/po.png"),
-  macaroni: require("../../assets/images/mouse-assets/macaroni.png"),
-};
 
 const HatAssets: Record<string, any> = {
   "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
@@ -321,13 +312,7 @@ export default function FriendScreen() {
   };
 
   const renderFriend = React.useCallback(({ item }: { item: Friend }) => {
-    const isLocalKey = item.avatar && LocalAvatars.hasOwnProperty(item.avatar);
-
-    const avatarSource = isLocalKey
-      ? LocalAvatars[item.avatar] // Use the mapped 'require()' result
-      : item.avatar
-      ? { uri: item.avatar } // Otherwise, treat it as a remote URI
-      : require("../../assets/images/mouse-assets/defaultmouse.png");
+    const avatarSource = require("../../assets/images/mouse-assets/defaultmouse.png");
 
     // Note: The challenge image is also a remote URL from the 'challenges' table
     const challengeImageSource = item.current_challenge_image

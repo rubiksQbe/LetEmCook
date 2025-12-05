@@ -59,7 +59,8 @@ export default function CustomizeMouse() {
   const router = useRouter();
 
   // Check if any changes have been made
-  const hasChanges = selectedHat !== originalHat || selectedItem !== originalItem;
+  const hasChanges =
+    selectedHat !== originalHat || selectedItem !== originalItem;
 
   // --- Get current user ID ---
 
@@ -184,7 +185,11 @@ export default function CustomizeMouse() {
             }
           }}
         >
-          <Ionicons name="checkmark" size={24} color={Colors.palette.darkest} />
+          <Ionicons
+            name="checkmark-sharp"
+            size={24}
+            color={Colors.palette.darkest}
+          />
         </TouchableOpacity>
       )}
 
