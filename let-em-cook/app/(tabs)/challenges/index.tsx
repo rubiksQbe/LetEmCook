@@ -68,7 +68,9 @@ export default function ChallengeScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | undefined>();
   const [invitations, setInvitations] = useState<ChallengeInvitation[]>([]);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [dismissedInviteKeys, setDismissedInviteKeys] = useState<Set<string>>(new Set());
+  const [dismissedInviteKeys, setDismissedInviteKeys] = useState<Set<string>>(
+    new Set()
+  );
 
   // Filter states
   const [unifiedSearch, setUnifiedSearch] = useState("");
@@ -82,7 +84,7 @@ export default function ChallengeScreen() {
 
   // Sort state
   const [sortBy, setSortBy] = useState<"recent" | "submissions" | "likes">(
-    "recent"
+    "likes"
   );
 
   // Modal states
@@ -93,51 +95,64 @@ export default function ChallengeScreen() {
   const [dietaryInput, setDietaryInput] = useState("");
 
   // Function to fetch invitations
-  const fetchInvitations = useCallback(async (myUserId: string) => {
-    if (!myUserId) return;
+  const fetchInvitations = useCallback(
+    async (myUserId: string) => {
+      if (!myUserId) return;
 
-    const { data, error } = await supabase
-      .from("friendships")
-      .select(
-        `
+      const { data, error } = await supabase
+        .from("friendships")
+        .select(
+          `
           user_id1,        
           user_id2,        
           invitation_status,
           sender:profiles!friendships_user_id1_fkey (username),
           challenge:challenges!friendships_invited_challenge_id_fkey (id, title)
         `
-      )
-      // Filter for invites sent TO me (I am user_id2)
-      .eq("user_id2", myUserId)
-      // Filter for active invites
-      .eq("invitation_status", "sent");
+        )
+        // Filter for invites sent TO me (I am user_id2)
+        .eq("user_id2", myUserId)
+        // Filter for active invites
+        .eq("invitation_status", "sent");
 
-    if (error) {
-      console.error("Error fetching invites:", error);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      const pendingInvites: ChallengeInvitation[] = data
-        .map((row: any) => ({
-          key: `${row.user_id1}-${row.user_id2}-${Array.isArray(row.challenge) ? row.challenge[0]?.id : row.challenge?.id}`,
-          sender_id: row.user_id1,
-          recipient_id: row.user_id2,
-          sender_username: Array.isArray(row.sender) ? row.sender[0]?.username || "A Friend" : row.sender?.username || "A Friend",
-          challenge_id: Array.isArray(row.challenge) ? row.challenge[0]?.id : row.challenge?.id,
-          challenge_title: Array.isArray(row.challenge) ? row.challenge[0]?.title || "Unknown Challenge" : row.challenge?.title || "Unknown Challenge",
-        }))
-        // Filter out any rows where challenge data failed to load
-        .filter((invite) => invite.challenge_id && invite.challenge_title)
-        // Filter out invites that have already been dismissed this session
-        .filter((invite) => !dismissedInviteKeys.has(invite.key));
-
-      setInvitations(pendingInvites);
-      if (pendingInvites.length > 0) {
-        setShowInviteModal(true);
+      if (error) {
+        console.error("Error fetching invites:", error);
+        return;
       }
-    }
-  }, [dismissedInviteKeys]);
+
+      if (data && data.length > 0) {
+        const pendingInvites: ChallengeInvitation[] = data
+          .map((row: any) => ({
+            key: `${row.user_id1}-${row.user_id2}-${
+              Array.isArray(row.challenge)
+                ? row.challenge[0]?.id
+                : row.challenge?.id
+            }`,
+            sender_id: row.user_id1,
+            recipient_id: row.user_id2,
+            sender_username: Array.isArray(row.sender)
+              ? row.sender[0]?.username || "A Friend"
+              : row.sender?.username || "A Friend",
+            challenge_id: Array.isArray(row.challenge)
+              ? row.challenge[0]?.id
+              : row.challenge?.id,
+            challenge_title: Array.isArray(row.challenge)
+              ? row.challenge[0]?.title || "Unknown Challenge"
+              : row.challenge?.title || "Unknown Challenge",
+          }))
+          // Filter out any rows where challenge data failed to load
+          .filter((invite) => invite.challenge_id && invite.challenge_title)
+          // Filter out invites that have already been dismissed this session
+          .filter((invite) => !dismissedInviteKeys.has(invite.key));
+
+        setInvitations(pendingInvites);
+        if (pendingInvites.length > 0) {
+          setShowInviteModal(true);
+        }
+      }
+    },
+    [dismissedInviteKeys]
+  );
 
   // Function to load challenges
   const loadChallenges = useCallback(async () => {
@@ -361,10 +376,10 @@ export default function ChallengeScreen() {
         const timeLimitLower = challenge.timeLimit.toLowerCase();
         let challengeMinutes = 0;
 
-        if (timeLimitLower.includes("hour")) {
+        if (timeLimitLower.includes("hr")) {
           const hours = parseFloat(timeLimitLower);
           challengeMinutes = hours * 60;
-        } else if (timeLimitLower.includes("minute")) {
+        } else if (timeLimitLower.includes("min")) {
           challengeMinutes = parseFloat(timeLimitLower);
         }
 
@@ -446,16 +461,19 @@ export default function ChallengeScreen() {
     "Vegetarian",
     "Vegan",
     "Gluten-Free",
-    "Dairy-Free",
     "Nut-Free",
+    "Halal",
+    "Kosher",
   ];
 
   // Time limit options in minutes
   const timeLimitOptions = [
     { label: "15 min", value: 15 },
     { label: "30 min", value: 30 },
-    { label: "1 hour", value: 60 },
-    { label: "2 hours", value: 120 },
+    { label: "45 min", value: 45 },
+    { label: "1 hr", value: 60 },
+    { label: "2 hr", value: 120 },
+    { label: "3 hr", value: 180 },
   ];
 
   const toggleDietaryRestriction = (restriction: string) => {
