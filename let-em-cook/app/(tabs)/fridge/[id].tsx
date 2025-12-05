@@ -33,6 +33,52 @@ import {
   voteOnSubmission,
 } from "../../../lib/supabase";
 
+const HatAssets: Record<string, any> = {
+  "gamerhat.png": require("@/assets/images/mouse-assets/gamerhat.png"),
+  "jester.png": require("@/assets/images/mouse-assets/jester.png"),
+  "party_hat.png": require("@/assets/images/mouse-assets/party_hat.png"),
+  "chef.png": require("@/assets/images/mouse-assets/chef.png"),
+};
+
+const ItemAssets: Record<string, any> = {
+  "wand.png": require("@/assets/images/mouse-assets/wand.png"),
+  "spatula.png": require("@/assets/images/mouse-assets/spatula.png"),
+  "SNES_controller.svg.png": require("@/assets/images/mouse-assets/SNES_controller.svg.png"),
+  "balloon.png": require("@/assets/images/mouse-assets/balloon.png"),
+};
+
+// --- Conditional Hat Positions ---
+const hatPosition = (id: string) => {
+  switch (id) {
+    case "gamerhat.png":
+      return { top: 10, right: 31, width: 21, height: 21 };
+    case "party_hat.png":
+      return { top: 1, right: 26, width: 30, height: 30 };
+    case "chef.png":
+      return { top: 2, right: 27, width: 30, height: 30 };
+    case "jester.png":
+      return { top: 1, right: 23, width: 37, height: 37 };
+    default:
+      return { top: 2, right: 27, width: 30, height: 30 };
+  }
+};
+
+// --- Conditional Item Positions ---
+const itemPosition = (id: string) => {
+  switch (id) {
+    case "SNES_controller.svg.png":
+      return { bottom: 30, right: 3, width: 25, height: 25 };
+    case "spatula.png":
+      return { bottom: 37, right: 6, width: 24, height: 24 };
+    case "wand.png":
+      return { bottom: 38, right: 6, width: 24, height: 24 };
+    case "balloon.png":
+      return { bottom: 38, right: 12, width: 27, height: 27 };
+    default:
+      return { bottom: 29, right: 6, width: 24, height: 24 };
+  }
+};
+
 // Helper function to convert database row to Challenge interface
 function convertToChallenge(
   row: ChallengeRow,
@@ -69,6 +115,8 @@ type FriendForShare = {
   id: string;
   username: string;
   avatar: string | null;
+  hat: string | null;
+  item: string | null;
 };
 
 export default function ChallengeDetailScreen() {
@@ -111,6 +159,11 @@ export default function ChallengeDetailScreen() {
   const [challengeData, setChallengeData] = useState<Challenge | null>(
     initialChallenge
   );
+  const [isPinned, setIsPinned] = useState(false);
+  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
+
+  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const handleBack = () => {
     router.back();
@@ -118,10 +171,11 @@ export default function ChallengeDetailScreen() {
 
   // Function to load challenge data from database
   const loadChallengeData = useCallback(async () => {
-    if (!challenge?.id) return;
+    const idToFetch = challenge?.id || challengeIdFromParams;
+    if (!idToFetch) return;
 
     try {
-      const { data, error } = await fetchChallenge(challenge.id);
+      const { data, error } = await fetchChallenge(idToFetch);
       if (data && !error) {
         const {
           data: { user },
@@ -136,7 +190,7 @@ export default function ChallengeDetailScreen() {
     } catch (error) {
       console.error("Error loading challenge data:", error);
     }
-  }, [challenge?.id]);
+  }, [challenge?.id, challengeIdFromParams]);
 
   const loadFriendsForShare = useCallback(async () => {
     if (!currentUserId) return;
@@ -144,44 +198,65 @@ export default function ChallengeDetailScreen() {
     setIsFriendsLoading(true);
 
     try {
-      // Query friendships where the current user is user_id1
+      // --- 1) Load friends
       const { data: friendshipData, error } = await supabase
         .from("friendships")
         .select(
           `
-            
-            friend:profiles!friendships_user_id2_fkey (
-                id,
-                username,
-                avatar
-            )
-          `
+        friend:profiles!friendships_user_id2_fkey (
+          id,
+          username,
+          avatar
         )
-        // Filter: user_id1 must match the current user
+      `
+        )
         .eq("user_id1", currentUserId);
 
       if (error) throw error;
 
-      if (friendshipData) {
-        // Map the results to the FriendForShare type
-        const friendsList = friendshipData.map((row) => ({
-          id: row.friend.id,
-          username: row.friend.username || "Unknown User",
-          avatar: row.friend.avatar,
-        }));
-        setFriendsForShare(friendsList);
+      const friends = friendshipData.map((row) => ({
+        id: row.friend.id,
+        username: row.friend.username ?? "Unknown User",
+        avatar: row.friend.avatar ?? null,
+        hat: null,
+        item: null,
+      })) as FriendForShare[];
+
+      const friendIds = friends.map((f) => f.id);
+
+      if (friendIds.length === 0) {
+        setFriendsForShare([]);
+        return;
       }
-    } catch (error) {
-      console.error("Error loading friends for share:", error);
+
+      // --- 2) Fetch accessories for those friends
+      const { data: accessories } = await supabase
+        .from("pal-accessory")
+        .select("user_id, hat, item")
+        .in("user_id", friendIds);
+
+      // Merge accessories into friends
+      for (const f of friends) {
+        const acc = accessories?.find((a) => a.user_id === f.id);
+        if (acc) {
+          f.hat = acc.hat;
+          f.item = acc.item;
+        }
+      }
+
+      setFriendsForShare(friends);
+    } catch (e) {
+      console.error("Error loading friends:", e);
       Alert.alert("Error", "Could not load friend list.");
     } finally {
       setIsFriendsLoading(false);
     }
-  }, [currentUserId]); // Rerun when currentUserId changes
+  }, [currentUserId]);
 
   useEffect(() => {
     async function init() {
-      if (!challenge) return;
+      const idToUse = challenge?.id || challengeIdFromParams;
+      if (!idToUse) return;
 
       // Get current user
       const {
@@ -191,7 +266,7 @@ export default function ChallengeDetailScreen() {
 
       // Load user's challenge vote status
       if (user) {
-        const vote = await getUserChallengeVote(challenge.id);
+        const vote = await getUserChallengeVote(idToUse);
         setUserChallengeVote(vote);
       }
 
@@ -199,28 +274,29 @@ export default function ChallengeDetailScreen() {
       await Promise.all([
         loadChallengeData(),
         user
-          ? hasUserSubmitted(challenge.id).then(setHasSubmitted)
+          ? hasUserSubmitted(idToUse).then(setHasSubmitted)
           : Promise.resolve(),
-        loadSubmissions(),
+        loadSubmissionsById(idToUse),
       ]);
     }
 
     init();
-  }, [challenge?.id, loadChallengeData]);
+  }, [challenge?.id, challengeIdFromParams, loadChallengeData]);
 
   // Refetch challenge data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       async function refreshData() {
-        if (!challenge) return;
+        const idToUse = challenge?.id || challengeIdFromParams;
+        if (!idToUse) return;
         // Refresh user's challenge vote status
-        const vote = await getUserChallengeVote(challenge.id);
+        const vote = await getUserChallengeVote(idToUse);
         setUserChallengeVote(vote);
         // Then load challenge data
         await loadChallengeData();
       }
       refreshData();
-    }, [loadChallengeData, challenge?.id])
+    }, [loadChallengeData, challenge?.id, challengeIdFromParams])
   );
 
   // Load friends when currentUserId is available
@@ -228,21 +304,22 @@ export default function ChallengeDetailScreen() {
     if (currentUserId) {
       loadFriendsForShare();
     }
-  }, [currentUserId, loadFriendsForShare]);
+  }, [showShareModal === true]); // [currentUserId, loadFriendsForShare]);
 
   // Real-time subscription for submissions
   useEffect(() => {
-    if (!challenge) return;
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
 
     const submissionsChannel = supabase
-      .channel(`submissions-${challenge.id}`)
+      .channel(`submissions-${idToUse}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "submissions",
-          filter: `challenge_id=eq.${challenge.id}`,
+          filter: `challenge_id=eq.${idToUse}`,
         },
         async (payload) => {
           if (payload.eventType === "INSERT") {
@@ -277,21 +354,22 @@ export default function ChallengeDetailScreen() {
     return () => {
       supabase.removeChannel(submissionsChannel);
     };
-  }, [challenge?.id]);
+  }, [challenge?.id, challengeIdFromParams]);
 
   // Real-time subscription for challenge updates (image changes, vote counts)
   useEffect(() => {
-    if (!challenge) return;
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
 
     const challengeChannel = supabase
-      .channel(`challenge-${challenge.id}`)
+      .channel(`challenge-${idToUse}`)
       .on(
         "postgres_changes",
         {
           event: "UPDATE",
           schema: "public",
           table: "challenges",
-          filter: `id=eq.${challenge.id}`,
+          filter: `id=eq.${idToUse}`,
         },
         async (payload) => {
           const updatedChallenge = payload.new as any;
@@ -317,13 +395,25 @@ export default function ChallengeDetailScreen() {
     return () => {
       supabase.removeChannel(challengeChannel);
     };
-  }, [challenge?.id, loadChallengeData, currentUserId]);
+  }, [challenge?.id, challengeIdFromParams, loadChallengeData, currentUserId]);
 
-  async function loadSubmissions() {
-    if (!challenge) return;
+  // Check if challenge is pinned when component mounts or currentUserId changes
+  useEffect(() => {
+    async function checkPinned() {
+      if (!currentUserId || !challengeData) return;
+
+      const pinned = await isChallengePinned(challengeData.id, currentUserId);
+      setIsPinned(pinned);
+    }
+
+    checkPinned();
+  }, [currentUserId, challengeData]);
+
+  async function loadSubmissionsById(challengeId: string) {
+    if (!challengeId) return;
 
     setIsLoadingSubmissions(true);
-    const { data, error } = await fetchSubmissions(challenge.id);
+    const { data, error } = await fetchSubmissions(challengeId);
     if (data) {
       // Load user's vote for each submission
       const submissionsWithVotes = await Promise.all(
@@ -338,6 +428,12 @@ export default function ChallengeDetailScreen() {
       setSubmissions(submissionsWithVotes);
     }
     setIsLoadingSubmissions(false);
+  }
+
+  async function loadSubmissions() {
+    const idToUse = challenge?.id || challengeIdFromParams;
+    if (!idToUse) return;
+    await loadSubmissionsById(idToUse);
   }
 
   // Use challengeData for real-time updates, fallback to challenge
@@ -368,27 +464,6 @@ export default function ChallengeDetailScreen() {
   const userSubmission = submissions.find(
     (sub) => sub.user_id === currentUserId
   );
-
-  const [isPinned, setIsPinned] = useState(false);
-
-  const [friendsForShare, setFriendsForShare] = useState<FriendForShare[]>([]);
-  const [isFriendsLoading, setIsFriendsLoading] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
-
-  // Check if challenge is pinned when component mounts or currentUserId changes
-  useEffect(() => {
-    async function checkPinned() {
-      if (!currentUserId || !displayChallenge) return;
-
-      const pinned = await isChallengePinned(
-        displayChallenge.id,
-        currentUserId
-      );
-      setIsPinned(pinned);
-    }
-
-    checkPinned();
-  }, [currentUserId, displayChallenge]);
 
   const handlePin = async () => {
     if (!currentUserId || !displayChallenge) return;
@@ -474,7 +549,7 @@ export default function ChallengeDetailScreen() {
       // 4. Success Confirmation
       Alert.alert(
         "Invite Sent!",
-        `Successfully invited ${friendUsername} to the ${displayChallenge.title} challenge.`
+        `Successfully invited ${friendUsername} to "${displayChallenge.title}"`
       );
 
       // Close the share modal
@@ -1106,30 +1181,56 @@ export default function ChallengeDetailScreen() {
               </Text>
             ) : (
               <View style={styles.friendsGrid}>
-                {friendsForShare.map(
-                  (
-                    friend // <-- Use friendsForShare here
-                  ) => (
-                    <TouchableOpacity
-                      key={friend.id}
-                      style={styles.friendCard}
-                      onPress={() => handleFriendTap(friend.id)}
-                    >
-                      {/* AVATAR LOGIC (Assuming local/remote logic from friends.tsx is adapted here) */}
+                {friendsForShare.map((friend) => (
+                  <TouchableOpacity
+                    key={friend.id}
+                    style={styles.friendCard}
+                    onPress={() => handleFriendTap(friend.id)}
+                  >
+                    <View style={{ position: "relative" }}>
+                      {/* Base avatar */}
                       <Image
                         source={
                           friend.avatar
                             ? { uri: friend.avatar }
-                            : require("@/assets/images/placeholder.jpg")
+                            : require("@/assets/images/mouse-assets/defaultmouse.png")
                         }
                         style={styles.friendCardImage}
+                        resizeMode="contain"
                       />
-                      <Text style={styles.friendCardName}>
-                        {friend.username}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                )}
+
+                      {/* HAT overlay */}
+                      {friend.hat && HatAssets[friend.hat] && (
+                        <Image
+                          source={HatAssets[friend.hat]}
+                          style={[
+                            {
+                              position: "absolute",
+                              resizeMode: "contain",
+                            },
+                            hatPosition(friend.hat),
+                          ]}
+                        />
+                      )}
+
+                      {/* ITEM overlay */}
+                      {friend.item && ItemAssets[friend.item] && (
+                        <Image
+                          source={ItemAssets[friend.item]}
+                          style={[
+                            {
+                              position: "absolute",
+                              resizeMode: "contain",
+                            },
+                            itemPosition(friend.item),
+                          ]}
+                        />
+                      )}
+                    </View>
+
+                    <Text style={styles.friendCardName}>{friend.username}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             )}
           </View>
@@ -1748,7 +1849,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   shareModalContent: {
-    backgroundColor: "white",
+    backgroundColor: Colors.palette.light,
     borderRadius: 24,
     width: "100%",
     maxWidth: 400,
@@ -1765,8 +1866,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.palette.lightest,
+    // borderBottomWidth: 1,
+    // borderBottomColor: Colors.palette.lightest,
   },
   shareModalTitle: {
     fontFamily: "Poppins_700Bold",
@@ -1788,8 +1889,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
+    padding: 5,
     marginBottom: 8,
-    backgroundColor: Colors.palette.lightest,
+    //backgroundColor: Colors.palette.lightest,
   },
   friendCardName: {
     fontFamily: "Poppins_600SemiBold",

@@ -428,14 +428,6 @@ export default function FriendScreen() {
             </View>
 
             <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
-
-            {/* <Image
-              source={avatarSource}
-              style={styles.avatar}
-              resizeMode="contain"
-              defaultSource={require("../../assets/images/mouse-assets/defaultmouse.png")}
-            />
-            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text> */}
           </View>
         </View>
 
