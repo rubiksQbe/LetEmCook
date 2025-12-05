@@ -1,4 +1,5 @@
 import Colors from "@/constants/Colors";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import { ensureUserProfile, supabase } from "@/lib/supabase";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -21,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function ProfileScreen() {
   const params = useLocalSearchParams();
   const fromTab = params.from as string | undefined;
+  const { startOnboarding } = useOnboarding();
 
   const [username, setUsername] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -379,20 +381,20 @@ export default function ProfileScreen() {
       );
 
       const formattedInvites = [
-        ...sentInvites.map((invite: any) => ({
+        ...sentInvites.map((invite) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "sent" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: Array.isArray(invite.recipient) ? invite.recipient[0]?.username || "Unknown" : invite.recipient?.username || "Unknown",
+          otherUser: invite.recipient?.username || "Unknown",
           date: null, // You can add a timestamp field if needed
         })),
-        ...receivedInvites.map((invite: any) => ({
+        ...receivedInvites.map((invite) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "received" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: Array.isArray(invite.sender) ? invite.sender[0]?.username || "Unknown" : invite.sender?.username || "Unknown",
+          otherUser: invite.sender?.username || "Unknown",
           date: null,
         })),
       ];
@@ -486,6 +488,24 @@ export default function ProfileScreen() {
             />
           </TouchableOpacity>
 
+          {/* View Onboarding Section */}
+          <TouchableOpacity
+            style={styles.section}
+            onPress={startOnboarding}
+          >
+            <View style={styles.sectionContent}>
+              <Text style={styles.sectionTitle}>View Onboarding</Text>
+              <Text style={styles.sectionSubtitle}>
+                Go through the app tutorial again
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={24}
+              color={Colors.palette.dark}
+            />
+          </TouchableOpacity>
+
           {/* Log Out Button */}
           <TouchableOpacity
             style={[styles.section, styles.logoutSection]}
@@ -535,7 +555,11 @@ export default function ProfileScreen() {
           animationType="slide"
           onRequestClose={() => setShowChangeNameModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Change Username</Text>
@@ -582,7 +606,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Change Password Modal */}
@@ -592,7 +616,11 @@ export default function ProfileScreen() {
           animationType="slide"
           onRequestClose={() => setShowChangePasswordModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Change Password</Text>
@@ -673,7 +701,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* Invite History Modal */}
@@ -748,16 +776,27 @@ export default function ProfileScreen() {
                               size={16}
                               color={
                                 invite.type === "sent"
-                                  ? Colors.palette.blue
-                                  : Colors.palette.accent
+                                  ? Colors.palette.darkest
+                                  : Colors.palette.lightest
                               }
                               style={styles.inviteHistoryItemIcon}
                             />
-                            <Text style={styles.inviteHistoryItemType}>
+                            <Text
+                              style={[
+                                styles.inviteHistoryItemType,
+                                invite.type === "sent" &&
+                                  styles.inviteHistoryItemTypeSent,
+                              ]}
+                            >
                               {invite.type === "sent" ? "Sent to" : "Received from"}
                             </Text>
                           </View>
-                          <Text style={styles.inviteHistoryItemUser}>
+                          <Text
+                            style={[
+                              styles.inviteHistoryItemUser,
+                              invite.type === "sent" && styles.inviteHistoryItemUserSent,
+                            ]}
+                          >
                             {invite.otherUser}
                           </Text>
                         </View>
@@ -778,12 +817,24 @@ export default function ProfileScreen() {
                               });
                             }}
                           >
-                            <Text style={styles.inviteHistoryItemChallenge}>
+                            <Text
+                              style={[
+                                styles.inviteHistoryItemChallenge,
+                                invite.type === "sent" &&
+                                  styles.inviteHistoryItemChallengeSent,
+                              ]}
+                            >
                               {invite.challenge.title}
                             </Text>
                           </TouchableOpacity>
                         ) : (
-                          <Text style={styles.inviteHistoryItemChallenge}>
+                          <Text
+                            style={[
+                              styles.inviteHistoryItemChallenge,
+                              invite.type === "sent" &&
+                                styles.inviteHistoryItemChallengeSent,
+                            ]}
+                          >
                             Challenge no longer available
                           </Text>
                         )}
@@ -803,7 +854,11 @@ export default function ProfileScreen() {
           animationType="slide"
           onRequestClose={() => setShowDeleteModal(false)}
         >
-          <View style={styles.modalOverlay}>
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+          >
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Delete Account</Text>
@@ -864,7 +919,7 @@ export default function ProfileScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1061,19 +1116,19 @@ const styles = StyleSheet.create({
   inviteHistoryEmptyText: {
     fontFamily: "Poppins_400Regular",
     fontSize: 16,
-    color: Colors.palette.dark,
+    color: Colors.palette.darkest,
   },
   inviteHistorySummary: {
     paddingVertical: 12,
     paddingHorizontal: 4,
     marginBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.palette.dark,
+    borderBottomColor: Colors.palette.darkest,
   },
   inviteHistorySummaryText: {
     fontFamily: "Poppins_500Medium",
     fontSize: 14,
-    color: Colors.palette.dark,
+    color: Colors.palette.darkest,
   },
   inviteHistoryScroll: {
     maxHeight: 400,
@@ -1082,19 +1137,17 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   inviteHistoryItem: {
-    backgroundColor: Colors.palette.light,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
   },
   inviteHistoryItemSent: {
-    borderColor: Colors.palette.blue,
-    borderLeftWidth: 4,
+    backgroundColor: Colors.palette.accent,
   },
   inviteHistoryItemReceived: {
-    borderColor: Colors.palette.accent,
-    borderLeftWidth: 4,
+    backgroundColor: Colors.palette.blue,
   },
   inviteHistoryItemHeader: {
     flexDirection: "row",
@@ -1112,18 +1165,27 @@ const styles = StyleSheet.create({
   inviteHistoryItemType: {
     fontFamily: "Poppins_500Medium",
     fontSize: 14,
-    color: Colors.palette.dark,
+    color: Colors.palette.lightest,
+  },
+  inviteHistoryItemTypeSent: {
+    color: Colors.palette.darkest,
   },
   inviteHistoryItemUser: {
     fontFamily: "Poppins_600SemiBold",
     fontSize: 14,
+    color: Colors.palette.lightest,
+  },
+  inviteHistoryItemUserSent: {
     color: Colors.palette.darkest,
   },
   inviteHistoryItemChallenge: {
     fontFamily: "Poppins_500Medium",
     fontSize: 16,
-    color: Colors.palette.blue,
+    color: Colors.palette.lightest,
     marginTop: 8,
     textDecorationLine: "underline",
+  },
+  inviteHistoryItemChallengeSent: {
+    color: Colors.palette.darkest,
   },
 });

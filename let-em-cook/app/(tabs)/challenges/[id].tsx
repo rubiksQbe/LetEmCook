@@ -538,8 +538,7 @@ export default function ChallengeDetailScreen() {
     );
   }
 
-  const netVotes =
-    (displayChallenge.upvotes || 0) - (displayChallenge.downvotes || 0);
+  const likesCount = displayChallenge.upvotes || 0;
   const submissionCount = displayChallenge.submission_count || 0;
 
   // Find user's own submission
@@ -611,14 +610,30 @@ export default function ChallengeDetailScreen() {
         return;
       }
 
-      // Success - close modal
-      // Real-time subscription will handle removing it from the list automatically
+      // Immediately remove from submissions array for instant UI update
+      setSubmissions((prev) => prev.filter((sub) => sub.id !== submissionToDelete));
+      
+      // Update challenge submission count immediately
+      setChallengeData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          submission_count: Math.max((prev.submission_count || 0) - 1, 0),
+        };
+      });
+      
+      // Update state
+      setHasSubmitted(false);
       setShowDeleteSubmissionModal(false);
       setSubmissionToDelete(null);
-      setHasSubmitted(false);
+      
+      // Reload submissions and challenge data to ensure everything is in sync
+      await Promise.all([loadSubmissions(), loadChallengeData()]);
+      
       Alert.alert("Success", "Submission has been deleted.");
     } catch (error: any) {
       Alert.alert("Error", `Failed to delete submission: ${error.message}`);
+    } finally {
       setIsDeletingSubmission(false);
     }
   };
@@ -692,6 +707,30 @@ export default function ChallengeDetailScreen() {
     }
   };
 
+  const handlePickImageFromCamera = async () => {
+    const permissionResult =
+      await ImagePicker.requestCameraPermissionsAsync();
+
+    if (permissionResult.granted === false) {
+      Alert.alert(
+        "Permission Required",
+        "You need to allow access to your camera to submit."
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImage(result.assets[0].uri);
+      setShowSubmissionModal(true);
+    }
+  };
+
   const handlePickImage = async () => {
     const permissionResult =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -712,7 +751,35 @@ export default function ChallengeDetailScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setSelectedImage(result.assets[0].uri);
+      setShowSubmissionModal(true);
     }
+  };
+
+  const handleSubmitEntryPress = () => {
+    if (isCreator) {
+      setShowSubmissionModal(true);
+      return;
+    }
+
+    Alert.alert(
+      "Submit Entry",
+      "Choose how you'd like to add your photo",
+      [
+        {
+          text: "Take Photo",
+          onPress: handlePickImageFromCamera,
+        },
+        {
+          text: "Choose from Library",
+          onPress: handlePickImage,
+        },
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleSubmit = async () => {
@@ -928,12 +995,19 @@ export default function ChallengeDetailScreen() {
         <View style={styles.heroContainer}>
           <View style={styles.imageContainer}>
             <Image source={displayChallenge.image} style={styles.heroImage} />
+            {/* Difficulty Chip */}
+            {displayChallenge.difficulty && (
+              <View style={styles.difficultyChip}>
+                <Text style={styles.difficultyChipText}>
+                  {displayChallenge.difficulty}
+                </Text>
+              </View>
+            )}
             {/* Delete Button (only for creator) */}
             {isCreator && (
               <TouchableOpacity
                 style={styles.deleteButtonOverlay}
                 onPress={() => {
-                  console.log("Delete button pressed");
                   setShowDeleteModal(true);
                 }}
                 activeOpacity={0.7}
@@ -1014,7 +1088,7 @@ export default function ChallengeDetailScreen() {
         {/* Likes and Submissions Counter */}
         {/* <View style={styles.statsContainer}>
           <View style={styles.statSection}>
-            <Text style={styles.statCount}>{netVotes}</Text>
+            <Text style={styles.statCount}>{likesCount}</Text>
             <Text style={styles.statLabel}>Likes</Text>
           </View>
           <View style={styles.statSection}>
@@ -1171,7 +1245,7 @@ export default function ChallengeDetailScreen() {
         {/* Submission Button */}
         <TouchableOpacity
           style={styles.submissionButton}
-          onPress={() => setShowSubmissionModal(true)}
+          onPress={handleSubmitEntryPress}
         >
           <Ionicons
             name={isCreator ? "image" : "camera"}
@@ -2255,10 +2329,35 @@ const styles = StyleSheet.create({
   },
 
   // Delete Button Styles
-  deleteButtonOverlay: {
+  difficultyChip: {
     position: "absolute",
     top: 70,
     right: 20,
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  difficultyChipText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: Colors.palette.darkest,
+    textAlign: "center",
+  },
+  deleteButtonOverlay: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
     width: 44,
     height: 44,
     borderRadius: 22,

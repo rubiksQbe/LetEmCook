@@ -135,6 +135,13 @@ export async function signUpWithUsername(username: string, password: string) {
     }
 
     await createDefaultAccessories(data.user.id);
+
+    // Mark user as newly signed up so onboarding will show
+    try {
+      await AsyncStorage.setItem(`is_new_user_${data.user.id}`, "true");
+    } catch (storageError) {
+      console.error("Error setting new user flag:", storageError);
+    }
   }
 
   return { data, error };
@@ -691,7 +698,8 @@ export async function voteOnChallenge(
 
         if (deleteError) return { error: deleteError };
 
-        // Update challenge vote counts
+        // Wait a bit to ensure transaction is committed, then update challenge vote counts
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await updateChallengeVoteCounts(challengeId);
         return { error: null };
       } else {
@@ -703,7 +711,8 @@ export async function voteOnChallenge(
 
         if (updateError) return { error: updateError };
 
-        // Update challenge vote counts
+        // Wait a bit to ensure transaction is committed, then update challenge vote counts
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await updateChallengeVoteCounts(challengeId);
         return { error: null };
       }
@@ -723,7 +732,8 @@ export async function voteOnChallenge(
       return { error: insertError };
     }
 
-    // Update challenge vote counts - wait for it to complete
+    // Wait a bit to ensure transaction is committed, then update challenge vote counts
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await updateChallengeVoteCounts(challengeId);
     return { error: null };
   } catch (error) {
@@ -766,7 +776,8 @@ export async function voteOnSubmission(
 
         if (deleteError) return { error: deleteError };
 
-        // Update submission vote counts
+        // Wait a bit to ensure transaction is committed, then update submission vote counts
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await updateSubmissionVoteCounts(submissionId);
         return { error: null };
       } else {
@@ -778,7 +789,8 @@ export async function voteOnSubmission(
 
         if (updateError) return { error: updateError };
 
-        // Update submission vote counts
+        // Wait a bit to ensure transaction is committed, then update submission vote counts
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await updateSubmissionVoteCounts(submissionId);
         return { error: null };
       }
@@ -793,7 +805,8 @@ export async function voteOnSubmission(
 
     if (error) return { error };
 
-    // Update submission vote counts
+    // Wait a bit to ensure transaction is committed, then update submission vote counts
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await updateSubmissionVoteCounts(submissionId);
     return { error: null };
   } catch (error) {

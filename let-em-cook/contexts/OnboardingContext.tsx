@@ -26,6 +26,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(
 );
 
 const ONBOARDING_KEY_PREFIX = "onboarding_completed_";
+const NEW_USER_KEY_PREFIX = "is_new_user_";
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
   const [isOnboarding, setIsOnboarding] = useState(false);
@@ -42,15 +43,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
           return;
         }
 
-        const key = `${ONBOARDING_KEY_PREFIX}${user.id}`;
-        const completed = await AsyncStorage.getItem(key);
-        setIsCheckingOnboarding(false);
+        // Check if user just signed up (new user flag)
+        const newUserKey = `${NEW_USER_KEY_PREFIX}${user.id}`;
+        const isNewUser = await AsyncStorage.getItem(newUserKey);
         
-        // Only start onboarding if user hasn't completed it
-        if (!completed) {
+        // Only show onboarding for new users (just signed up)
+        if (isNewUser === "true") {
           setIsOnboarding(true);
           setCurrentStep("challenges");
+          // Clear the new user flag so it doesn't show again on next login
+          await AsyncStorage.removeItem(newUserKey);
         }
+        
+        setIsCheckingOnboarding(false);
       } catch (error) {
         console.error("Error checking onboarding status:", error);
         setIsCheckingOnboarding(false);

@@ -1,4 +1,5 @@
 import Colors from "@/constants/Colors";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 import { signUpWithUsername } from "@/lib/supabase";
 import { FontAwesome, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -16,6 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUpScreen() {
+  const { startOnboarding } = useOnboarding();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -38,7 +40,12 @@ export default function SignUpScreen() {
     if (error) {
       Alert.alert("Sign up failed", error.message);
     } else {
+      // Navigate to challenges and start onboarding immediately
       router.replace("/(tabs)/challenges");
+      // Small delay to ensure navigation completes, then start onboarding
+      setTimeout(() => {
+        startOnboarding();
+      }, 100);
     }
   }
 

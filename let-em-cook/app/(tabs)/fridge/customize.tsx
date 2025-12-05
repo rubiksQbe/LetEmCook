@@ -149,7 +149,10 @@ export default function CustomizeMouse() {
       <Stack.Screen options={{ headerShown: false }} />
 
       {/* BACK BUTTON */}
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.push("/(tabs)/fridge")}
+      >
         <Ionicons name="arrow-back" size={24} color={Colors.palette.darkest} />
       </TouchableOpacity>
 
@@ -179,7 +182,7 @@ export default function CustomizeMouse() {
                 return;
               }
 
-              router.back();
+              router.push("/(tabs)/fridge");
             } catch (err) {
               console.error("Unexpected error:", err);
             }

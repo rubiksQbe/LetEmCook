@@ -45,7 +45,7 @@ const onboardingContent = {
   friends: {
     title: "Friends Page",
     description:
-      "Here you can add friends and see what challenges they're working on (and their personalized mouse companions!).",
+      "Here you can add friends and see what challenges they're working on (and their personalized mouse companions!). Press and hold on a friend to remove them.",
     highlightPosition: null, // No specific highlight needed
   },
 };
@@ -98,7 +98,7 @@ export function OnboardingOverlay() {
           router.replace("/(tabs)/fridge");
           break;
         case "mouse":
-          router.replace("/(tabs)/fridge/customize");
+          router.push("/(tabs)/fridge/customize");
           break;
         case "friends":
           router.replace("/(tabs)/friends");

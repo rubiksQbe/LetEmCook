@@ -9,6 +9,8 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -68,6 +70,7 @@ type Challenge = {
   id: string;
   title: string | null; // Assuming your challenge name is 'title'
   image_url: string | null; // Assuming your challenge image is 'image_url'
+  difficulty: string | null; // Challenge difficulty (Easy, Medium, Hard)
   // Add other challenge fields here if needed
 };
 
@@ -131,7 +134,7 @@ export default function FriendScreen() {
                 id,
                 username,
                 avatar,
-                curr_chal:challenges (id, title, image_url)
+                curr_chal:challenges (id, title, image_url, difficulty)
             ),
             invitation_status,
             invited_challenge_id,
@@ -146,37 +149,46 @@ export default function FriendScreen() {
       if (friendsError) throw friendsError;
 
       // 3. Process the results
-      const friendProfiles: Friend[] = (friendshipData ?? []).map((row) => {
-        // Renamed to friendProfile to match the query alias
-        const friendProfileData = row.friendProfile;
+      const friendProfiles: Friend[] = (friendshipData ?? [])
+        .map((row: any) => {
+          // Renamed to friendProfile to match the query alias
+          const friendProfileData = row.friendProfile;
 
-        if (!friendProfileData) {
-          console.warn(
-            `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
-              row
-            )}`
-          );
-          return null;
-        }
+          if (!friendProfileData) {
+            console.warn(
+              `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
+                row
+              )}`
+            );
+            return null;
+          }
 
-        // Construct the object using the friend's profile data
-        // combined with the invitation status from the parent row.
-        const friendDataWithInvite = {
-          // Essential Profile Properties
-          id: friendProfileData.id,
-          username: friendProfileData.username,
-          avatar: friendProfileData.avatar,
-          curr_chal: friendProfileData.curr_chal,
+          // Handle case where curr_chal might be an array (Supabase sometimes returns arrays for relations)
+          const currChal = Array.isArray(friendProfileData.curr_chal)
+            ? friendProfileData.curr_chal[0] || null
+            : friendProfileData.curr_chal;
 
-          // Invitation Properties (From the parent row, which belongs to this relationship)
-          invited_challenge_id: row.invited_challenge_id,
-          invitation_status: row.invitation_status,
-          invited_challenge_title: row.invited_challenge?.title ?? null,
-        };
+          // Construct the object using the friend's profile data
+          // combined with the invitation status from the parent row.
+          const friendDataWithInvite: FriendProfile = {
+            // Essential Profile Properties
+            id: friendProfileData.id,
+            username: friendProfileData.username,
+            avatar: friendProfileData.avatar,
+            curr_chal: currChal,
 
-        // Map the combined data to the final Friend type
-        return mapToFriend(friendDataWithInvite as FriendProfile);
-      });
+            // Invitation Properties (From the parent row, which belongs to this relationship)
+            invited_challenge_id: row.invited_challenge_id,
+            invitation_status: row.invitation_status,
+            invited_challenge_title: Array.isArray(row.invited_challenge)
+              ? row.invited_challenge[0]?.title ?? null
+              : row.invited_challenge?.title ?? null,
+          };
+
+          // Map the combined data to the final Friend type
+          return mapToFriend(friendDataWithInvite);
+        })
+        .filter((f): f is Friend => f !== null);
 
       const enriched = await Promise.all(
         friendProfiles.map(async (f) => {
@@ -257,12 +269,6 @@ export default function FriendScreen() {
       return;
     }
 
-    // Prevent adding self
-    if (searchUsername.toLowerCase() === userName?.toLowerCase()) {
-      setAddFriendMessage("You can't add yourself!");
-      return;
-    }
-
     setAddFriendLoading(true);
 
     try {
@@ -284,6 +290,13 @@ export default function FriendScreen() {
       }
 
       const friendId = friendProfile.id;
+
+      // Prevent adding self - check by user ID
+      if (friendId === myUserId) {
+        setAddFriendMessage("You can't add yourself as a friend!");
+        setAddFriendLoading(false);
+        return;
+      }
 
       // 2. Insert the friendship (user_id1 is current user, user_id2 is friend)
       const { error: insertError } = await supabase
@@ -311,7 +324,54 @@ export default function FriendScreen() {
     }
   };
 
-  const renderFriend = React.useCallback(({ item }: { item: Friend }) => {
+  // Function to remove a friend
+  const handleRemoveFriend = useCallback(async (friendId: string, friendUsername: string) => {
+    Alert.alert(
+      "Remove Friend",
+      `Are you sure you want to remove ${friendUsername} from your friends list?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (!user?.id) {
+                Alert.alert("Error", "You must be logged in to remove friends.");
+                return;
+              }
+
+              // Delete the friendship (only where current user is user_id1)
+              const { error } = await supabase
+                .from("friendships")
+                .delete()
+                .eq("user_id1", user.id)
+                .eq("user_id2", friendId);
+
+              if (error) {
+                Alert.alert("Error", "Failed to remove friend.");
+                console.error("Remove friend error:", error);
+                return;
+              }
+
+              Alert.alert("Success", `${friendUsername} has been removed from your friends list.`);
+              loadData();
+            } catch (error) {
+              console.error("Remove friend failed:", error);
+              Alert.alert("Error", "Failed to remove friend due to a server error.");
+            }
+          },
+        },
+      ]
+    );
+  }, [loadData]);
+
+  // Friend Row Component with Long Press Support
+  const FriendRow = React.memo(({ item, handleRemoveFriend }: { item: Friend; handleRemoveFriend: (id: string, username: string) => void }) => {
     const avatarSource = require("../../assets/images/mouse-assets/defaultmouse.png");
 
     // Note: The challenge image is also a remote URL from the 'challenges' table
@@ -343,6 +403,7 @@ export default function FriendScreen() {
       imageOpacity = isInvited ? 0.7 : 0.5; // Dim slightly if invited/empty
       isDisabled = true; // Not clickable
     }
+    
     // Function to handle the press event
     const handleCardPress = () => {
       if (!challengeIsPresent || !item.curr_chal) {
@@ -365,63 +426,80 @@ export default function FriendScreen() {
       });
     };
 
+    // Handle long press to delete
+    const handleLongPress = () => {
+      handleRemoveFriend(item.id, item.username ?? "Unknown");
+    };
+
     return (
-      <TouchableOpacity
-        onPress={handleCardPress}
-        disabled={isDisabled}
-        activeOpacity={isDisabled ? 1.0 : 0.8}
-        style={styles.friendRow}
-      >
-        {/* ... (friendAvatarColumn unchanged) ... */}
-        <View style={styles.friendAvatarContainer}>
-          <View style={styles.friendAvatarColumn}>
-            <View style={{ width: 80, height: 80 }}>
-              {/* base mouse */}
-              <Image
-                source={avatarSource}
-                style={styles.avatar}
-                resizeMode="contain"
-              />
-
-              {/* hat overlay */}
-              {item.hat && HatAssets[item.hat] && (
+      <View style={styles.friendRow}>
+        <TouchableOpacity
+          onPress={handleCardPress}
+          onLongPress={handleLongPress}
+          disabled={isDisabled}
+          activeOpacity={isDisabled ? 1.0 : 0.8}
+          style={styles.friendContent}
+        >
+          {/* ... (friendAvatarColumn unchanged) ... */}
+          <View style={styles.friendAvatarContainer}>
+            <View style={styles.friendAvatarColumn}>
+              <View style={{ width: 80, height: 80 }}>
+                {/* base mouse */}
                 <Image
-                  source={HatAssets[item.hat]}
-                  style={[
-                    {
-                      position: "absolute",
-                      resizeMode: "contain",
-                    },
-                    hatPosition(item.hat), // ⭐ apply custom coordinates
-                  ]}
+                  source={avatarSource}
+                  style={styles.avatar}
+                  resizeMode="contain"
                 />
-              )}
 
-              {/* item overlay */}
-              {item.item && ItemAssets[item.item] && (
-                <Image
-                  source={ItemAssets[item.item]}
-                  style={[
-                    {
-                      position: "absolute",
-                      resizeMode: "contain",
-                    },
-                    itemPosition(item.item), // ⭐ apply custom coordinates
-                  ]}
-                />
-              )}
+                {/* hat overlay */}
+                {item.hat && HatAssets[item.hat] && (
+                  <Image
+                    source={HatAssets[item.hat]}
+                    style={[
+                      {
+                        position: "absolute",
+                        resizeMode: "contain",
+                      },
+                      hatPosition(item.hat), // ⭐ apply custom coordinates
+                    ]}
+                  />
+                )}
+
+                {/* item overlay */}
+                {item.item && ItemAssets[item.item] && (
+                  <Image
+                    source={ItemAssets[item.item]}
+                    style={[
+                      {
+                        position: "absolute",
+                        resizeMode: "contain",
+                      },
+                      itemPosition(item.item), // ⭐ apply custom coordinates
+                    ]}
+                  />
+                )}
+              </View>
+
+              <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
             </View>
-
-            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
           </View>
-        </View>
 
         {/* CRITICAL: Update the Challenge Card JSX */}
         <View style={styles.challengeCard}>
-          <Image
-            source={imageSource}
-            style={[styles.challengeImage, { opacity: imageOpacity }]}
-          />
+          <View style={styles.challengeImageContainer}>
+            <Image
+              source={imageSource}
+              style={[styles.challengeImage, { opacity: imageOpacity }]}
+            />
+            {/* Difficulty Chip */}
+            {item.curr_chal?.difficulty && (
+              <View style={styles.difficultyChip}>
+                <Text style={styles.difficultyChipText}>
+                  {item.curr_chal.difficulty}
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={styles.challengeTextContainer}>
             {/* NEW WRAPPER */}
             {/* Main Label: Always present, reflects current state */}
@@ -452,66 +530,78 @@ export default function FriendScreen() {
             )}
           </View>
         </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
-  }, []);
+  });
+
+  const renderFriend = React.useCallback(({ item }: { item: Friend }) => {
+    return <FriendRow item={item} handleRemoveFriend={handleRemoveFriend} />;
+  }, [handleRemoveFriend]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/*ADD FRIENDS SECTION */}
-      <View style={styles.addFriendSection}>
-        <Text style={styles.addFriendTitle}>Add Friends</Text>
-        <View style={styles.searchBarContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by username..."
-            placeholderTextColor={Colors.palette.dark}
-            value={searchUsername}
-            onChangeText={setSearchUsername}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddFriend}
-            disabled={addFriendLoading || !searchUsername}
-          >
-            {addFriendLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <MaterialCommunityIcons
-                name="plus"
-                size={30}
-                color={Colors.palette.lightest}
-              />
-            )}
-          </TouchableOpacity>
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      >
+        {/*ADD FRIENDS SECTION */}
+        <View style={styles.addFriendSection}>
+          <Text style={styles.addFriendTitle}>Add Friends</Text>
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by username..."
+              placeholderTextColor={Colors.palette.dark}
+              value={searchUsername}
+              onChangeText={setSearchUsername}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddFriend}
+              disabled={addFriendLoading || !searchUsername}
+            >
+              {addFriendLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <MaterialCommunityIcons
+                  name="plus"
+                  size={30}
+                  color={Colors.palette.lightest}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+          {addFriendMessage && (
+            <Text style={styles.messageText}>{addFriendMessage}</Text>
+          )}
         </View>
-        {addFriendMessage && (
-          <Text style={styles.messageText}>{addFriendMessage}</Text>
-        )}
-      </View>
 
-      {/* Friends List */}
-      <FlatList
-        data={friends}
-        keyExtractor={(item) => item.id}
-        renderItem={renderFriend}
-        style={styles.content}
-        contentContainerStyle={
-          friends.length === 0 ? styles.emptyList : styles.listContent
-        }
-        ListEmptyComponent={() => (
-          <Text style={styles.emptyText}>You have no friends yet.</Text>
-        )}
-        showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
-        bounces={true}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
-      />
+        {/* Friends List */}
+        <FlatList
+          data={friends}
+          keyExtractor={(item) => item.id}
+          renderItem={renderFriend}
+          style={styles.content}
+          contentContainerStyle={
+            friends.length === 0 ? styles.emptyList : styles.listContent
+          }
+          ListEmptyComponent={() => (
+            <Text style={styles.emptyText}>You have no friends yet.</Text>
+          )}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+          bounces={true}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
+          keyboardShouldPersistTaps="handled"
+        />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -520,6 +610,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.palette.light,
+  },
+  keyboardView: {
+    flex: 1,
   },
   titleRow: {
     flexDirection: "row",
@@ -550,6 +643,7 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   friendRow: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
@@ -559,6 +653,11 @@ const styles = StyleSheet.create({
     minHeight: 180,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(52, 52, 50, 0.2)", // Colors.palette.dark with 20% opacity
+  },
+  friendContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   friendAvatarColumn: {
     alignItems: "center",
@@ -577,6 +676,11 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  challengeImageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 120,
+  },
   challengeImage: {
     width: "100%",
     height: 120,
@@ -585,6 +689,31 @@ const styles = StyleSheet.create({
     //opacity: 0.35,
     resizeMode: "cover",
     alignSelf: "center",
+  },
+  difficultyChip: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+    zIndex: 5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  difficultyChipText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 10,
+    color: Colors.palette.darkest,
+    textAlign: "center",
   },
   challengeLabel: {
     //marginTop: 8,
@@ -600,7 +729,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     padding: 5,
-    backgroundColor: Colors.palette.lightest,
+    backgroundColor: "transparent",
   },
   friendName: {
     fontSize: 14,

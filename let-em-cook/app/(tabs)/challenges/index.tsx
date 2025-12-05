@@ -7,7 +7,9 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -93,6 +95,8 @@ export default function ChallengeScreen() {
   >(null);
   const [ingredientInput, setIngredientInput] = useState("");
   const [dietaryInput, setDietaryInput] = useState("");
+  const [customTimeValue, setCustomTimeValue] = useState("");
+  const [customTimeUnit, setCustomTimeUnit] = useState<"min" | "hr">("min");
 
   // Function to fetch invitations
   const fetchInvitations = useCallback(
@@ -204,7 +208,6 @@ export default function ChallengeScreen() {
       Alert.alert("Error", "Could not mark invite as seen.");
       // Continue navigation even if status update fails
     }
-    console.log(`DEBUG: Navigating to Challenge ID: ${invite.challenge_id}`);
 
     if (!invite.challenge_id) {
       Alert.alert("Error", "Challenge ID is missing from the invite object.");
@@ -277,16 +280,34 @@ export default function ChallengeScreen() {
               });
             }
           } else if (payload.eventType === "UPDATE") {
-            // Challenge updated
-            const updatedChallenge = convertToChallenge(
-              payload.new as ChallengeRow,
-              currentUserId
-            );
-            setChallenges((prev) =>
-              prev.map((c) =>
-                c.id === updatedChallenge.id ? updatedChallenge : c
+            // Challenge updated - fetch full challenge data to ensure all fields (including vote counts) are present
+            const { data: fullChallenge, error } = await supabase
+              .from("challenges")
+              .select(
+                `
+                *,
+                submissions(id)
+              `
               )
-            );
+              .eq("id", payload.new.id)
+              .single();
+
+            if (fullChallenge && !error) {
+              const challengeWithCount = {
+                ...fullChallenge,
+                submission_count: fullChallenge.submissions?.length || 0,
+                submissions: undefined,
+              };
+              const updatedChallenge = convertToChallenge(
+                challengeWithCount as ChallengeRow,
+                currentUserId
+              );
+              setChallenges((prev) =>
+                prev.map((c) =>
+                  c.id === updatedChallenge.id ? updatedChallenge : c
+                )
+              );
+            }
           } else if (payload.eventType === "DELETE") {
             // Challenge deleted - remove it from the list
             const deletedId = (payload.old as any).id;
@@ -435,8 +456,8 @@ export default function ChallengeScreen() {
         );
       case "likes":
         return sorted.sort((a, b) => {
-          const aLikes = (a.upvotes || 0) - (a.downvotes || 0);
-          const bLikes = (b.upvotes || 0) - (b.downvotes || 0);
+          const aLikes = a.upvotes || 0;
+          const bLikes = b.upvotes || 0;
           return bLikes - aLikes;
         });
       case "recent":
@@ -470,10 +491,7 @@ export default function ChallengeScreen() {
   const timeLimitOptions = [
     { label: "15 min", value: 15 },
     { label: "30 min", value: 30 },
-    { label: "45 min", value: 45 },
     { label: "1 hr", value: 60 },
-    { label: "2 hr", value: 120 },
-    { label: "3 hr", value: 180 },
   ];
 
   const toggleDietaryRestriction = (restriction: string) => {
@@ -525,6 +543,21 @@ export default function ChallengeScreen() {
     setSelectedIngredients(
       selectedIngredients.filter((ing) => ing !== ingredient)
     );
+  };
+
+  const addCustomTime = () => {
+    const trimmed = customTimeValue.trim();
+    if (trimmed) {
+      const value = parseFloat(trimmed);
+      if (!isNaN(value) && value > 0) {
+        const minutes = customTimeUnit === "hr" ? value * 60 : value;
+        const roundedMinutes = Math.round(minutes);
+        if (!maxTimeMinutes.includes(roundedMinutes)) {
+          setMaxTimeMinutes([...maxTimeMinutes, roundedMinutes]);
+          setCustomTimeValue("");
+        }
+      }
+    }
   };
 
   return (
@@ -773,11 +806,16 @@ export default function ChallengeScreen() {
         animationType="slide"
         onRequestClose={() => setModalVisible(null)}
       >
-        <TouchableOpacity
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
+          />
           <View
             style={styles.modalContent}
             onStartShouldSetResponder={() => true}
@@ -792,7 +830,7 @@ export default function ChallengeScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalOptions}>
+            <ScrollView style={styles.modalOptions} showsVerticalScrollIndicator={false}>
               {timeLimitOptions.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -827,6 +865,111 @@ export default function ChallengeScreen() {
                   )}
                 </TouchableOpacity>
               ))}
+              
+              {/* Custom Time Input */}
+              <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
+                <Text style={styles.modalSectionLabel}>Custom Time:</Text>
+                <View style={styles.modalInputContainer}>
+                  <TextInput
+                    style={[styles.modalInput, styles.customTimeInput]}
+                    placeholder="Enter time..."
+                    placeholderTextColor={Colors.palette.dark}
+                    value={customTimeValue}
+                    onChangeText={setCustomTimeValue}
+                    keyboardType="numeric"
+                    autoCorrect={false}
+                  />
+                  <View style={styles.unitSelector}>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitButton,
+                        customTimeUnit === "min" && styles.unitButtonActive,
+                      ]}
+                      onPress={() => setCustomTimeUnit("min")}
+                    >
+                      <Text
+                        style={[
+                          styles.unitButtonText,
+                          customTimeUnit === "min" && styles.unitButtonTextActive,
+                        ]}
+                      >
+                        min
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.unitButton,
+                        customTimeUnit === "hr" && styles.unitButtonActive,
+                      ]}
+                      onPress={() => setCustomTimeUnit("hr")}
+                    >
+                      <Text
+                        style={[
+                          styles.unitButtonText,
+                          customTimeUnit === "hr" && styles.unitButtonTextActive,
+                        ]}
+                      >
+                        hr
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity
+                    onPress={addCustomTime}
+                    style={styles.plusButton}
+                    disabled={!customTimeValue.trim()}
+                  >
+                    <Ionicons
+                      name="add"
+                      size={24}
+                      color={
+                        customTimeValue.trim()
+                          ? Colors.palette.blue
+                          : Colors.palette.dark
+                      }
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {maxTimeMinutes.length > 0 && (
+                <View style={styles.modalTimeList}>
+                  <Text style={styles.modalIngredientsLabel}>
+                    Selected Times:
+                  </Text>
+                  <View style={styles.modalChipContainer}>
+                    {maxTimeMinutes
+                      .sort((a, b) => a - b)
+                      .map((minutes) => {
+                        const hours = minutes / 60;
+                        const label =
+                          hours >= 1 && hours % 1 === 0
+                            ? `${hours} hr`
+                            : `${minutes} min`;
+                        return (
+                          <TouchableOpacity
+                            key={minutes}
+                            style={styles.modalIngredientChip}
+                            onPress={() => {
+                              setMaxTimeMinutes(
+                                maxTimeMinutes.filter((t) => t !== minutes)
+                              );
+                            }}
+                          >
+                            <Text style={styles.modalIngredientChipText}>
+                              {label}
+                            </Text>
+                            <Ionicons
+                              name="close-circle"
+                              size={18}
+                              color={Colors.palette.darkest}
+                            />
+                          </TouchableOpacity>
+                        );
+                      })}
+                  </View>
+                </View>
+              )}
+
               <TouchableOpacity
                 style={styles.modalClearButton}
                 onPress={() => {
@@ -835,15 +978,18 @@ export default function ChallengeScreen() {
               >
                 <Text style={styles.modalClearText}>Clear Selection</Text>
               </TouchableOpacity>
-            </View>
+            </ScrollView>
             <TouchableOpacity
               style={styles.modalDoneButton}
-              onPress={() => setModalVisible(null)}
+              onPress={() => {
+                setModalVisible(null);
+                setCustomTimeValue("");
+              }}
             >
               <Text style={styles.modalDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Ingredients Modal */}
@@ -853,11 +999,16 @@ export default function ChallengeScreen() {
         animationType="slide"
         onRequestClose={() => setModalVisible(null)}
       >
-        <TouchableOpacity
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
+          />
           <View
             style={styles.modalContent}
             onStartShouldSetResponder={() => true}
@@ -943,7 +1094,7 @@ export default function ChallengeScreen() {
               <Text style={styles.modalDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Dietary Restrictions Modal */}
@@ -953,11 +1104,16 @@ export default function ChallengeScreen() {
         animationType="slide"
         onRequestClose={() => setModalVisible(null)}
       >
-        <TouchableOpacity
+        <KeyboardAvoidingView
           style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
         >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
+          />
           <View
             style={styles.modalContent}
             onStartShouldSetResponder={() => true}
@@ -1075,7 +1231,7 @@ export default function ChallengeScreen() {
               <Text style={styles.modalDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Sort Modal */}
@@ -1178,7 +1334,7 @@ export default function ChallengeScreen() {
           )
         }
         renderItem={({ item }) => {
-          const netVotes = (item.upvotes || 0) - (item.downvotes || 0);
+          const likesCount = item.upvotes || 0;
           const submissionCount = item.submission_count || 0;
           return (
             <TouchableOpacity
@@ -1195,7 +1351,15 @@ export default function ChallengeScreen() {
             >
               <View style={styles.card}>
                 {/* Large Hero Image */}
-                <Image source={item.image} style={styles.cardImage} />
+                <View style={styles.cardImageContainer}>
+                  <Image source={item.image} style={styles.cardImage} />
+                  {/* Difficulty Chip */}
+                  <View style={styles.difficultyChip}>
+                    <Text style={styles.difficultyChipText}>
+                      {item.difficulty}
+                    </Text>
+                  </View>
+                </View>
 
                 {/* Card Content */}
                 <View style={styles.cardContent}>
@@ -1212,7 +1376,7 @@ export default function ChallengeScreen() {
                   {/* Right: Likes and Submissions */}
                   <View style={styles.statsContainer}>
                     <View style={styles.statSectionLikes}>
-                      <Text style={styles.statCount}>{netVotes}</Text>
+                      <Text style={styles.statCount}>{likesCount}</Text>
                       <Text style={styles.statLabel}>Likes</Text>
                     </View>
                     <View style={styles.statSection}>
@@ -1626,6 +1790,49 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.palette.darkest,
   },
+  modalSectionLabel: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 14,
+    color: Colors.palette.darkest,
+    marginBottom: 8,
+  },
+  customTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  customTimeInput: {
+    flex: 1,
+    minWidth: 100,
+  },
+  unitSelector: {
+    flexDirection: "row",
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
+    overflow: "hidden",
+  },
+  unitButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "white",
+  },
+  unitButtonActive: {
+    backgroundColor: Colors.palette.accent,
+  },
+  unitButtonText: {
+    fontFamily: "Poppins_500Medium",
+    fontSize: 14,
+    color: Colors.palette.dark,
+  },
+  unitButtonTextActive: {
+    fontFamily: "Poppins_600SemiBold",
+    color: Colors.palette.darkest,
+  },
+  modalTimeList: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
   modalDoneButton: {
     marginTop: 20,
     marginHorizontal: 20,
@@ -1677,10 +1884,39 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
   },
+  cardImageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 180,
+  },
   cardImage: {
     width: "100%",
     height: 180,
     resizeMode: "cover",
+  },
+  difficultyChip: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  difficultyChipText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 12,
+    color: Colors.palette.darkest,
+    textAlign: "center",
   },
   cardContent: {
     padding: 12,

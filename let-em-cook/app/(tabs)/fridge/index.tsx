@@ -3,14 +3,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
@@ -36,6 +36,7 @@ const baseMouse = require("@/assets/images/mouse-assets/defaultmouse.png");
 interface Challenge {
   id: string;
   title: string;
+  difficulty?: "Easy" | "Medium" | "Hard";
   image_url?: string | null;
 }
 
@@ -361,15 +362,25 @@ export default function FridgeScreen() {
                       color={Colors.palette.darkest}
                     />
                   </View>
-                  <Image
-                    source={
-                      pinnedChallenge.image_url
-                        ? { uri: pinnedChallenge.image_url }
-                        : require("@/assets/images/placeholder.jpg")
-                    }
-                    style={{ width: 130, height: 100, marginBottom: 5 }}
-                    resizeMode="cover"
-                  />
+                  <View style={{ position: "relative", width: 130, height: 100, marginBottom: 5 }}>
+                    <Image
+                      source={
+                        pinnedChallenge.image_url
+                          ? { uri: pinnedChallenge.image_url }
+                          : require("@/assets/images/placeholder.jpg")
+                      }
+                      style={{ width: 130, height: 100 }}
+                      resizeMode="cover"
+                    />
+                    {/* Difficulty Chip */}
+                    {pinnedChallenge.difficulty && (
+                      <View style={styles.difficultyChip}>
+                        <Text style={styles.difficultyChipText}>
+                          {pinnedChallenge.difficulty}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.polaroidBody}>
                     <Text
                       style={styles.polaroidCaption}
@@ -552,6 +563,31 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "-3deg" }],
     marginBottom: -10,
     position: "relative",
+  },
+  difficultyChip: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: Colors.palette.accent,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+    zIndex: 5,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  difficultyChipText: {
+    fontFamily: "Poppins_600SemiBold",
+    fontSize: 10,
+    color: Colors.palette.darkest,
+    textAlign: "center",
   },
   speechBubble: {
     flex: 1,
