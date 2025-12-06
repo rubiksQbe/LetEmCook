@@ -151,41 +151,41 @@ export default function FriendScreen() {
       // 3. Process the results
       const friendProfiles: Friend[] = (friendshipData ?? [])
         .map((row: any) => {
-          // Renamed to friendProfile to match the query alias
-          const friendProfileData = row.friendProfile;
+        // Renamed to friendProfile to match the query alias
+        const friendProfileData = row.friendProfile;
 
-          if (!friendProfileData) {
-            console.warn(
-              `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
-                row
-              )}`
-            );
-            return null;
-          }
+        if (!friendProfileData) {
+          console.warn(
+            `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
+              row
+            )}`
+          );
+          return null;
+        }
 
           // Handle case where curr_chal might be an array (Supabase sometimes returns arrays for relations)
           const currChal = Array.isArray(friendProfileData.curr_chal)
             ? friendProfileData.curr_chal[0] || null
             : friendProfileData.curr_chal;
 
-          // Construct the object using the friend's profile data
-          // combined with the invitation status from the parent row.
+        // Construct the object using the friend's profile data
+        // combined with the invitation status from the parent row.
           const friendDataWithInvite: FriendProfile = {
-            // Essential Profile Properties
-            id: friendProfileData.id,
-            username: friendProfileData.username,
-            avatar: friendProfileData.avatar,
+          // Essential Profile Properties
+          id: friendProfileData.id,
+          username: friendProfileData.username,
+          avatar: friendProfileData.avatar,
             curr_chal: currChal,
 
-            // Invitation Properties (From the parent row, which belongs to this relationship)
-            invited_challenge_id: row.invited_challenge_id,
-            invitation_status: row.invitation_status,
+          // Invitation Properties (From the parent row, which belongs to this relationship)
+          invited_challenge_id: row.invited_challenge_id,
+          invitation_status: row.invitation_status,
             invited_challenge_title: Array.isArray(row.invited_challenge)
               ? row.invited_challenge[0]?.title ?? null
               : row.invited_challenge?.title ?? null,
-          };
+        };
 
-          // Map the combined data to the final Friend type
+        // Map the combined data to the final Friend type
           return mapToFriend(friendDataWithInvite);
         })
         .filter((f): f is Friend => f !== null);
@@ -433,64 +433,64 @@ export default function FriendScreen() {
 
     return (
       <View style={styles.friendRow}>
-        <TouchableOpacity
-          onPress={handleCardPress}
+      <TouchableOpacity
+        onPress={handleCardPress}
           onLongPress={handleLongPress}
-          disabled={isDisabled}
-          activeOpacity={isDisabled ? 1.0 : 0.8}
+        disabled={isDisabled}
+        activeOpacity={isDisabled ? 1.0 : 0.8}
           style={styles.friendContent}
-        >
-          {/* ... (friendAvatarColumn unchanged) ... */}
-          <View style={styles.friendAvatarContainer}>
-            <View style={styles.friendAvatarColumn}>
-              <View style={{ width: 80, height: 80 }}>
-                {/* base mouse */}
+      >
+        {/* ... (friendAvatarColumn unchanged) ... */}
+        <View style={styles.friendAvatarContainer}>
+          <View style={styles.friendAvatarColumn}>
+            <View style={{ width: 80, height: 80 }}>
+              {/* base mouse */}
+              <Image
+                source={avatarSource}
+                style={styles.avatar}
+                resizeMode="contain"
+              />
+
+              {/* hat overlay */}
+              {item.hat && HatAssets[item.hat] && (
                 <Image
-                  source={avatarSource}
-                  style={styles.avatar}
-                  resizeMode="contain"
+                  source={HatAssets[item.hat]}
+                  style={[
+                    {
+                      position: "absolute",
+                      resizeMode: "contain",
+                    },
+                    hatPosition(item.hat), // ⭐ apply custom coordinates
+                  ]}
                 />
+              )}
 
-                {/* hat overlay */}
-                {item.hat && HatAssets[item.hat] && (
-                  <Image
-                    source={HatAssets[item.hat]}
-                    style={[
-                      {
-                        position: "absolute",
-                        resizeMode: "contain",
-                      },
-                      hatPosition(item.hat), // ⭐ apply custom coordinates
-                    ]}
-                  />
-                )}
-
-                {/* item overlay */}
-                {item.item && ItemAssets[item.item] && (
-                  <Image
-                    source={ItemAssets[item.item]}
-                    style={[
-                      {
-                        position: "absolute",
-                        resizeMode: "contain",
-                      },
-                      itemPosition(item.item), // ⭐ apply custom coordinates
-                    ]}
-                  />
-                )}
-              </View>
-
-              <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
+              {/* item overlay */}
+              {item.item && ItemAssets[item.item] && (
+                <Image
+                  source={ItemAssets[item.item]}
+                  style={[
+                    {
+                      position: "absolute",
+                      resizeMode: "contain",
+                    },
+                    itemPosition(item.item), // ⭐ apply custom coordinates
+                  ]}
+                />
+              )}
             </View>
+
+            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
           </View>
+        </View>
 
         {/* CRITICAL: Update the Challenge Card JSX */}
         <View style={styles.challengeCard}>
           <View style={styles.challengeImageContainer}>
-            <Image
-              source={imageSource}
-              style={[styles.challengeImage, { opacity: imageOpacity }]}
-            />
+          <Image
+            source={imageSource}
+            style={[styles.challengeImage, { opacity: imageOpacity }]}
+          />
             {/* Difficulty Chip */}
             {item.curr_chal?.difficulty && (
               <View style={styles.difficultyChip}>
@@ -530,7 +530,7 @@ export default function FriendScreen() {
             )}
           </View>
         </View>
-        </TouchableOpacity>
+      </TouchableOpacity>
       </View>
     );
   });
@@ -546,61 +546,61 @@ export default function FriendScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        {/*ADD FRIENDS SECTION */}
-        <View style={styles.addFriendSection}>
-          <Text style={styles.addFriendTitle}>Add Friends</Text>
-          <View style={styles.searchBarContainer}>
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search by username..."
-              placeholderTextColor={Colors.palette.dark}
-              value={searchUsername}
-              onChangeText={setSearchUsername}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.addButton}
-              onPress={handleAddFriend}
-              disabled={addFriendLoading || !searchUsername}
-            >
-              {addFriendLoading ? (
-                <ActivityIndicator color="white" />
-              ) : (
-                <MaterialCommunityIcons
-                  name="plus"
-                  size={30}
-                  color={Colors.palette.lightest}
-                />
-              )}
-            </TouchableOpacity>
-          </View>
-          {addFriendMessage && (
-            <Text style={styles.messageText}>{addFriendMessage}</Text>
-          )}
+      {/*ADD FRIENDS SECTION */}
+      <View style={styles.addFriendSection}>
+        <Text style={styles.addFriendTitle}>Add Friends</Text>
+        <View style={styles.searchBarContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by username..."
+            placeholderTextColor={Colors.palette.dark}
+            value={searchUsername}
+            onChangeText={setSearchUsername}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={handleAddFriend}
+            disabled={addFriendLoading || !searchUsername}
+          >
+            {addFriendLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <MaterialCommunityIcons
+                name="plus"
+                size={30}
+                color={Colors.palette.lightest}
+              />
+            )}
+          </TouchableOpacity>
         </View>
+        {addFriendMessage && (
+          <Text style={styles.messageText}>{addFriendMessage}</Text>
+        )}
+      </View>
 
-        {/* Friends List */}
-        <FlatList
-          data={friends}
-          keyExtractor={(item) => item.id}
-          renderItem={renderFriend}
-          style={styles.content}
-          contentContainerStyle={
-            friends.length === 0 ? styles.emptyList : styles.listContent
-          }
-          ListEmptyComponent={() => (
-            <Text style={styles.emptyText}>You have no friends yet.</Text>
-          )}
-          showsVerticalScrollIndicator={true}
-          nestedScrollEnabled={true}
-          bounces={true}
-          removeClippedSubviews={true}
-          maxToRenderPerBatch={10}
-          updateCellsBatchingPeriod={50}
-          initialNumToRender={10}
-          windowSize={10}
+      {/* Friends List */}
+      <FlatList
+        data={friends}
+        keyExtractor={(item) => item.id}
+        renderItem={renderFriend}
+        style={styles.content}
+        contentContainerStyle={
+          friends.length === 0 ? styles.emptyList : styles.listContent
+        }
+        ListEmptyComponent={() => (
+          <Text style={styles.emptyText}>You have no friends yet.</Text>
+        )}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        bounces={true}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        updateCellsBatchingPeriod={50}
+        initialNumToRender={10}
+        windowSize={10}
           keyboardShouldPersistTaps="handled"
-        />
+      />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

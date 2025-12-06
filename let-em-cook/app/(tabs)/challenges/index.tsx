@@ -298,15 +298,15 @@ export default function ChallengeScreen() {
                 submission_count: fullChallenge.submissions?.length || 0,
                 submissions: undefined,
               };
-              const updatedChallenge = convertToChallenge(
+            const updatedChallenge = convertToChallenge(
                 challengeWithCount as ChallengeRow,
-                currentUserId
-              );
-              setChallenges((prev) =>
-                prev.map((c) =>
-                  c.id === updatedChallenge.id ? updatedChallenge : c
-                )
-              );
+              currentUserId
+            );
+            setChallenges((prev) =>
+              prev.map((c) =>
+                c.id === updatedChallenge.id ? updatedChallenge : c
+              )
+            );
             }
           } else if (payload.eventType === "DELETE") {
             // Challenge deleted - remove it from the list
@@ -813,8 +813,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setModalVisible(null)}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -1006,8 +1006,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setModalVisible(null)}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -1111,8 +1111,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setModalVisible(null)}
+          activeOpacity={1}
+          onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -1352,7 +1352,7 @@ export default function ChallengeScreen() {
               <View style={styles.card}>
                 {/* Large Hero Image */}
                 <View style={styles.cardImageContainer}>
-                  <Image source={item.image} style={styles.cardImage} />
+                <Image source={item.image} style={styles.cardImage} />
                   {/* Difficulty Chip */}
                   <View style={styles.difficultyChip}>
                     <Text style={styles.difficultyChipText}>
