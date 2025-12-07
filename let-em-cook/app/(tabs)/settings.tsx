@@ -1066,8 +1066,13 @@ const styles = StyleSheet.create({
   },
   modalButtonCancel: {
     backgroundColor: "white",
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modalButtonCancelText: {
     fontFamily: "Poppins_600SemiBold",
@@ -1076,6 +1081,13 @@ const styles = StyleSheet.create({
   },
   modalButtonSave: {
     backgroundColor: Colors.palette.blue,
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modalButtonSaveText: {
     fontFamily: "Poppins_600SemiBold",
@@ -1084,6 +1096,13 @@ const styles = StyleSheet.create({
   },
   modalButtonDelete: {
     backgroundColor: "#ff4444",
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modalButtonDeleteText: {
     fontFamily: "Poppins_600SemiBold",
@@ -1142,6 +1161,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     borderWidth: 1.5,
     borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inviteHistoryItemSent: {
     backgroundColor: Colors.palette.accent,

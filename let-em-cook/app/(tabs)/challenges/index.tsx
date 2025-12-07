@@ -1128,34 +1128,6 @@ export default function ChallengeScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalInputContainer}>
-              <TextInput
-                style={styles.modalInput}
-                placeholder="Type dietary restriction..."
-                placeholderTextColor={Colors.palette.dark}
-                value={dietaryInput}
-                onChangeText={setDietaryInput}
-                autoCorrect={false}
-                autoFocus={true}
-                onSubmitEditing={addDietaryRestriction}
-                returnKeyType="done"
-              />
-              <TouchableOpacity
-                onPress={addDietaryRestriction}
-                style={styles.plusButton}
-                disabled={!dietaryInput.trim()}
-              >
-                <Ionicons
-                  name="add"
-                  size={24}
-                  color={
-                    dietaryInput.trim()
-                      ? Colors.palette.blue
-                      : Colors.palette.dark
-                  }
-                />
-              </TouchableOpacity>
-            </View>
             <ScrollView style={styles.modalScrollView}>
               <View style={styles.modalChipContainer}>
                 {commonDietaryRestrictions.map((restriction) => (
@@ -1188,6 +1160,34 @@ export default function ChallengeScreen() {
                 ))}
               </View>
             </ScrollView>
+            <View style={styles.modalInputContainer}>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Type dietary restriction..."
+                placeholderTextColor={Colors.palette.dark}
+                value={dietaryInput}
+                onChangeText={setDietaryInput}
+                autoCorrect={false}
+                autoFocus={false}
+                onSubmitEditing={addDietaryRestriction}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                onPress={addDietaryRestriction}
+                style={styles.plusButton}
+                disabled={!dietaryInput.trim()}
+              >
+                <Ionicons
+                  name="add"
+                  size={24}
+                  color={
+                    dietaryInput.trim()
+                      ? Colors.palette.blue
+                      : Colors.palette.dark
+                  }
+                />
+              </TouchableOpacity>
+            </View>
             {selectedDietaryRestrictions.length > 0 && (
               <View style={styles.modalIngredientsList}>
                 <Text style={styles.modalIngredientsLabel}>
@@ -1532,6 +1532,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.accent,
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -1624,6 +1626,11 @@ const styles = StyleSheet.create({
     gap: 6,
     marginRight: 4,
     maxWidth: 180,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
   filterChipActive: {
     backgroundColor: Colors.palette.accent,
@@ -1840,6 +1847,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.palette.blue,
     borderRadius: 12,
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   modalDoneText: {
     fontFamily: "Poppins_600SemiBold",
@@ -2020,6 +2034,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderLeftWidth: 5,
     borderLeftColor: Colors.palette.blue,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inviteCardText: {
     flex: 1,
@@ -2049,6 +2068,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     gap: 4,
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inviteCardButtonText: {
     fontFamily: "Poppins_600SemiBold",
@@ -2059,9 +2085,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 12,
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: Colors.palette.darkest,
     borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   inviteModalCloseText: {
     fontFamily: "Poppins_600SemiBold",

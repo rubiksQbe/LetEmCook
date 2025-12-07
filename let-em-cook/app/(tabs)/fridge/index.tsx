@@ -372,14 +372,6 @@ export default function FridgeScreen() {
                       style={{ width: 130, height: 100 }}
                       resizeMode="cover"
                     />
-                    {/* Difficulty Chip */}
-                    {pinnedChallenge.difficulty && (
-                      <View style={styles.difficultyChip}>
-                        <Text style={styles.difficultyChipText}>
-                          {pinnedChallenge.difficulty}
-                        </Text>
-                      </View>
-                    )}
                   </View>
                   <View style={styles.polaroidBody}>
                     <Text

@@ -491,14 +491,6 @@ export default function FriendScreen() {
             source={imageSource}
             style={[styles.challengeImage, { opacity: imageOpacity }]}
           />
-            {/* Difficulty Chip */}
-            {item.curr_chal?.difficulty && (
-              <View style={styles.difficultyChip}>
-                <Text style={styles.difficultyChipText}>
-                  {item.curr_chal.difficulty}
-                </Text>
-              </View>
-            )}
           </View>
           <View style={styles.challengeTextContainer}>
             {/* NEW WRAPPER */}

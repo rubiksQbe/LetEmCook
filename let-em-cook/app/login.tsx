@@ -180,6 +180,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     alignItems: "center",
     marginTop: 16,
+    borderWidth: 2,
+    borderColor: Colors.palette.darkest,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
