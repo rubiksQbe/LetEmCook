@@ -3,21 +3,28 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from "react-native";
+import Animated, {
+    FadeInDown,
+    FadeInUp,
+    Layout,
+    useAnimatedStyle,
+    useSharedValue,
+    withSpring
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AnimatedFAB, ChallengeCardSkeleton } from "../../../components/animations";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow } from "../../../constants/types";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
@@ -63,6 +70,85 @@ type ChallengeInvitation = {
   challenge_id: string;
   challenge_title: string;
 };
+
+// Animated Challenge Card Component - Subtle animations
+interface AnimatedChallengeCardProps {
+  item: Challenge;
+  index: number;
+  onPress: () => void;
+}
+
+function AnimatedChallengeCard({ item, index, onPress }: AnimatedChallengeCardProps) {
+  const scale = useSharedValue(1);
+  const likesCount = item.upvotes || 0;
+  const submissionCount = item.submission_count || 0;
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.985, { damping: 20, stiffness: 400 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+  };
+
+  return (
+    <Animated.View
+      entering={FadeInDown.delay(index * 50).duration(300)}
+      layout={Layout.springify()}
+    >
+      <Animated.View style={animatedStyle}>
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+      >
+        <View style={styles.card}>
+          {/* Large Hero Image */}
+          <View style={styles.cardImageContainer}>
+            <Image source={item.image} style={styles.cardImage} />
+            {/* Difficulty Chip */}
+            <View style={styles.difficultyChip}>
+              <Text style={styles.difficultyChipText}>
+                {item.difficulty}
+              </Text>
+            </View>
+          </View>
+
+          {/* Card Content */}
+          <View style={styles.cardContent}>
+            {/* Left: Title and Chef Name */}
+            <View style={styles.cardTextContent}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {item.title}
+              </Text>
+              <Text style={styles.cardCreator}>
+                {item.created_by_username || "Anonymous"}
+              </Text>
+            </View>
+
+            {/* Right: Likes and Submissions */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statSectionLikes}>
+                <Text style={styles.statCount}>{likesCount}</Text>
+                <Text style={styles.statLabel}>Likes</Text>
+              </View>
+              <View style={styles.statSection}>
+                <Text style={styles.statCount}>{submissionCount}</Text>
+                <Text style={styles.statLabel}>Submissions</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+}
 
 export default function ChallengeScreen() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -1302,7 +1388,7 @@ export default function ChallengeScreen() {
       </Modal>
 
       {/* Challenge List */}
-      <FlatList
+      <Animated.FlatList
         data={sortedChallenges}
         keyExtractor={(item) => item.id}
         style={{ backgroundColor: Colors.palette.light }}
@@ -1314,12 +1400,16 @@ export default function ChallengeScreen() {
         ListHeaderComponent={null}
         ListEmptyComponent={
           isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.palette.darkest} />
-              <Text style={styles.loadingText}>Loading challenges...</Text>
-            </View>
+            <Animated.View entering={FadeInDown.duration(400)}>
+              <ChallengeCardSkeleton />
+              <ChallengeCardSkeleton />
+              <ChallengeCardSkeleton />
+            </Animated.View>
           ) : (
-            <View style={styles.emptyContainer}>
+            <Animated.View 
+              style={styles.emptyContainer}
+              entering={FadeInUp.duration(500)}
+            >
               <Text style={styles.emptyText}>
                 {hasActiveFilters
                   ? "No challenges match your filters"
@@ -1330,65 +1420,24 @@ export default function ChallengeScreen() {
                   ? "Try adjusting your filters"
                   : "Tap the + icon to create a challenge"}
               </Text>
-            </View>
+            </Animated.View>
           )
         }
-        renderItem={({ item }) => {
-          const likesCount = item.upvotes || 0;
-          const submissionCount = item.submission_count || 0;
-          return (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() =>
-                router.push({
-                  pathname: "/challenges/[id]",
-                  params: {
-                    id: item.id,
-                    challenge: JSON.stringify(item),
-                  },
-                })
-              }
-            >
-              <View style={styles.card}>
-                {/* Large Hero Image */}
-                <View style={styles.cardImageContainer}>
-                <Image source={item.image} style={styles.cardImage} />
-                  {/* Difficulty Chip */}
-                  <View style={styles.difficultyChip}>
-                    <Text style={styles.difficultyChipText}>
-                      {item.difficulty}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Card Content */}
-                <View style={styles.cardContent}>
-                  {/* Left: Title and Chef Name */}
-                  <View style={styles.cardTextContent}>
-                    <Text style={styles.cardTitle} numberOfLines={2}>
-                      {item.title}
-                    </Text>
-                    <Text style={styles.cardCreator}>
-                      {item.created_by_username || "Anonymous"}
-                    </Text>
-                  </View>
-
-                  {/* Right: Likes and Submissions */}
-                  <View style={styles.statsContainer}>
-                    <View style={styles.statSectionLikes}>
-                      <Text style={styles.statCount}>{likesCount}</Text>
-                      <Text style={styles.statLabel}>Likes</Text>
-                    </View>
-                    <View style={styles.statSection}>
-                      <Text style={styles.statCount}>{submissionCount}</Text>
-                      <Text style={styles.statLabel}>Submissions</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={({ item, index }) => (
+          <AnimatedChallengeCard
+            item={item}
+            index={index}
+            onPress={() =>
+              router.push({
+                pathname: "/challenges/[id]",
+                params: {
+                  id: item.id,
+                  challenge: JSON.stringify(item),
+                },
+              })
+            }
+          />
+        )}
       />
 
       {/* Invitation Modal */}
@@ -1462,16 +1511,16 @@ export default function ChallengeScreen() {
       </Modal>
 
       {/* Floating Add Button */}
-      <TouchableOpacity
-        style={styles.floatingAddButton}
+      <AnimatedFAB
         onPress={() => router.push("/(modals)/addChallenge")}
+        style={styles.floatingAddButton}
       >
         <MaterialCommunityIcons
           name="plus"
           size={30}
           color={Colors.palette.darkest}
         />
-      </TouchableOpacity>
+      </AnimatedFAB>
     </SafeAreaView>
   );
 }

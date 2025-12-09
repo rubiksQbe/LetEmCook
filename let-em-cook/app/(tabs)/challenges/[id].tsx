@@ -16,6 +16,14 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
@@ -121,6 +129,94 @@ type FriendForShare = {
   hat: string | null;
   item: string | null;
 };
+
+// Animated Vote Button Component - Subtle bounce on press
+interface AnimatedVoteButtonProps {
+  voteType: "up" | "down";
+  isActive: boolean;
+  count: number;
+  onPress: () => void;
+  style?: any;
+  activeStyle?: any;
+  countStyle?: any;
+  countActiveStyle?: any;
+  iconColor?: string;
+  activeIconColor?: string;
+}
+
+function AnimatedVoteButton({
+  voteType,
+  isActive,
+  count,
+  onPress,
+  style,
+  activeStyle,
+  countStyle,
+  countActiveStyle,
+  iconColor = Colors.palette.darkest,
+  activeIconColor = "white",
+}: AnimatedVoteButtonProps) {
+  const scale = useSharedValue(1);
+
+  const handlePress = () => {
+    // Subtle bounce animation
+    scale.value = withSequence(
+      withSpring(1.08, { damping: 12, stiffness: 400 }),
+      withSpring(1, { damping: 15, stiffness: 400 })
+    );
+    onPress();
+  };
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={animatedStyle}>
+      <TouchableOpacity
+        style={[style, isActive && activeStyle]}
+        onPress={handlePress}
+        activeOpacity={0.8}
+      >
+        <Ionicons
+          name={voteType === "up" ? "arrow-up" : "arrow-down"}
+          size={20}
+          color={isActive ? activeIconColor : iconColor}
+        />
+        <Text
+          style={[
+            countStyle || styles.creatorSubmissionVoteCount,
+            isActive && (countActiveStyle || styles.creatorSubmissionVoteCountActive),
+          ]}
+        >
+          {count}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
+// Pin Button Component - No scale animation, just standard button
+interface AnimatedPinButtonProps {
+  isPinned: boolean;
+  onPress: () => void;
+}
+
+function AnimatedPinButton({ isPinned, onPress }: AnimatedPinButtonProps) {
+  return (
+    <TouchableOpacity style={styles.pinButton} onPress={onPress} activeOpacity={0.7}>
+      <MaterialCommunityIcons
+        name={isPinned ? "check" : "pin"}
+        size={24}
+        color={Colors.palette.lightest}
+        style={{ marginRight: 8 }}
+      />
+      <Text style={styles.pinButtonText}>
+        {isPinned ? "PINNED" : "PIN TO FRIDGE"}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
@@ -1021,60 +1117,27 @@ export default function ChallengeDetailScreen() {
             )}
           </View>
           {/* Challenge Vote Buttons - Always visible */}
-          <View style={styles.creatorSubmissionVoteOverlay}>
-            <TouchableOpacity
-              style={[
-                styles.creatorSubmissionVoteButton,
-                userChallengeVote === "up" &&
-                  styles.creatorSubmissionVoteButtonActive,
-              ]}
+          <Animated.View 
+            style={styles.creatorSubmissionVoteOverlay}
+            entering={FadeIn.delay(100).duration(250)}
+          >
+            <AnimatedVoteButton
+              voteType="up"
+              isActive={userChallengeVote === "up"}
+              count={displayChallenge.upvotes || 0}
               onPress={() => handleChallengeVote("up")}
-            >
-              <Ionicons
-                name="arrow-up"
-                size={20}
-                color={
-                  userChallengeVote === "up" ? "white" : Colors.palette.darkest
-                }
-              />
-              <Text
-                style={[
-                  styles.creatorSubmissionVoteCount,
-                  userChallengeVote === "up" &&
-                    styles.creatorSubmissionVoteCountActive,
-                ]}
-              >
-                {displayChallenge.upvotes || 0}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.creatorSubmissionVoteButton,
-                userChallengeVote === "down" &&
-                  styles.creatorSubmissionVoteButtonActive,
-              ]}
+              style={styles.creatorSubmissionVoteButton}
+              activeStyle={styles.creatorSubmissionVoteButtonActive}
+            />
+            <AnimatedVoteButton
+              voteType="down"
+              isActive={userChallengeVote === "down"}
+              count={displayChallenge.downvotes || 0}
               onPress={() => handleChallengeVote("down")}
-            >
-              <Ionicons
-                name="arrow-down"
-                size={20}
-                color={
-                  userChallengeVote === "down"
-                    ? "white"
-                    : Colors.palette.darkest
-                }
-              />
-              <Text
-                style={[
-                  styles.creatorSubmissionVoteCount,
-                  userChallengeVote === "down" &&
-                    styles.creatorSubmissionVoteCountActive,
-                ]}
-              >
-                {displayChallenge.downvotes || 0}
-              </Text>
-            </TouchableOpacity>
-          </View>
+              style={styles.creatorSubmissionVoteButton}
+              activeStyle={styles.creatorSubmissionVoteButtonActive}
+            />
+          </Animated.View>
         </View>
 
         {/* Title and Creator */}
@@ -1098,7 +1161,10 @@ export default function ChallengeDetailScreen() {
         </View> */}
 
         {/* Action Buttons */}
-        <View style={styles.buttonRow}>
+        <Animated.View 
+          style={styles.buttonRow}
+          entering={FadeIn.delay(50).duration(250)}
+        >
           <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
             <Text style={styles.shareButtonText}>SHARE</Text>
             <Ionicons
@@ -1109,18 +1175,8 @@ export default function ChallengeDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.pinButton} onPress={handlePin}>
-            <MaterialCommunityIcons
-              name={isPinned ? "check" : "pin"}
-              size={24}
-              color={Colors.palette.lightest}
-              style={{ marginRight: 8 }}
-            />
-            <Text style={styles.pinButtonText}>
-              {isPinned ? "PINNED" : "PIN TO FRIDGE"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+          <AnimatedPinButton isPinned={isPinned} onPress={handlePin} />
+        </Animated.View>
 
         {/* Description Card */}
         <View style={styles.descriptionCard}>
@@ -1172,7 +1228,10 @@ export default function ChallengeDetailScreen() {
 
         {/* User's Submission with Vote Buttons */}
         {userSubmission && (
-          <View style={styles.userSubmissionContainer}>
+          <Animated.View 
+            style={styles.userSubmissionContainer}
+            entering={FadeIn.duration(250)}
+          >
             <Text style={styles.userSubmissionTitle}>Your Submission</Text>
             <View style={styles.userSubmissionImageContainer}>
               <Image
@@ -1181,65 +1240,29 @@ export default function ChallengeDetailScreen() {
               />
               {/* Like/Dislike Buttons Overlay */}
               <View style={styles.userSubmissionVoteOverlay}>
-                <TouchableOpacity
-                  style={[
-                    styles.userSubmissionVoteButton,
-                    userSubmission.user_vote === "up" &&
-                      styles.userSubmissionVoteButtonActive,
-                  ]}
+                <AnimatedVoteButton
+                  voteType="up"
+                  isActive={userSubmission.user_vote === "up"}
+                  count={userSubmission.upvotes}
                   onPress={() => handleSubmissionVote(userSubmission.id, "up")}
-                >
-                  <Ionicons
-                    name="arrow-up"
-                    size={20}
-                    color={
-                      userSubmission.user_vote === "up"
-                        ? "white"
-                        : Colors.palette.darkest
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.userSubmissionVoteCount,
-                      userSubmission.user_vote === "up" &&
-                        styles.userSubmissionVoteCountActive,
-                    ]}
-                  >
-                    {userSubmission.upvotes}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.userSubmissionVoteButton,
-                    userSubmission.user_vote === "down" &&
-                      styles.userSubmissionVoteButtonActive,
-                  ]}
-                  onPress={() =>
-                    handleSubmissionVote(userSubmission.id, "down")
-                  }
-                >
-                  <Ionicons
-                    name="arrow-down"
-                    size={20}
-                    color={
-                      userSubmission.user_vote === "down"
-                        ? "white"
-                        : Colors.palette.darkest
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.userSubmissionVoteCount,
-                      userSubmission.user_vote === "down" &&
-                        styles.userSubmissionVoteCountActive,
-                    ]}
-                  >
-                    {userSubmission.downvotes}
-                  </Text>
-                </TouchableOpacity>
+                  style={styles.userSubmissionVoteButton}
+                  activeStyle={styles.userSubmissionVoteButtonActive}
+                  countStyle={styles.userSubmissionVoteCount}
+                  countActiveStyle={styles.userSubmissionVoteCountActive}
+                />
+                <AnimatedVoteButton
+                  voteType="down"
+                  isActive={userSubmission.user_vote === "down"}
+                  count={userSubmission.downvotes}
+                  onPress={() => handleSubmissionVote(userSubmission.id, "down")}
+                  style={styles.userSubmissionVoteButton}
+                  activeStyle={styles.userSubmissionVoteButtonActive}
+                  countStyle={styles.userSubmissionVoteCount}
+                  countActiveStyle={styles.userSubmissionVoteCountActive}
+                />
               </View>
             </View>
-          </View>
+          </Animated.View>
         )}
 
         {/* Submission Button */}
@@ -1326,12 +1349,19 @@ export default function ChallengeDetailScreen() {
                   style={{ marginVertical: 20 }}
                 />
               ) : submissions.length === 0 ? (
-                <Text style={styles.noSubmissionsText}>
+                <Animated.Text 
+                  style={styles.noSubmissionsText}
+                  entering={FadeIn.duration(300)}
+                >
                   No submissions yet. Be the first!
-                </Text>
+                </Animated.Text>
               ) : (
-                submissions.map((submission) => (
-                  <View key={submission.id} style={styles.submissionItem}>
+                submissions.map((submission, index) => (
+                  <Animated.View 
+                    key={submission.id} 
+                    style={styles.submissionItem}
+                    entering={FadeInDown.delay(index * 50).duration(250)}
+                  >
                     <Image
                       source={{ uri: submission.image_url }}
                       style={styles.submissionImage}
@@ -1341,67 +1371,31 @@ export default function ChallengeDetailScreen() {
                         Chef {submission.username}
                       </Text>
                       <View style={styles.submissionVotes}>
-                        <TouchableOpacity
-                          style={[
-                            styles.submissionVoteButton,
-                            submission.user_vote === "up" &&
-                              styles.submissionVoteButtonActive,
-                          ]}
-                          onPress={() =>
-                            handleSubmissionVote(submission.id, "up")
-                          }
-                        >
-                          <Ionicons
-                            name="arrow-up"
-                            size={20}
-                            color={
-                              submission.user_vote === "up"
-                                ? "white"
-                                : Colors.palette.dark
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.voteCount,
-                              submission.user_vote === "up" &&
-                                styles.voteCountActive,
-                            ]}
-                          >
-                            {submission.upvotes}
-                          </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[
-                            styles.submissionVoteButton,
-                            submission.user_vote === "down" &&
-                              styles.submissionVoteButtonActive,
-                          ]}
-                          onPress={() =>
-                            handleSubmissionVote(submission.id, "down")
-                          }
-                        >
-                          <Ionicons
-                            name="arrow-down"
-                            size={20}
-                            color={
-                              submission.user_vote === "down"
-                                ? "white"
-                                : Colors.palette.dark
-                            }
-                          />
-                          <Text
-                            style={[
-                              styles.voteCount,
-                              submission.user_vote === "down" &&
-                                styles.voteCountActive,
-                            ]}
-                          >
-                            {submission.downvotes}
-                          </Text>
-                        </TouchableOpacity>
+                        <AnimatedVoteButton
+                          voteType="up"
+                          isActive={submission.user_vote === "up"}
+                          count={submission.upvotes}
+                          onPress={() => handleSubmissionVote(submission.id, "up")}
+                          style={styles.submissionVoteButton}
+                          activeStyle={styles.submissionVoteButtonActive}
+                          countStyle={styles.voteCount}
+                          countActiveStyle={styles.voteCountActive}
+                          iconColor={Colors.palette.dark}
+                        />
+                        <AnimatedVoteButton
+                          voteType="down"
+                          isActive={submission.user_vote === "down"}
+                          count={submission.downvotes}
+                          onPress={() => handleSubmissionVote(submission.id, "down")}
+                          style={styles.submissionVoteButton}
+                          activeStyle={styles.submissionVoteButtonActive}
+                          countStyle={styles.voteCount}
+                          countActiveStyle={styles.voteCountActive}
+                          iconColor={Colors.palette.dark}
+                        />
                       </View>
                     </View>
-                  </View>
+                  </Animated.View>
                 ))
               )}
             </View>

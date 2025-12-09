@@ -12,6 +12,18 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import Animated, {
+    Easing,
+    FadeIn,
+    FadeInDown,
+    FadeInLeft,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
 
@@ -63,6 +75,103 @@ interface SubmissionRow {
   user_id: string;
   challenge_id: string;
   image_url: string;
+}
+
+// Animated Polaroid Component - Subtle press feedback
+interface AnimatedPolaroidProps {
+  children: React.ReactNode;
+  onPress: () => void;
+  style: any;
+  isPinned?: boolean;
+  index?: number;
+}
+
+function AnimatedPolaroid({ children, onPress, style, isPinned = false, index = 0 }: AnimatedPolaroidProps) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.98, { damping: 20, stiffness: 400 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+  };
+
+  return (
+    <Animated.View 
+      entering={isPinned ? FadeIn.duration(300) : FadeInDown.delay(index * 60).duration(300)}
+    >
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={style}
+          activeOpacity={1}
+        >
+          {children}
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
+}
+
+// Animated Mouse with very subtle idle bounce
+function AnimatedMouse({ 
+  children, 
+  onPress 
+}: { 
+  children: React.ReactNode; 
+  onPress: () => void;
+}) {
+  const translateY = useSharedValue(0);
+  const scale = useSharedValue(1);
+
+  useEffect(() => {
+    // Very subtle idle bounce animation
+    translateY.value = withRepeat(
+      withSequence(
+        withTiming(-2, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withSpring(0.95, { damping: 20, stiffness: 400 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+  };
+
+  return (
+    <Animated.View entering={FadeInLeft.duration(400)}>
+      <Animated.View style={animatedStyle}>
+        <TouchableOpacity
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          activeOpacity={1}
+        >
+          {children}
+        </TouchableOpacity>
+      </Animated.View>
+    </Animated.View>
+  );
 }
 
 export default function FridgeScreen() {
@@ -296,10 +405,7 @@ export default function FridgeScreen() {
                 justifyContent: "flex-end",
               }}
             >
-              <TouchableOpacity
-                onPress={() => router.push("/fridge/customize")}
-                activeOpacity={0.8}
-              >
+              <AnimatedMouse onPress={() => router.push("/fridge/customize")}>
                 <View>
                   <Image
                     source={baseMouse}
@@ -321,7 +427,7 @@ export default function FridgeScreen() {
                     />
                   )}
                 </View>
-              </TouchableOpacity>
+              </AnimatedMouse>
             </View>
             {!pinnedChallenge && (
               <View style={styles.speechBubble}>
@@ -339,7 +445,10 @@ export default function FridgeScreen() {
             )}
           </View>
 
-          <View style={styles.fridgeWrapper}>
+          <Animated.View 
+            style={styles.fridgeWrapper}
+            entering={FadeInDown.duration(350)}
+          >
             {/* FREEZER / Pinned */}
             <View style={styles.freezerSection}>
               {pinnedChallenge && (
@@ -354,6 +463,7 @@ export default function FridgeScreen() {
                     })
                   }
                   style={styles.pinnedPolaroid}
+                  activeOpacity={0.8}
                 >
                   <View style={styles.magnet}>
                     <MaterialCommunityIcons
@@ -413,8 +523,8 @@ export default function FridgeScreen() {
                   paddingHorizontal: 50,
                 }}
                 scrollEnabled={false}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
+                renderItem={({ item, index }) => (
+                  <AnimatedPolaroid
                     onPress={() =>
                       router.push({
                         pathname: "/fridge/[id]",
@@ -425,6 +535,7 @@ export default function FridgeScreen() {
                       })
                     }
                     style={styles.polaroidHistory}
+                    index={index}
                   >
                     <View style={styles.magnet} />
                     {item.submissionImage && (
@@ -443,13 +554,13 @@ export default function FridgeScreen() {
                         {item.title}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </AnimatedPolaroid>
                 )}
               />
             </View>
 
             <View style={{ height: 300 }} />
-          </View>
+          </Animated.View>
         </ScrollView>
       </View>
     </SafeAreaView>

@@ -5,32 +5,32 @@ import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
-  addHatToUser,
-  fetchChallenge,
-  fetchSubmissions,
-  getUserChallengeVote,
-  getUserSubmissionVote,
-  hasUserSubmitted,
-  isChallengePinned,
-  submitToChallenge,
-  supabase,
-  togglePinChallenge,
-  voteOnChallenge,
-  voteOnSubmission,
+    addHatToUser,
+    fetchChallenge,
+    fetchSubmissions,
+    getUserChallengeVote,
+    getUserSubmissionVote,
+    hasUserSubmitted,
+    isChallengePinned,
+    submitToChallenge,
+    supabase,
+    togglePinChallenge,
+    voteOnChallenge,
+    voteOnSubmission,
 } from "../../../lib/supabase";
 
 const HatAssets: Record<string, any> = {
@@ -888,7 +888,11 @@ export default function ChallengeDetailScreen() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.pinButton} onPress={handlePin}>
+          <TouchableOpacity
+            style={styles.pinButton}
+            onPress={handlePin}
+            activeOpacity={1}
+          >
             <MaterialCommunityIcons
               name={isPinned ? "check" : "pin"}
               size={24}

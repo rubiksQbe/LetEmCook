@@ -1,9 +1,10 @@
+import { OnboardingProvider } from "@/contexts/OnboardingContext";
 import { Fredoka_700Bold } from "@expo-google-fonts/fredoka";
 import {
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
+    Poppins_400Regular,
+    Poppins_500Medium,
+    Poppins_600SemiBold,
+    Poppins_700Bold,
 } from "@expo-google-fonts/poppins";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
@@ -14,11 +15,10 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect } from "react";
 import { View } from "react-native";
 import "react-native-reanimated";
-import { OnboardingProvider } from "@/contexts/OnboardingContext";
 
 export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
+    // Catch any errors thrown by the Layout component.
+    ErrorBoundary
 } from "expo-router";
 
 export const unstable_settings = {

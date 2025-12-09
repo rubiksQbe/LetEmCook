@@ -5,18 +5,22 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
+import Animated, {
+    FadeInDown,
+    FadeInUp,
+    Layout
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const HatAssets: Record<string, any> = {
@@ -527,8 +531,15 @@ export default function FriendScreen() {
     );
   });
 
-  const renderFriend = React.useCallback(({ item }: { item: Friend }) => {
-    return <FriendRow item={item} handleRemoveFriend={handleRemoveFriend} />;
+  const renderFriend = React.useCallback(({ item, index }: { item: Friend; index: number }) => {
+    return (
+      <Animated.View
+        entering={FadeInDown.delay(index * 40).duration(250)}
+        layout={Layout.springify()}
+      >
+        <FriendRow item={item} handleRemoveFriend={handleRemoveFriend} />
+      </Animated.View>
+    );
   }, [handleRemoveFriend]);
 
   return (
@@ -572,7 +583,7 @@ export default function FriendScreen() {
       </View>
 
       {/* Friends List */}
-      <FlatList
+      <Animated.FlatList
         data={friends}
         keyExtractor={(item) => item.id}
         renderItem={renderFriend}
@@ -581,7 +592,12 @@ export default function FriendScreen() {
           friends.length === 0 ? styles.emptyList : styles.listContent
         }
         ListEmptyComponent={() => (
-          <Text style={styles.emptyText}>You have no friends yet.</Text>
+          <Animated.Text 
+            style={styles.emptyText}
+            entering={FadeInUp.duration(400)}
+          >
+            You have no friends yet.
+          </Animated.Text>
         )}
         showsVerticalScrollIndicator={true}
         nestedScrollEnabled={true}
@@ -591,7 +607,7 @@ export default function FriendScreen() {
         updateCellsBatchingPeriod={50}
         initialNumToRender={10}
         windowSize={10}
-          keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="handled"
       />
       </KeyboardAvoidingView>
     </SafeAreaView>
