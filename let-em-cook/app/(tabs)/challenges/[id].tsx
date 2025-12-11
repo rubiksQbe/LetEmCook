@@ -14,7 +14,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import Animated, {
   FadeIn,
@@ -22,7 +22,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSequence,
-  withSpring
+  withSpring,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
@@ -186,7 +186,8 @@ function AnimatedVoteButton({
         <Text
           style={[
             countStyle || styles.creatorSubmissionVoteCount,
-            isActive && (countActiveStyle || styles.creatorSubmissionVoteCountActive),
+            isActive &&
+              (countActiveStyle || styles.creatorSubmissionVoteCountActive),
           ]}
         >
           {count}
@@ -204,7 +205,11 @@ interface AnimatedPinButtonProps {
 
 function AnimatedPinButton({ isPinned, onPress }: AnimatedPinButtonProps) {
   return (
-    <TouchableOpacity style={styles.pinButton} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.pinButton}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <MaterialCommunityIcons
         name={isPinned ? "check" : "pin"}
         size={24}
@@ -265,14 +270,21 @@ export default function ChallengeDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteSubmissionModal, setShowDeleteSubmissionModal] = useState(false);
-  const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(null);
+  const [showDeleteSubmissionModal, setShowDeleteSubmissionModal] =
+    useState(false);
+  const [submissionToDelete, setSubmissionToDelete] = useState<string | null>(
+    null
+  );
   const [isDeletingSubmission, setIsDeletingSubmission] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const submissionsSectionRef = useRef<View>(null);
   const submissionsHeaderRef = useRef<View>(null);
-  const [submissionsSectionY, setSubmissionsSectionY] = useState<number | null>(null);
-  const [submissionsHeaderY, setSubmissionsHeaderY] = useState<number | null>(null);
+  const [submissionsSectionY, setSubmissionsSectionY] = useState<number | null>(
+    null
+  );
+  const [submissionsHeaderY, setSubmissionsHeaderY] = useState<number | null>(
+    null
+  );
   const { currentStep } = useOnboarding();
 
   const handleBack = () => {
@@ -443,7 +455,10 @@ export default function ChallengeDetailScreen() {
             // Update submission count
             setChallengeData((prev) =>
               prev
-                ? { ...prev, submission_count: (prev.submission_count || 0) + 1 }
+                ? {
+                    ...prev,
+                    submission_count: (prev.submission_count || 0) + 1,
+                  }
                 : prev
             );
           } else if (payload.eventType === "UPDATE") {
@@ -472,7 +487,10 @@ export default function ChallengeDetailScreen() {
               prev
                 ? {
                     ...prev,
-                    submission_count: Math.max((prev.submission_count || 0) - 1, 0),
+                    submission_count: Math.max(
+                      (prev.submission_count || 0) - 1,
+                      0
+                    ),
                   }
                 : prev
             );
@@ -541,7 +559,10 @@ export default function ChallengeDetailScreen() {
 
   // Scroll to submissions section when onboarding step is "challenge-detail-submissions"
   useEffect(() => {
-    if (currentStep === "challenge-detail-submissions" && scrollViewRef.current) {
+    if (
+      currentStep === "challenge-detail-submissions" &&
+      scrollViewRef.current
+    ) {
       // Delay to ensure the page is fully rendered
       const timer = setTimeout(() => {
         // Use header position if available, otherwise use section position
@@ -554,32 +575,32 @@ export default function ChallengeDetailScreen() {
           // Fallback: estimate position
           targetY = 800;
         }
-        
+
         // Slow scroll animation using requestAnimationFrame for smoother, slower scrolling
         let startY = 0;
         const startTime = Date.now();
         const duration = 1200; // 1.2 seconds for slower scroll
-        
+
         const animateScroll = () => {
           const elapsed = Date.now() - startTime;
           const progress = Math.min(elapsed / duration, 1);
-          
+
           // Easing function for smooth deceleration
           const easeOutCubic = 1 - Math.pow(1 - progress, 3);
           const currentY = startY + (targetY - startY) * easeOutCubic;
-          
+
           if (scrollViewRef.current) {
             scrollViewRef.current.scrollTo({ y: currentY, animated: false });
           }
-          
+
           if (progress < 1) {
             requestAnimationFrame(animateScroll);
           }
         };
-        
+
         // Start animation
         requestAnimationFrame(animateScroll);
-        
+
         // Also ensure submissions are shown
         setShowSubmissions(true);
       }, 500);
@@ -680,13 +701,21 @@ export default function ChallengeDetailScreen() {
     try {
       const { error } = await deleteChallenge(displayChallenge.id);
       if (error) {
-        Alert.alert("Error", `Failed to delete challenge: ${error instanceof Error ? error.message : String(error)}`);
+        Alert.alert(
+          "Error",
+          `Failed to delete challenge: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
         setIsDeleting(false);
         return;
       }
 
       // Success - navigate back to challenges list
-      Alert.alert("Success", "Challenge and all submissions have been deleted.");
+      Alert.alert(
+        "Success",
+        "Challenge and all submissions have been deleted."
+      );
       router.replace("/(tabs)/challenges");
     } catch (error: any) {
       Alert.alert("Error", `Failed to delete challenge: ${error.message}`);
@@ -701,14 +730,21 @@ export default function ChallengeDetailScreen() {
     try {
       const { error } = await deleteSubmission(submissionToDelete);
       if (error) {
-        Alert.alert("Error", `Failed to delete submission: ${error instanceof Error ? error.message : String(error)}`);
+        Alert.alert(
+          "Error",
+          `Failed to delete submission: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
         setIsDeletingSubmission(false);
         return;
       }
 
       // Immediately remove from submissions array for instant UI update
-      setSubmissions((prev) => prev.filter((sub) => sub.id !== submissionToDelete));
-      
+      setSubmissions((prev) =>
+        prev.filter((sub) => sub.id !== submissionToDelete)
+      );
+
       // Update challenge submission count immediately
       setChallengeData((prev) => {
         if (!prev) return prev;
@@ -717,15 +753,15 @@ export default function ChallengeDetailScreen() {
           submission_count: Math.max((prev.submission_count || 0) - 1, 0),
         };
       });
-      
+
       // Update state
       setHasSubmitted(false);
       setShowDeleteSubmissionModal(false);
       setSubmissionToDelete(null);
-      
+
       // Reload submissions and challenge data to ensure everything is in sync
       await Promise.all([loadSubmissions(), loadChallengeData()]);
-      
+
       Alert.alert("Success", "Submission has been deleted.");
     } catch (error: any) {
       Alert.alert("Error", `Failed to delete submission: ${error.message}`);
@@ -804,8 +840,7 @@ export default function ChallengeDetailScreen() {
   };
 
   const handlePickImageFromCamera = async () => {
-    const permissionResult =
-      await ImagePicker.requestCameraPermissionsAsync();
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
     if (permissionResult.granted === false) {
       Alert.alert(
@@ -1108,16 +1143,12 @@ export default function ChallengeDetailScreen() {
                 }}
                 activeOpacity={0.7}
               >
-                <Ionicons
-                  name="trash-outline"
-                  size={24}
-                  color="#FF3B30"
-                />
+                <Ionicons name="trash-outline" size={24} color="#FF3B30" />
               </TouchableOpacity>
             )}
           </View>
           {/* Challenge Vote Buttons - Always visible */}
-          <Animated.View 
+          <Animated.View
             style={styles.creatorSubmissionVoteOverlay}
             entering={FadeIn.delay(100).duration(250)}
           >
@@ -1161,7 +1192,7 @@ export default function ChallengeDetailScreen() {
         </View> */}
 
         {/* Action Buttons */}
-        <Animated.View 
+        <Animated.View
           style={styles.buttonRow}
           entering={FadeIn.delay(50).duration(250)}
         >
@@ -1228,7 +1259,7 @@ export default function ChallengeDetailScreen() {
 
         {/* User's Submission with Vote Buttons */}
         {userSubmission && (
-          <Animated.View 
+          <Animated.View
             style={styles.userSubmissionContainer}
             entering={FadeIn.duration(250)}
           >
@@ -1254,7 +1285,9 @@ export default function ChallengeDetailScreen() {
                   voteType="down"
                   isActive={userSubmission.user_vote === "down"}
                   count={userSubmission.downvotes}
-                  onPress={() => handleSubmissionVote(userSubmission.id, "down")}
+                  onPress={() =>
+                    handleSubmissionVote(userSubmission.id, "down")
+                  }
                   style={styles.userSubmissionVoteButton}
                   activeStyle={styles.userSubmissionVoteButtonActive}
                   countStyle={styles.userSubmissionVoteCount}
@@ -1325,19 +1358,19 @@ export default function ChallengeDetailScreen() {
               }
             }}
           >
-          <TouchableOpacity
-            style={styles.submissionsHeader}
-            onPress={() => setShowSubmissions(!showSubmissions)}
-          >
-            <Text style={styles.submissionsTitle}>
-              Community Submissions ({submissions.length})
-            </Text>
-            <Ionicons
-              name={showSubmissions ? "chevron-up" : "chevron-down"}
-              size={22}
-              color={Colors.palette.darkest}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.submissionsHeader}
+              onPress={() => setShowSubmissions(!showSubmissions)}
+            >
+              <Text style={styles.submissionsTitle}>
+                Community Submissions ({submissions.length})
+              </Text>
+              <Ionicons
+                name={showSubmissions ? "chevron-up" : "chevron-down"}
+                size={22}
+                color={Colors.palette.darkest}
+              />
+            </TouchableOpacity>
           </View>
 
           {showSubmissions && (
@@ -1349,7 +1382,7 @@ export default function ChallengeDetailScreen() {
                   style={{ marginVertical: 20 }}
                 />
               ) : submissions.length === 0 ? (
-                <Animated.Text 
+                <Animated.Text
                   style={styles.noSubmissionsText}
                   entering={FadeIn.duration(300)}
                 >
@@ -1357,8 +1390,8 @@ export default function ChallengeDetailScreen() {
                 </Animated.Text>
               ) : (
                 submissions.map((submission, index) => (
-                  <Animated.View 
-                    key={submission.id} 
+                  <Animated.View
+                    key={submission.id}
                     style={styles.submissionItem}
                     entering={FadeInDown.delay(index * 50).duration(250)}
                   >
@@ -1375,7 +1408,9 @@ export default function ChallengeDetailScreen() {
                           voteType="up"
                           isActive={submission.user_vote === "up"}
                           count={submission.upvotes}
-                          onPress={() => handleSubmissionVote(submission.id, "up")}
+                          onPress={() =>
+                            handleSubmissionVote(submission.id, "up")
+                          }
                           style={styles.submissionVoteButton}
                           activeStyle={styles.submissionVoteButtonActive}
                           countStyle={styles.voteCount}
@@ -1386,7 +1421,9 @@ export default function ChallengeDetailScreen() {
                           voteType="down"
                           isActive={submission.user_vote === "down"}
                           count={submission.downvotes}
-                          onPress={() => handleSubmissionVote(submission.id, "down")}
+                          onPress={() =>
+                            handleSubmissionVote(submission.id, "down")
+                          }
                           style={styles.submissionVoteButton}
                           activeStyle={styles.submissionVoteButtonActive}
                           countStyle={styles.voteCount}
@@ -1586,11 +1623,7 @@ export default function ChallengeDetailScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.deleteModalContent}>
             <View style={styles.deleteModalHeader}>
-              <Ionicons
-                name="warning"
-                size={32}
-                color="#FF3B30"
-              />
+              <Ionicons name="warning" size={32} color="#FF3B30" />
               <Text style={styles.deleteModalTitle}>Delete Challenge?</Text>
             </View>
 
@@ -1608,7 +1641,9 @@ export default function ChallengeDetailScreen() {
               <View style={styles.deleteModalListItem}>
                 <Text style={styles.deleteModalBullet}>•</Text>
                 <Text style={styles.deleteModalText}>
-                  Delete all {submissions.length} submission{submissions.length !== 1 ? "s" : ""} associated with this challenge
+                  Delete all {submissions.length} submission
+                  {submissions.length !== 1 ? "s" : ""} associated with this
+                  challenge
                 </Text>
               </View>
               <View style={styles.deleteModalListItem}>
@@ -1621,14 +1656,20 @@ export default function ChallengeDetailScreen() {
 
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
-                style={[styles.deleteModalCancelButton, isDeleting && styles.deleteModalButtonDisabled]}
+                style={[
+                  styles.deleteModalCancelButton,
+                  isDeleting && styles.deleteModalButtonDisabled,
+                ]}
                 onPress={() => !isDeleting && setShowDeleteModal(false)}
                 disabled={isDeleting}
               >
                 <Text style={styles.deleteModalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.deleteModalConfirmButton, isDeleting && styles.deleteModalButtonDisabled]}
+                style={[
+                  styles.deleteModalConfirmButton,
+                  isDeleting && styles.deleteModalButtonDisabled,
+                ]}
                 onPress={handleDelete}
                 disabled={isDeleting}
               >
@@ -1648,16 +1689,14 @@ export default function ChallengeDetailScreen() {
         visible={showDeleteSubmissionModal}
         animationType="fade"
         transparent={true}
-        onRequestClose={() => !isDeletingSubmission && setShowDeleteSubmissionModal(false)}
+        onRequestClose={() =>
+          !isDeletingSubmission && setShowDeleteSubmissionModal(false)
+        }
       >
         <View style={styles.modalOverlay}>
           <View style={styles.deleteModalContent}>
             <View style={styles.deleteModalHeader}>
-              <Ionicons
-                name="warning"
-                size={32}
-                color="#FF3B30"
-              />
+              <Ionicons name="warning" size={32} color="#FF3B30" />
               <Text style={styles.deleteModalTitle}>Delete Submission?</Text>
             </View>
 
@@ -1682,14 +1721,22 @@ export default function ChallengeDetailScreen() {
 
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
-                style={[styles.deleteModalCancelButton, isDeletingSubmission && styles.deleteModalButtonDisabled]}
-                onPress={() => !isDeletingSubmission && setShowDeleteSubmissionModal(false)}
+                style={[
+                  styles.deleteModalCancelButton,
+                  isDeletingSubmission && styles.deleteModalButtonDisabled,
+                ]}
+                onPress={() =>
+                  !isDeletingSubmission && setShowDeleteSubmissionModal(false)
+                }
                 disabled={isDeletingSubmission}
               >
                 <Text style={styles.deleteModalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.deleteModalConfirmButton, isDeletingSubmission && styles.deleteModalButtonDisabled]}
+                style={[
+                  styles.deleteModalConfirmButton,
+                  isDeletingSubmission && styles.deleteModalButtonDisabled,
+                ]}
                 onPress={handleDeleteSubmission}
                 disabled={isDeletingSubmission}
               >
@@ -2386,7 +2433,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonOverlay: {
     position: "absolute",
-    bottom: 20,
+    bottom: 10,
     left: 20,
     width: 44,
     height: 44,
@@ -2396,11 +2443,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#FF3B30",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
     zIndex: 1002,
   },
 

@@ -3,28 +3,31 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeInDown,
-    FadeInUp,
-    Layout,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring
+  FadeInDown,
+  FadeInUp,
+  Layout,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AnimatedFAB, ChallengeCardSkeleton } from "../../../components/animations";
+import {
+  AnimatedFAB,
+  ChallengeCardSkeleton,
+} from "../../../components/animations";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow } from "../../../constants/types";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
@@ -78,7 +81,11 @@ interface AnimatedChallengeCardProps {
   onPress: () => void;
 }
 
-function AnimatedChallengeCard({ item, index, onPress }: AnimatedChallengeCardProps) {
+function AnimatedChallengeCard({
+  item,
+  index,
+  onPress,
+}: AnimatedChallengeCardProps) {
   const scale = useSharedValue(1);
   const likesCount = item.upvotes || 0;
   const submissionCount = item.submission_count || 0;
@@ -101,50 +108,48 @@ function AnimatedChallengeCard({ item, index, onPress }: AnimatedChallengeCardPr
       layout={Layout.springify()}
     >
       <Animated.View style={animatedStyle}>
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-      >
-        <View style={styles.card}>
-          {/* Large Hero Image */}
-          <View style={styles.cardImageContainer}>
-            <Image source={item.image} style={styles.cardImage} />
-            {/* Difficulty Chip */}
-            <View style={styles.difficultyChip}>
-              <Text style={styles.difficultyChipText}>
-                {item.difficulty}
-              </Text>
-            </View>
-          </View>
-
-          {/* Card Content */}
-          <View style={styles.cardContent}>
-            {/* Left: Title and Chef Name */}
-            <View style={styles.cardTextContent}>
-              <Text style={styles.cardTitle} numberOfLines={2}>
-                {item.title}
-              </Text>
-              <Text style={styles.cardCreator}>
-                {item.created_by_username || "Anonymous"}
-              </Text>
-            </View>
-
-            {/* Right: Likes and Submissions */}
-            <View style={styles.statsContainer}>
-              <View style={styles.statSectionLikes}>
-                <Text style={styles.statCount}>{likesCount}</Text>
-                <Text style={styles.statLabel}>Likes</Text>
-              </View>
-              <View style={styles.statSection}>
-                <Text style={styles.statCount}>{submissionCount}</Text>
-                <Text style={styles.statLabel}>Submissions</Text>
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+        >
+          <View style={styles.card}>
+            {/* Large Hero Image */}
+            <View style={styles.cardImageContainer}>
+              <Image source={item.image} style={styles.cardImage} />
+              {/* Difficulty Chip */}
+              <View style={styles.difficultyChip}>
+                <Text style={styles.difficultyChipText}>{item.difficulty}</Text>
               </View>
             </View>
+
+            {/* Card Content */}
+            <View style={styles.cardContent}>
+              {/* Left: Title and Chef Name */}
+              <View style={styles.cardTextContent}>
+                <Text style={styles.cardTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                <Text style={styles.cardCreator}>
+                  {item.created_by_username || "Anonymous"}
+                </Text>
+              </View>
+
+              {/* Right: Likes and Submissions */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statSectionLikes}>
+                  <Text style={styles.statCount}>{likesCount}</Text>
+                  <Text style={styles.statLabel}>Likes</Text>
+                </View>
+                <View style={styles.statSection}>
+                  <Text style={styles.statCount}>{submissionCount}</Text>
+                  <Text style={styles.statLabel}>Submissions</Text>
+                </View>
+              </View>
+            </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
       </Animated.View>
     </Animated.View>
   );
@@ -384,15 +389,15 @@ export default function ChallengeScreen() {
                 submission_count: fullChallenge.submissions?.length || 0,
                 submissions: undefined,
               };
-            const updatedChallenge = convertToChallenge(
+              const updatedChallenge = convertToChallenge(
                 challengeWithCount as ChallengeRow,
-              currentUserId
-            );
-            setChallenges((prev) =>
-              prev.map((c) =>
-                c.id === updatedChallenge.id ? updatedChallenge : c
-              )
-            );
+                currentUserId
+              );
+              setChallenges((prev) =>
+                prev.map((c) =>
+                  c.id === updatedChallenge.id ? updatedChallenge : c
+                )
+              );
             }
           } else if (payload.eventType === "DELETE") {
             // Challenge deleted - remove it from the list
@@ -654,7 +659,7 @@ export default function ChallengeScreen() {
           <Ionicons name="search" size={20} color={Colors.palette.dark} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search challenges or creators..."
+            placeholder="Search by title or creator..."
             placeholderTextColor={Colors.palette.dark}
             value={unifiedSearch}
             onChangeText={setUnifiedSearch}
@@ -899,8 +904,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -916,7 +921,10 @@ export default function ChallengeScreen() {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView style={styles.modalOptions} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.modalOptions}
+              showsVerticalScrollIndicator={false}
+            >
               {timeLimitOptions.map((option) => (
                 <TouchableOpacity
                   key={option.value}
@@ -951,7 +959,7 @@ export default function ChallengeScreen() {
                   )}
                 </TouchableOpacity>
               ))}
-              
+
               {/* Custom Time Input */}
               <View style={{ paddingHorizontal: 20, marginTop: 16 }}>
                 <Text style={styles.modalSectionLabel}>Custom Time:</Text>
@@ -976,7 +984,8 @@ export default function ChallengeScreen() {
                       <Text
                         style={[
                           styles.unitButtonText,
-                          customTimeUnit === "min" && styles.unitButtonTextActive,
+                          customTimeUnit === "min" &&
+                            styles.unitButtonTextActive,
                         ]}
                       >
                         min
@@ -992,7 +1001,8 @@ export default function ChallengeScreen() {
                       <Text
                         style={[
                           styles.unitButtonText,
-                          customTimeUnit === "hr" && styles.unitButtonTextActive,
+                          customTimeUnit === "hr" &&
+                            styles.unitButtonTextActive,
                         ]}
                       >
                         hr
@@ -1092,8 +1102,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -1197,8 +1207,8 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={() => setModalVisible(null)}
+            activeOpacity={1}
+            onPress={() => setModalVisible(null)}
           />
           <View
             style={styles.modalContent}
@@ -1406,7 +1416,7 @@ export default function ChallengeScreen() {
               <ChallengeCardSkeleton />
             </Animated.View>
           ) : (
-            <Animated.View 
+            <Animated.View
               style={styles.emptyContainer}
               entering={FadeInUp.duration(500)}
             >

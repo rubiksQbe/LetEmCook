@@ -3,26 +3,26 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    Easing,
-    FadeIn,
-    FadeInDown,
-    FadeInLeft,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming,
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeInLeft,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fetchChallenges, supabase } from "../../../lib/supabase";
@@ -86,7 +86,13 @@ interface AnimatedPolaroidProps {
   index?: number;
 }
 
-function AnimatedPolaroid({ children, onPress, style, isPinned = false, index = 0 }: AnimatedPolaroidProps) {
+function AnimatedPolaroid({
+  children,
+  onPress,
+  style,
+  isPinned = false,
+  index = 0,
+}: AnimatedPolaroidProps) {
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -102,8 +108,12 @@ function AnimatedPolaroid({ children, onPress, style, isPinned = false, index = 
   };
 
   return (
-    <Animated.View 
-      entering={isPinned ? FadeIn.duration(300) : FadeInDown.delay(index * 60).duration(300)}
+    <Animated.View
+      entering={
+        isPinned
+          ? FadeIn.duration(300)
+          : FadeInDown.delay(index * 60).duration(300)
+      }
     >
       <Animated.View style={animatedStyle}>
         <TouchableOpacity
@@ -121,11 +131,11 @@ function AnimatedPolaroid({ children, onPress, style, isPinned = false, index = 
 }
 
 // Animated Mouse with very subtle idle bounce
-function AnimatedMouse({ 
-  children, 
-  onPress 
-}: { 
-  children: React.ReactNode; 
+function AnimatedMouse({
+  children,
+  onPress,
+}: {
+  children: React.ReactNode;
   onPress: () => void;
 }) {
   const translateY = useSharedValue(0);
@@ -144,10 +154,7 @@ function AnimatedMouse({
   }, []);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
+    transform: [{ translateY: translateY.value }, { scale: scale.value }],
   }));
 
   const handlePressIn = () => {
@@ -445,7 +452,7 @@ export default function FridgeScreen() {
             )}
           </View>
 
-          <Animated.View 
+          <Animated.View
             style={styles.fridgeWrapper}
             entering={FadeInDown.duration(350)}
           >
@@ -472,7 +479,14 @@ export default function FridgeScreen() {
                       color={Colors.palette.darkest}
                     />
                   </View>
-                  <View style={{ position: "relative", width: 130, height: 100, marginBottom: 5 }}>
+                  <View
+                    style={{
+                      position: "relative",
+                      width: 130,
+                      height: 100,
+                      marginBottom: 5,
+                    }}
+                  >
                     <Image
                       source={
                         pinnedChallenge.image_url
@@ -620,6 +634,7 @@ const styles = StyleSheet.create({
     color: Colors.palette.darkest,
     textAlign: "center",
     lineHeight: 16,
+    padding: 2,
   },
   magnet: {
     position: "absolute",

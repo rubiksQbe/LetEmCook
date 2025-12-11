@@ -990,7 +990,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    marginTop: 30,
+    marginTop: 15,
+    marginBottom: 15,
   },
   settingsHeader: {
     fontFamily: "Poppins_600SemiBold",

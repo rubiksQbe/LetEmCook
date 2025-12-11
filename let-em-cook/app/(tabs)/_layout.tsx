@@ -47,75 +47,76 @@ export default function TabLayout() {
 
   return (
     <>
-    <Tabs
-      initialRouteName="challenges"
-      screenOptions={{
-        headerTitleAlign: "center",
-        tabBarActiveTintColor: Colors.palette.darkest,
-        tabBarInactiveTintColor: Colors.palette.darkest,
-        tabBarIconStyle: { marginTop: 7, aspectRatio: 1 },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontFamily: "Poppins_500Medium",
-        },
-        tabBarItemStyle: {
-          flex: 1,
-        },
-        // Off-white background for tab bar
-        tabBarStyle: {
-          backgroundColor: "#FAFAFA",
-          borderTopWidth: 0,
-          position: "absolute",
-          elevation: 0,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="challenges"
-        options={{
-          title: "Challenges",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} iconName="challenges" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="fridge"
-        options={{
-          title: "Fridge",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} iconName="fridge" />
-          ),
+      <Tabs
+        initialRouteName="challenges"
+        screenOptions={{
+          headerTitleAlign: "center",
+          tabBarActiveTintColor: Colors.palette.darkest,
+          tabBarInactiveTintColor: Colors.palette.darkest,
+          tabBarIconStyle: { marginTop: 7, aspectRatio: 1 },
+          tabBarLabelStyle: {
+            fontSize: 12,
+            fontFamily: "Poppins_500Medium",
+          },
           tabBarItemStyle: {
             flex: 1,
-            marginLeft: 4,
+          },
+          // Off-white background for tab bar
+          tabBarStyle: {
+            backgroundColor: "#FAFAFA",
+            borderTopWidth: 0,
+            position: "absolute",
+            elevation: 0,
+            paddingHorizontal: 10,
           },
         }}
-      />
-      <Tabs.Screen
-        name="friends"
-        options={{
-          title: "Friends",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} iconName="friends" />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabBarIcon focused={focused} iconName="settings" />
-          ),
-        }}
-      />
-    </Tabs>
-    <OnboardingOverlay />
+      >
+        <Tabs.Screen
+          name="challenges"
+          options={{
+            title: "Challenges",
+            headerShown: false,
+            tabBarIcon: ({ focused }) => (
+              <TabBarIcon focused={focused} iconName="challenges" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="fridge"
+          options={{
+            title: "Fridge",
+            headerShown: false,
+            tabBarIcon: ({ focused }) => (
+              <TabBarIcon focused={focused} iconName="fridge" />
+            ),
+            tabBarItemStyle: {
+              flex: 1,
+              marginLeft: 4,
+            },
+          }}
+        />
+        <Tabs.Screen
+          name="friends"
+          options={{
+            title: "Friends",
+            headerShown: false,
+            tabBarIcon: ({ focused }) => (
+              <TabBarIcon focused={focused} iconName="friends" />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            headerShown: false,
+            tabBarIcon: ({ focused }) => (
+              <TabBarIcon focused={focused} iconName="settings" />
+            ),
+          }}
+        />
+      </Tabs>
+      <OnboardingOverlay />
     </>
   );
 }

@@ -5,21 +5,21 @@ import { useFocusEffect } from "@react-navigation/native";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Animated, {
-    FadeInDown,
-    FadeInUp,
-    Layout
+  FadeInDown,
+  FadeInUp,
+  Layout,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -155,41 +155,41 @@ export default function FriendScreen() {
       // 3. Process the results
       const friendProfiles: Friend[] = (friendshipData ?? [])
         .map((row: any) => {
-        // Renamed to friendProfile to match the query alias
-        const friendProfileData = row.friendProfile;
+          // Renamed to friendProfile to match the query alias
+          const friendProfileData = row.friendProfile;
 
-        if (!friendProfileData) {
-          console.warn(
-            `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
-              row
-            )}`
-          );
-          return null;
-        }
+          if (!friendProfileData) {
+            console.warn(
+              `DEBUG WARNING: Skipping friend row. Profile data for user_id2 is NULL in row: ${JSON.stringify(
+                row
+              )}`
+            );
+            return null;
+          }
 
           // Handle case where curr_chal might be an array (Supabase sometimes returns arrays for relations)
           const currChal = Array.isArray(friendProfileData.curr_chal)
             ? friendProfileData.curr_chal[0] || null
             : friendProfileData.curr_chal;
 
-        // Construct the object using the friend's profile data
-        // combined with the invitation status from the parent row.
+          // Construct the object using the friend's profile data
+          // combined with the invitation status from the parent row.
           const friendDataWithInvite: FriendProfile = {
-          // Essential Profile Properties
-          id: friendProfileData.id,
-          username: friendProfileData.username,
-          avatar: friendProfileData.avatar,
+            // Essential Profile Properties
+            id: friendProfileData.id,
+            username: friendProfileData.username,
+            avatar: friendProfileData.avatar,
             curr_chal: currChal,
 
-          // Invitation Properties (From the parent row, which belongs to this relationship)
-          invited_challenge_id: row.invited_challenge_id,
-          invitation_status: row.invitation_status,
+            // Invitation Properties (From the parent row, which belongs to this relationship)
+            invited_challenge_id: row.invited_challenge_id,
+            invitation_status: row.invitation_status,
             invited_challenge_title: Array.isArray(row.invited_challenge)
               ? row.invited_challenge[0]?.title ?? null
               : row.invited_challenge?.title ?? null,
-        };
+          };
 
-        // Map the combined data to the final Friend type
+          // Map the combined data to the final Friend type
           return mapToFriend(friendDataWithInvite);
         })
         .filter((f): f is Friend => f !== null);
@@ -329,218 +329,245 @@ export default function FriendScreen() {
   };
 
   // Function to remove a friend
-  const handleRemoveFriend = useCallback(async (friendId: string, friendUsername: string) => {
-    Alert.alert(
-      "Remove Friend",
-      `Are you sure you want to remove ${friendUsername} from your friends list?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const { data: { user } } = await supabase.auth.getUser();
-              if (!user?.id) {
-                Alert.alert("Error", "You must be logged in to remove friends.");
-                return;
-              }
-
-              // Delete the friendship (only where current user is user_id1)
-              const { error } = await supabase
-                .from("friendships")
-                .delete()
-                .eq("user_id1", user.id)
-                .eq("user_id2", friendId);
-
-              if (error) {
-                Alert.alert("Error", "Failed to remove friend.");
-                console.error("Remove friend error:", error);
-                return;
-              }
-
-              Alert.alert("Success", `${friendUsername} has been removed from your friends list.`);
-              loadData();
-            } catch (error) {
-              console.error("Remove friend failed:", error);
-              Alert.alert("Error", "Failed to remove friend due to a server error.");
-            }
+  const handleRemoveFriend = useCallback(
+    async (friendId: string, friendUsername: string) => {
+      Alert.alert(
+        "Remove Friend",
+        `Are you sure you want to remove ${friendUsername} from your friends list?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
           },
-        },
-      ]
-    );
-  }, [loadData]);
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const {
+                  data: { user },
+                } = await supabase.auth.getUser();
+                if (!user?.id) {
+                  Alert.alert(
+                    "Error",
+                    "You must be logged in to remove friends."
+                  );
+                  return;
+                }
+
+                // Delete the friendship (only where current user is user_id1)
+                const { error } = await supabase
+                  .from("friendships")
+                  .delete()
+                  .eq("user_id1", user.id)
+                  .eq("user_id2", friendId);
+
+                if (error) {
+                  Alert.alert("Error", "Failed to remove friend.");
+                  console.error("Remove friend error:", error);
+                  return;
+                }
+
+                Alert.alert(
+                  "Success",
+                  `${friendUsername} has been removed from your friends list.`
+                );
+                loadData();
+              } catch (error) {
+                console.error("Remove friend failed:", error);
+                Alert.alert(
+                  "Error",
+                  "Failed to remove friend due to a server error."
+                );
+              }
+            },
+          },
+        ]
+      );
+    },
+    [loadData]
+  );
 
   // Friend Row Component with Long Press Support
-  const FriendRow = React.memo(({ item, handleRemoveFriend }: { item: Friend; handleRemoveFriend: (id: string, username: string) => void }) => {
-    const avatarSource = require("../../assets/images/mouse-assets/defaultmouse.png");
+  const FriendRow = React.memo(
+    ({
+      item,
+      handleRemoveFriend,
+    }: {
+      item: Friend;
+      handleRemoveFriend: (id: string, username: string) => void;
+    }) => {
+      const avatarSource = require("../../assets/images/mouse-assets/defaultmouse.png");
 
-    // Note: The challenge image is also a remote URL from the 'challenges' table
-    const challengeImageSource = item.current_challenge_image
-      ? { uri: item.current_challenge_image }
-      : require("../../assets/images/placeholder.jpg");
+      // Note: The challenge image is also a remote URL from the 'challenges' table
+      const challengeImageSource = item.current_challenge_image
+        ? { uri: item.current_challenge_image }
+        : require("../../assets/images/placeholder.jpg");
 
-    const challengeIsPresent = !!item.curr_chal?.id; // Check if a challenge ID exists
-    // Determine if the friend has a pending invitation
-    const isInvited =
-      item.invitation_status === "sent" && item.invited_challenge_title;
+      const challengeIsPresent = !!item.curr_chal?.id; // Check if a challenge ID exists
+      // Determine if the friend has a pending invitation
+      const isInvited =
+        item.invitation_status === "sent" && item.invited_challenge_title;
 
-    // Determine the label text and image source based on status
-    let labelText: string;
-    let imageSource: any;
-    let imageOpacity: number;
-    let isDisabled: boolean; // Only clickable if they have a pinned challenge
+      // Determine the label text and image source based on status
+      let labelText: string;
+      let imageSource: any;
+      let imageOpacity: number;
+      let isDisabled: boolean; // Only clickable if they have a pinned challenge
 
-    if (challengeIsPresent) {
-      // PRIORITY 1: Display Pinned Challenge
-      labelText = `Pinned challenge: ${item.current_challenge_name}`;
-      imageSource = challengeImageSource;
-      imageOpacity = 1.0;
-      isDisabled = false; // Is clickable
-    } else {
-      // PRIORITY 2: No Pinned Challenge (This covers invited and truly empty states)
-      labelText = "No pinned challenge...";
-      imageSource = require("../../assets/images/placeholder.jpg");
-      imageOpacity = isInvited ? 0.7 : 0.5; // Dim slightly if invited/empty
-      isDisabled = true; // Not clickable
-    }
-    
-    // Function to handle the press event
-    const handleCardPress = () => {
-      if (!challengeIsPresent || !item.curr_chal) {
-        // If no current challenge, do nothing
-        return;
+      if (challengeIsPresent) {
+        // PRIORITY 1: Display Pinned Challenge
+        labelText = `Pinned challenge: ${item.current_challenge_name}`;
+        imageSource = challengeImageSource;
+        imageOpacity = 1.0;
+        isDisabled = false; // Is clickable
+      } else {
+        // PRIORITY 2: No Pinned Challenge (This covers invited and truly empty states)
+        labelText = "No pinned challenge...";
+        imageSource = require("../../assets/images/placeholder.jpg");
+        imageOpacity = isInvited ? 0.7 : 0.5; // Dim slightly if invited/empty
+        isDisabled = true; // Not clickable
       }
 
-      // Navigate to the challenge details page
-      router.push({
-        pathname: "/challenges/[id]",
-        params: {
-          id: item.curr_chal.id,
+      // Function to handle the press event
+      const handleCardPress = () => {
+        if (!challengeIsPresent || !item.curr_chal) {
+          // If no current challenge, do nothing
+          return;
+        }
 
-          challenge: JSON.stringify({
+        // Navigate to the challenge details page
+        router.push({
+          pathname: "/challenges/[id]",
+          params: {
             id: item.curr_chal.id,
-            title: item.current_challenge_name,
-            image_url: item.current_challenge_image,
-          }),
-        },
-      });
-    };
 
-    // Handle long press to delete
-    const handleLongPress = () => {
-      handleRemoveFriend(item.id, item.username ?? "Unknown");
-    };
+            challenge: JSON.stringify({
+              id: item.curr_chal.id,
+              title: item.current_challenge_name,
+              image_url: item.current_challenge_image,
+            }),
+          },
+        });
+      };
 
-    return (
-      <View style={styles.friendRow}>
-      <TouchableOpacity
-        onPress={handleCardPress}
-          onLongPress={handleLongPress}
-        disabled={isDisabled}
-        activeOpacity={isDisabled ? 1.0 : 0.8}
-          style={styles.friendContent}
-      >
-        {/* ... (friendAvatarColumn unchanged) ... */}
-        <View style={styles.friendAvatarContainer}>
-          <View style={styles.friendAvatarColumn}>
-            <View style={{ width: 80, height: 80 }}>
-              {/* base mouse */}
-              <Image
-                source={avatarSource}
-                style={styles.avatar}
-                resizeMode="contain"
-              />
+      // Handle long press to delete
+      const handleLongPress = () => {
+        handleRemoveFriend(item.id, item.username ?? "Unknown");
+      };
 
-              {/* hat overlay */}
-              {item.hat && HatAssets[item.hat] && (
-                <Image
-                  source={HatAssets[item.hat]}
-                  style={[
-                    {
-                      position: "absolute",
-                      resizeMode: "contain",
-                    },
-                    hatPosition(item.hat), // ⭐ apply custom coordinates
-                  ]}
-                />
-              )}
+      return (
+        <View style={styles.friendRow}>
+          <TouchableOpacity
+            onPress={handleCardPress}
+            onLongPress={handleLongPress}
+            disabled={isDisabled}
+            activeOpacity={isDisabled ? 1.0 : 0.8}
+            style={styles.friendContent}
+          >
+            {/* ... (friendAvatarColumn unchanged) ... */}
+            <View style={styles.friendAvatarContainer}>
+              <View style={styles.friendAvatarColumn}>
+                <View style={{ width: 80, height: 80 }}>
+                  {/* base mouse */}
+                  <Image
+                    source={avatarSource}
+                    style={styles.avatar}
+                    resizeMode="contain"
+                  />
 
-              {/* item overlay */}
-              {item.item && ItemAssets[item.item] && (
-                <Image
-                  source={ItemAssets[item.item]}
-                  style={[
-                    {
-                      position: "absolute",
-                      resizeMode: "contain",
-                    },
-                    itemPosition(item.item), // ⭐ apply custom coordinates
-                  ]}
-                />
-              )}
-            </View>
+                  {/* hat overlay */}
+                  {item.hat && HatAssets[item.hat] && (
+                    <Image
+                      source={HatAssets[item.hat]}
+                      style={[
+                        {
+                          position: "absolute",
+                          resizeMode: "contain",
+                        },
+                        hatPosition(item.hat), // ⭐ apply custom coordinates
+                      ]}
+                    />
+                  )}
 
-            <Text style={styles.friendName}>{item.username ?? "Unknown"}</Text>
-          </View>
-        </View>
+                  {/* item overlay */}
+                  {item.item && ItemAssets[item.item] && (
+                    <Image
+                      source={ItemAssets[item.item]}
+                      style={[
+                        {
+                          position: "absolute",
+                          resizeMode: "contain",
+                        },
+                        itemPosition(item.item), // ⭐ apply custom coordinates
+                      ]}
+                    />
+                  )}
+                </View>
 
-        {/* CRITICAL: Update the Challenge Card JSX */}
-        <View style={styles.challengeCard}>
-          <View style={styles.challengeImageContainer}>
-          <Image
-            source={imageSource}
-            style={[styles.challengeImage, { opacity: imageOpacity }]}
-          />
-          </View>
-          <View style={styles.challengeTextContainer}>
-            {/* NEW WRAPPER */}
-            {/* Main Label: Always present, reflects current state */}
-            <Text
-              style={styles.challengeLabel}
-              numberOfLines={2}
-              ellipsizeMode="tail"
-            >
-              {labelText}
-            </Text>
-            {/* Conditional Invitation Sub-Label */}
-            {isInvited && (
-              <View style={styles.inviteSubTextRow}>
-                <MaterialCommunityIcons
-                  name="invoice-text-send-outline"
-                  size={12}
-                  color={Colors.palette.blue}
-                  style={{ marginRight: 4 }}
-                />
-                <Text
-                  style={styles.inviteSubText}
-                  numberOfLines={1}
-                  ellipsizeMode="tail"
-                >
-                  Invited to: {item.invited_challenge_title}!
+                <Text style={styles.friendName}>
+                  {item.username ?? "Unknown"}
                 </Text>
               </View>
-            )}
-          </View>
-        </View>
-      </TouchableOpacity>
-      </View>
-    );
-  });
+            </View>
 
-  const renderFriend = React.useCallback(({ item, index }: { item: Friend; index: number }) => {
-    return (
-      <Animated.View
-        entering={FadeInDown.delay(index * 40).duration(250)}
-        layout={Layout.springify()}
-      >
-        <FriendRow item={item} handleRemoveFriend={handleRemoveFriend} />
-      </Animated.View>
-    );
-  }, [handleRemoveFriend]);
+            {/* CRITICAL: Update the Challenge Card JSX */}
+            <View style={styles.challengeCard}>
+              <View style={styles.challengeImageContainer}>
+                <Image
+                  source={imageSource}
+                  style={[styles.challengeImage, { opacity: imageOpacity }]}
+                />
+              </View>
+              <View style={styles.challengeTextContainer}>
+                {/* NEW WRAPPER */}
+                {/* Main Label: Always present, reflects current state */}
+                <Text
+                  style={styles.challengeLabel}
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                >
+                  {labelText}
+                </Text>
+                {/* Conditional Invitation Sub-Label */}
+                {isInvited && (
+                  <View style={styles.inviteSubTextRow}>
+                    <MaterialCommunityIcons
+                      name="invoice-text-send-outline"
+                      size={12}
+                      color={Colors.palette.blue}
+                      style={{ marginRight: 4 }}
+                    />
+                    <Text
+                      style={styles.inviteSubText}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      Invited to: {item.invited_challenge_title}!
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  );
+
+  const renderFriend = React.useCallback(
+    ({ item, index }: { item: Friend; index: number }) => {
+      return (
+        <Animated.View
+          entering={FadeInDown.delay(index * 40).duration(250)}
+          layout={Layout.springify()}
+        >
+          <FriendRow item={item} handleRemoveFriend={handleRemoveFriend} />
+        </Animated.View>
+      );
+    },
+    [handleRemoveFriend]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -549,66 +576,66 @@ export default function FriendScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-      {/*ADD FRIENDS SECTION */}
-      <View style={styles.addFriendSection}>
-        <Text style={styles.addFriendTitle}>Add Friends</Text>
-        <View style={styles.searchBarContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by username..."
-            placeholderTextColor={Colors.palette.dark}
-            value={searchUsername}
-            onChangeText={setSearchUsername}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={handleAddFriend}
-            disabled={addFriendLoading || !searchUsername}
-          >
-            {addFriendLoading ? (
-              <ActivityIndicator color="white" />
-            ) : (
-              <MaterialCommunityIcons
-                name="plus"
-                size={30}
-                color={Colors.palette.lightest}
-              />
-            )}
-          </TouchableOpacity>
+        {/*ADD FRIENDS SECTION */}
+        <View style={styles.addFriendSection}>
+          <Text style={styles.addFriendTitle}>Add Friends</Text>
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by username..."
+              placeholderTextColor={Colors.palette.dark}
+              value={searchUsername}
+              onChangeText={setSearchUsername}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAddFriend}
+              disabled={addFriendLoading || !searchUsername}
+            >
+              {addFriendLoading ? (
+                <ActivityIndicator size={30} color="white" />
+              ) : (
+                <MaterialCommunityIcons
+                  name="plus"
+                  size={30}
+                  color={Colors.palette.lightest}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+          {addFriendMessage && (
+            <Text style={styles.messageText}>{addFriendMessage}</Text>
+          )}
         </View>
-        {addFriendMessage && (
-          <Text style={styles.messageText}>{addFriendMessage}</Text>
-        )}
-      </View>
 
-      {/* Friends List */}
-      <Animated.FlatList
-        data={friends}
-        keyExtractor={(item) => item.id}
-        renderItem={renderFriend}
-        style={styles.content}
-        contentContainerStyle={
-          friends.length === 0 ? styles.emptyList : styles.listContent
-        }
-        ListEmptyComponent={() => (
-          <Animated.Text 
-            style={styles.emptyText}
-            entering={FadeInUp.duration(400)}
-          >
-            You have no friends yet.
-          </Animated.Text>
-        )}
-        showsVerticalScrollIndicator={true}
-        nestedScrollEnabled={true}
-        bounces={true}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        updateCellsBatchingPeriod={50}
-        initialNumToRender={10}
-        windowSize={10}
-        keyboardShouldPersistTaps="handled"
-      />
+        {/* Friends List */}
+        <Animated.FlatList
+          data={friends}
+          keyExtractor={(item) => item.id}
+          renderItem={renderFriend}
+          style={styles.content}
+          contentContainerStyle={
+            friends.length === 0 ? styles.emptyList : styles.listContent
+          }
+          ListEmptyComponent={() => (
+            <Animated.Text
+              style={styles.emptyText}
+              entering={FadeInUp.duration(400)}
+            >
+              You have no friends yet.
+            </Animated.Text>
+          )}
+          showsVerticalScrollIndicator={true}
+          nestedScrollEnabled={true}
+          bounces={true}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={10}
+          windowSize={10}
+          keyboardShouldPersistTaps="handled"
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

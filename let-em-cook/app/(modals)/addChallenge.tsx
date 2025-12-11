@@ -4,18 +4,18 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import Colors from "../../constants/Colors";
 import { createChallenge } from "../../lib/supabase";
@@ -643,7 +643,7 @@ export default function AddChallengeScreen() {
                   Enter Custom Dietary Restriction
                 </Text>
                 <TextInput
-                  placeholder="e.g., Nut-Free, Dairy-Free, Low-Carb"
+                  placeholder="e.g. Nut-Free, Dairy-Free, Low-Carb"
                   placeholderTextColor="#888"
                   value={customDietary}
                   onChangeText={setCustomDietary}
@@ -871,7 +871,7 @@ const styles = StyleSheet.create({
   },
   customTimeRow: {
     flexDirection: "row",
-    alignItems: "center",
+    //alignItems: "center",
     marginBottom: 12,
   },
   unitPicker: {
@@ -879,19 +879,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.palette.darkest,
     borderRadius: 10,
+    marginBottom: 10,
     overflow: "hidden",
   },
   unitOption: {
     paddingVertical: 12,
     paddingHorizontal: 20,
     backgroundColor: Colors.palette.lightest,
-    borderWidth: 1,
-    borderColor: Colors.palette.darkest,
   },
   unitOptionSelected: {
     backgroundColor: Colors.palette.accent,
-    borderWidth: 1,
-    borderColor: Colors.palette.darkest,
   },
   unitText: {
     fontSize: 14,
