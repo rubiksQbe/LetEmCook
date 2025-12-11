@@ -5,32 +5,32 @@ import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Colors from "../../../constants/Colors";
 import { Challenge, ChallengeRow, Submission } from "../../../constants/types";
 import {
-    addHatToUser,
-    fetchChallenge,
-    fetchSubmissions,
-    getUserChallengeVote,
-    getUserSubmissionVote,
-    hasUserSubmitted,
-    isChallengePinned,
-    submitToChallenge,
-    supabase,
-    togglePinChallenge,
-    voteOnChallenge,
-    voteOnSubmission,
+  addHatToUser,
+  fetchChallenge,
+  fetchSubmissions,
+  getUserChallengeVote,
+  getUserSubmissionVote,
+  hasUserSubmitted,
+  isChallengePinned,
+  submitToChallenge,
+  supabase,
+  togglePinChallenge,
+  voteOnChallenge,
+  voteOnSubmission,
 } from "../../../lib/supabase";
 
 const HatAssets: Record<string, any> = {
@@ -119,6 +119,14 @@ type FriendForShare = {
   item: string | null;
 };
 
+type FriendRow = {
+  friend: {
+    id: string;
+    username: string | null;
+    avatar: string | null;
+  } | null;
+};
+
 export default function ChallengeDetailScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
@@ -198,7 +206,7 @@ export default function ChallengeDetailScreen() {
     setIsFriendsLoading(true);
 
     try {
-      // --- 1) Load friends
+      // 1) Load friends
       const { data: friendshipData, error } = await supabase
         .from("friendships")
         .select(
@@ -214,13 +222,13 @@ export default function ChallengeDetailScreen() {
 
       if (error) throw error;
 
-      const friends = friendshipData.map((row) => ({
-        id: row.friend.id,
-        username: row.friend.username ?? "Unknown User",
-        avatar: row.friend.avatar ?? null,
+      const friends = (friendshipData as unknown as FriendRow[]).map((row) => ({
+        id: row.friend?.id ?? "",
+        username: row.friend?.username ?? "Unknown User",
+        avatar: row.friend?.avatar ?? null,
         hat: null,
         item: null,
-      })) as FriendForShare[];
+      }));
 
       const friendIds = friends.map((f) => f.id);
 
@@ -229,13 +237,13 @@ export default function ChallengeDetailScreen() {
         return;
       }
 
-      // --- 2) Fetch accessories for those friends
+      // 2) Fetch accessories
       const { data: accessories } = await supabase
         .from("pal-accessory")
         .select("user_id, hat, item")
         .in("user_id", friendIds);
 
-      // Merge accessories into friends
+      // Merge accessories
       for (const f of friends) {
         const acc = accessories?.find((a) => a.user_id === f.id);
         if (acc) {

@@ -5,19 +5,39 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+type InviteProfile = {
+  username: string | null;
+};
+
+type InviteFriendshipRow = {
+  user_id1: string;
+  user_id2: string;
+  invitation_status: string | null;
+  invited_challenge_id: string | null;
+  invited_challenge: {
+    id: string;
+    title: string;
+    image_url: string | null;
+  } | null;
+
+  // Optional joined profile objects
+  recipient?: InviteProfile | null;
+  sender?: InviteProfile | null;
+};
 
 export default function ProfileScreen() {
   const params = useLocalSearchParams();
@@ -330,76 +350,87 @@ export default function ProfileScreen() {
 
   async function loadInviteHistory() {
     setLoadingInvites(true);
+
     try {
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch all friendships where user is sender (user_id1)
-      const { data: allSentFriendships, error: sentError } = await supabase
+      // ---------- Fetch Sent Invites ----------
+      const sentQuery = await supabase
         .from("friendships")
         .select(
           `
-          user_id1,
-          user_id2,
-          invitation_status,
-          invited_challenge_id,
-          invited_challenge:challenges!friendships_invited_challenge_id_fkey (id, title, image_url),
-          recipient:profiles!friendships_user_id2_fkey (username)
-        `
+        user_id1,
+        user_id2,
+        invitation_status,
+        invited_challenge_id,
+        invited_challenge:challenges!friendships_invited_challenge_id_fkey (
+          id,
+          title,
+          image_url
+        ),
+        recipient:profiles!friendships_user_id2_fkey (username)
+      `
         )
         .eq("user_id1", user.id);
 
-      // Fetch all friendships where user is recipient (user_id2)
-      const { data: allReceivedFriendships, error: receivedError } = await supabase
+      const allSentFriendships =
+        (sentQuery.data as unknown as InviteFriendshipRow[]) || [];
+
+      // ---------- Fetch Received Invites ----------
+      const receivedQuery = await supabase
         .from("friendships")
         .select(
           `
-          user_id1,
-          user_id2,
-          invitation_status,
-          invited_challenge_id,
-          invited_challenge:challenges!friendships_invited_challenge_id_fkey (id, title, image_url),
-          sender:profiles!friendships_user_id1_fkey (username)
-        `
+        user_id1,
+        user_id2,
+        invitation_status,
+        invited_challenge_id,
+        invited_challenge:challenges!friendships_invited_challenge_id_fkey (
+          id,
+          title,
+          image_url
+        ),
+        sender:profiles!friendships_user_id1_fkey (username)
+      `
         )
         .eq("user_id2", user.id);
 
-      if (sentError || receivedError) {
-        console.error("Error loading invite history:", sentError || receivedError);
-        return;
-      }
+      const allReceivedFriendships =
+        (receivedQuery.data as unknown as InviteFriendshipRow[]) || [];
 
-      // Filter to only show friendships that have invite history
-      // (must have a challenge_id to show in history)
-      const sentInvites = (allSentFriendships || []).filter(
-        (f) => f.invited_challenge_id !== null
-      );
-      const receivedInvites = (allReceivedFriendships || []).filter(
+      // ---------- Filter only rows with challenge invites ----------
+      const sentInvites = allSentFriendships.filter(
         (f) => f.invited_challenge_id !== null
       );
 
+      const receivedInvites = allReceivedFriendships.filter(
+        (f) => f.invited_challenge_id !== null
+      );
+
+      // ---------- Format for UI ----------
       const formattedInvites = [
         ...sentInvites.map((invite) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "sent" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: invite.recipient?.username || "Unknown",
-          date: null, // You can add a timestamp field if needed
+          otherUser: invite.recipient?.username ?? "Unknown",
+          date: null,
         })),
+
         ...receivedInvites.map((invite) => ({
           id: `${invite.user_id1}-${invite.user_id2}-${invite.invited_challenge_id}`,
           type: "received" as const,
           status: invite.invitation_status,
           challenge: invite.invited_challenge,
-          otherUser: invite.sender?.username || "Unknown",
+          otherUser: invite.sender?.username ?? "Unknown",
           date: null,
         })),
       ];
 
-      // Sort by most recent first (if you add timestamps later)
       setInviteHistory(formattedInvites);
     } catch (error) {
       console.error("Error loading invite history:", error);
@@ -489,10 +520,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
 
           {/* View Onboarding Section */}
-          <TouchableOpacity
-            style={styles.section}
-            onPress={startOnboarding}
-          >
+          <TouchableOpacity style={styles.section} onPress={startOnboarding}>
             <View style={styles.sectionContent}>
               <Text style={styles.sectionTitle}>View Onboarding</Text>
               <Text style={styles.sectionSubtitle}>
@@ -746,9 +774,12 @@ export default function ProfileScreen() {
                     <Text style={styles.inviteHistorySummaryText}>
                       Total: {inviteHistory.length} invite
                       {inviteHistory.length !== 1 ? "s" : ""} • Sent:{" "}
-                      {inviteHistory.filter((i) => i.type === "sent").length}{" "}
-                      • Received:{" "}
-                      {inviteHistory.filter((i) => i.type === "received").length}
+                      {inviteHistory.filter((i) => i.type === "sent").length} •
+                      Received:{" "}
+                      {
+                        inviteHistory.filter((i) => i.type === "received")
+                          .length
+                      }
                     </Text>
                   </View>
                   <ScrollView
@@ -788,13 +819,16 @@ export default function ProfileScreen() {
                                   styles.inviteHistoryItemTypeSent,
                               ]}
                             >
-                              {invite.type === "sent" ? "Sent to" : "Received from"}
+                              {invite.type === "sent"
+                                ? "Sent to"
+                                : "Received from"}
                             </Text>
                           </View>
                           <Text
                             style={[
                               styles.inviteHistoryItemUser,
-                              invite.type === "sent" && styles.inviteHistoryItemUserSent,
+                              invite.type === "sent" &&
+                                styles.inviteHistoryItemUserSent,
                             ]}
                           >
                             {invite.otherUser}

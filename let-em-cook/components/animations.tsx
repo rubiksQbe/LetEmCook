@@ -1,16 +1,16 @@
 import Colors from "@/constants/Colors";
 import React, { useEffect } from "react";
-import { StyleSheet, ViewStyle } from "react-native";
+import { DimensionValue, StyleSheet, ViewStyle } from "react-native";
 import Animated, {
-    Easing,
-    interpolate,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 // ============= ANIMATED PRESSABLE CARD =============
@@ -22,6 +22,11 @@ interface AnimatedPressableProps {
   onLongPress?: () => void;
   style?: ViewStyle;
   disabled?: boolean;
+}
+
+interface PressableChildProps {
+  onPress?: () => void;
+  onLongPress?: () => void;
 }
 
 export function AnimatedPressable({
@@ -58,10 +63,13 @@ export function AnimatedPressable({
         onTouchEnd={disabled ? undefined : handlePressOut}
         onTouchCancel={disabled ? undefined : handlePressOut}
       >
-        {React.cloneElement(children as React.ReactElement, {
-          onPress: disabled ? undefined : onPress,
-          onLongPress: disabled ? undefined : onLongPress,
-        })}
+        {React.cloneElement(
+          children as React.ReactElement<PressableChildProps>,
+          {
+            onPress: disabled ? undefined : onPress,
+            onLongPress: disabled ? undefined : onLongPress,
+          }
+        )}
       </Animated.View>
     </Animated.View>
   );
@@ -191,8 +199,8 @@ export function PulseView({ children, active = false, style }: PulseViewProps) {
 // Shimmer effect for loading states
 
 interface SkeletonProps {
-  width: number | string;
-  height: number;
+  width: DimensionValue;
+  height: DimensionValue;
   borderRadius?: number;
   style?: ViewStyle;
 }
@@ -261,7 +269,7 @@ export function ChallengeCardSkeleton() {
           borderRadius={4}
           style={{ marginBottom: 8 }}
         />
-        <Skeleton width="40%"height={16} borderRadius={4} />
+        <Skeleton width="40%" height={16} borderRadius={4} />
       </Animated.View>
     </Animated.View>
   );
@@ -507,7 +515,11 @@ export function ConfettiBurst({ visible, onComplete }: ConfettiBurstProps) {
   return visible ? (
     <Animated.View style={confettiStyles.container}>
       {particles.map((i) => (
-        <ConfettiParticle key={i} index={i} onComplete={i === 0 ? onComplete : undefined} />
+        <ConfettiParticle
+          key={i}
+          index={i}
+          onComplete={i === 0 ? onComplete : undefined}
+        />
       ))}
     </Animated.View>
   ) : null;
@@ -529,7 +541,9 @@ function ConfettiParticle({
   const distance = 100 + Math.random() * 50;
 
   useEffect(() => {
-    translateX.value = withTiming(Math.cos(angle) * distance, { duration: 800 });
+    translateX.value = withTiming(Math.cos(angle) * distance, {
+      duration: 800,
+    });
     translateY.value = withSequence(
       withTiming(-50, { duration: 300 }),
       withTiming(100, { duration: 500 })
@@ -670,4 +684,3 @@ export function ShakeView({ children, shake, style }: ShakeViewProps) {
     <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
   );
 }
-

@@ -6,10 +6,9 @@ import { createClient } from "@supabase/supabase-js";
 import Constants from "expo-constants";
 
 // Prefer EXPO_PUBLIC_* envs; fall back to app.json extra for local dev.
-const extra =
-  (Constants.expoConfig?.extra as Record<string, unknown> | undefined) ||
-  // manifest is legacy in dev; used as a fallback only.
-  (Constants.manifest?.extra as Record<string, unknown> | undefined);
+const extra = (Constants.expoConfig?.extra ??
+  Constants.manifest2?.extra ??
+  {}) as Record<string, unknown>;
 const SUPABASE_URL =
   (process.env.EXPO_PUBLIC_SUPABASE_URL as string | undefined) ||
   (typeof extra?.EXPO_PUBLIC_SUPABASE_URL === "string"
