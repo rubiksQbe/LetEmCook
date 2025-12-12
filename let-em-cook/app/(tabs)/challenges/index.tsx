@@ -109,7 +109,7 @@ function AnimatedChallengeCard({
     >
       <Animated.View style={animatedStyle}>
         <TouchableOpacity
-          activeOpacity={1}
+          activeOpacity={0}
           onPress={onPress}
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
@@ -815,11 +815,12 @@ export default function ChallengeScreen() {
         visible={modalVisible === "difficulty"}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => setModalVisible(null)}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
-          activeOpacity={1}
+          activeOpacity={0}
           onPress={() => setModalVisible(null)}
         >
           <View
@@ -895,6 +896,7 @@ export default function ChallengeScreen() {
         visible={modalVisible === "time"}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => setModalVisible(null)}
       >
         <KeyboardAvoidingView
@@ -904,7 +906,7 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
+            activeOpacity={0}
             onPress={() => setModalVisible(null)}
           />
           <View
@@ -1102,7 +1104,7 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
+            activeOpacity={0}
             onPress={() => setModalVisible(null)}
           />
           <View
@@ -1198,6 +1200,7 @@ export default function ChallengeScreen() {
         visible={modalVisible === "dietary"}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => setModalVisible(null)}
       >
         <KeyboardAvoidingView
@@ -1207,7 +1210,7 @@ export default function ChallengeScreen() {
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
-            activeOpacity={1}
+            activeOpacity={0}
             onPress={() => setModalVisible(null)}
           />
           <View
@@ -1335,11 +1338,12 @@ export default function ChallengeScreen() {
         visible={modalVisible === "sort"}
         transparent={true}
         animationType="slide"
+        statusBarTranslucent={true}
         onRequestClose={() => setModalVisible(null)}
       >
         <TouchableOpacity
           style={styles.modalOverlay}
-          activeOpacity={1}
+          activeOpacity={0}
           onPress={() => setModalVisible(null)}
         >
           <View
@@ -1455,6 +1459,7 @@ export default function ChallengeScreen() {
         visible={showInviteModal}
         transparent={true}
         animationType="fade"
+        statusBarTranslucent={true}
         onRequestClose={() => setShowInviteModal(false)}
       >
         <View style={styles.inviteModalOverlay}>
@@ -1901,6 +1906,7 @@ const styles = StyleSheet.create({
   },
   modalDoneButton: {
     marginTop: 20,
+    marginBottom: 20,
     marginHorizontal: 20,
     paddingVertical: 14,
     backgroundColor: Colors.palette.blue,
