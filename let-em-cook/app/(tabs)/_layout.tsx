@@ -4,6 +4,7 @@ import { Image, StyleSheet } from "react-native";
 
 import { OnboardingOverlay } from "@/components/OnboardingOverlay";
 import Colors from "@/constants/Colors";
+import { useOnboarding } from "@/contexts/OnboardingContext";
 
 // Custom TabBarIcon component that uses images
 function TabBarIcon({
@@ -42,8 +43,7 @@ function TabBarIcon({
 }
 
 export default function TabLayout() {
-  // Onboarding is now automatically checked and started in OnboardingContext
-  // No need to manually trigger it here
+  const { isOnboarding } = useOnboarding();
 
   return (
     <>
@@ -53,22 +53,27 @@ export default function TabLayout() {
           headerTitleAlign: "center",
           tabBarActiveTintColor: Colors.palette.darkest,
           tabBarInactiveTintColor: Colors.palette.darkest,
-          tabBarIconStyle: { marginTop: 7, aspectRatio: 1 },
-          tabBarLabelStyle: {
-            fontSize: 12,
-            fontFamily: "Poppins_500Medium",
-          },
           tabBarItemStyle: {
             flex: 1,
           },
-          // Off-white background for tab bar
+          // Off-white background for tab bar, blank white during onboarding
           tabBarStyle: {
-            backgroundColor: "#FAFAFA",
+            backgroundColor: isOnboarding ? "#FFFFFF" : "#FAFAFA",
             borderTopWidth: 0,
             position: "absolute",
             elevation: 0,
             paddingHorizontal: 10,
           },
+          // Hide tab bar content during onboarding
+          tabBarIconStyle: isOnboarding
+            ? { display: "none" }
+            : { marginTop: 7, aspectRatio: 1 },
+          tabBarLabelStyle: isOnboarding
+            ? { display: "none" }
+            : {
+                fontSize: 12,
+                fontFamily: "Poppins_500Medium",
+              },
         }}
       >
         <Tabs.Screen
